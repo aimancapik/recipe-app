@@ -2,10 +2,17 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Recipe } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+function getAI() {
+  const apiKey = process.env.API_KEY || '';
+  if (!apiKey) {
+    throw new Error('Gemini API key is not configured');
+  }
+  return new GoogleGenAI({ apiKey });
+}
 
 export async function generateRecipeFromIngredients(prompt: string): Promise<Recipe | null> {
   try {
+    const ai = getAI();
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `Generate a creative recipe based on these ingredients/vibe: "${prompt}". Return as a structured JSON object.`,
