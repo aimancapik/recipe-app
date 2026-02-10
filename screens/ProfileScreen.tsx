@@ -30,7 +30,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
           <div className="relative">
             <div 
               className="bg-center bg-no-repeat aspect-square bg-cover rounded-full min-h-32 w-32 border-4 border-primary shadow-lg" 
-              style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBILiK1hQwBlf4NVszxvR4Akzvc5lbUDLmy2YsJEWIfCL5Zz8vMv3kSHD3mALvZI9oRel0W4EBLtu1s8kvp66IQMLMQ6gBBpYfviRs0dbPAtQzlljJHRIT-t3lsnDz_YBYFZuNLQx94aZZ1YdnCoSOjKOP-1khkegcPUBiyQ2cQXJpMkGrzEiY6Ll1dCeqKhlumpAHHLm2utWZi4jfGKfoF1eLveh4KIi0qYxaIilFK40YpJQFskbz7X-NMunJl5kGW6zjXxdhQRk0")' }} 
+              style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200")' }} 
             />
             <div className="absolute bottom-1 right-1 bg-primary p-1.5 rounded-full border-2 border-background-light dark:border-background-dark">
               <span className="material-symbols-outlined text-xs font-bold text-black">check</span>

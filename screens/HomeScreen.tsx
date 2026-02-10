@@ -43,7 +43,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ recipes, onRecipeClick, onToggl
           <div className="size-12 rounded-full border-2 border-primary p-0.5">
             <div 
               className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-full" 
-              style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBTecxxvlTZUrCzPxfhrYV4sYTrAw-WkM2jPMXFHU0CzoPXpb62KCmAAXKg7qlvbampBJUdWt63p5Nemw2VShvrLsRfQnvw_XdF3n-8PNL-bKYuaW419_LYhSePyd1cuwcwkoSuxPd03Xxs5OPYrlBUQ1VN3M7SzDg0nbewZEUfvqb9fjI_fdRwyu3Zm9npQOhcxqMPDXO75fL4opuBs-0CxPjJXBxJ4l0z99ZUHCyEuW-s_W6aubIyHHiavlEgDf4e1KMAM1bHbsM")' }} 
+              style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100")' }} 
             />
           </div>
           <div>
