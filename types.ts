@@ -5,7 +5,8 @@ export enum Screen {
   SAVED = 'saved',
   PROFILE = 'profile',
   DETAIL = 'detail',
-  AI_GENERATE = 'ai_generate'
+  AI_GENERATE = 'ai_generate',
+  FILTER = 'filter'
 }
 
 export interface Direction {

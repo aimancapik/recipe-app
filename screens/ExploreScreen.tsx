@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { CATEGORIES } from '../constants';
 import { Recipe } from '../types';
+import { FilterOptions } from './FilterScreen';
 
 interface ExploreScreenProps {
   recipes: Recipe[];
@@ -10,15 +11,19 @@ interface ExploreScreenProps {
   onRecipeClick: (recipe: Recipe) => void;
   onAIGenerate: () => void;
   onToggleFavorite: (id: string) => void;
+  onOpenFilter: () => void;
+  filters: FilterOptions;
 }
 
-const ExploreScreen: React.FC<ExploreScreenProps> = ({ 
-  recipes, 
-  initialSearch, 
-  initialCategory, 
-  onRecipeClick, 
-  onAIGenerate, 
-  onToggleFavorite 
+const ExploreScreen: React.FC<ExploreScreenProps> = ({
+  recipes,
+  initialSearch,
+  initialCategory,
+  onRecipeClick,
+  onAIGenerate,
+  onToggleFavorite,
+  onOpenFilter,
+  filters
 }) => {
   const [search, setSearch] = useState(initialSearch);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategory || null);
@@ -34,19 +39,35 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
   }, [initialCategory]);
 
   const filteredRecipes = useMemo(() => {
-    return recipes.filter(r => {
+    let result = recipes.filter(r => {
       const query = search.toLowerCase().trim();
-      // Search logic: If less than 3 chars, ignore the search query unless it's empty
       const isSearchActive = query.length >= 3;
-      const matchesSearch = !isSearchActive || 
-                          r.title.toLowerCase().includes(query) || 
+      const matchesSearch = !isSearchActive ||
+                          r.title.toLowerCase().includes(query) ||
                           r.ingredients.some(ing => ing.toLowerCase().includes(query)) ||
                           r.category.toLowerCase().includes(query);
-      
+
       const matchesCategory = !selectedCategory || r.category.toLowerCase() === selectedCategory.toLowerCase();
-      return matchesSearch && matchesCategory;
+
+      // Apply difficulty filter
+      const matchesDifficulty = !filters.difficulty || r.level === filters.difficulty;
+
+      // Apply dietary filter (check if category matches any dietary preference)
+      const matchesDietary = filters.dietary.length === 0 ||
+                            filters.dietary.some(d => r.category.toLowerCase().includes(d.toLowerCase()));
+
+      return matchesSearch && matchesCategory && matchesDifficulty && matchesDietary;
     });
-  }, [recipes, search, selectedCategory]);
+
+    // Sort results
+    if (filters.sortBy === 'rating') {
+      result = [...result].sort((a, b) => b.rating - a.rating);
+    } else if (filters.sortBy === 'newest') {
+      result = [...result].sort((a, b) => parseInt(b.id) - parseInt(a.id));
+    }
+
+    return result;
+  }, [recipes, search, selectedCategory, filters]);
 
   const clearHistory = () => setHistory([]);
   const removeHistoryItem = (item: string) => setHistory(prev => prev.filter(i => i !== item));
@@ -91,8 +112,15 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <button type="submit" className="bg-primary hover:bg-primary/90 text-black p-3 rounded-xl flex items-center justify-center shadow-sm active:scale-95 transition-transform">
+          <button
+            type="button"
+            onClick={onOpenFilter}
+            className="bg-primary hover:bg-primary/90 text-black p-3 rounded-xl flex items-center justify-center shadow-sm active:scale-95 transition-transform relative"
+          >
             <span className="material-symbols-outlined">tune</span>
+            {(filters.cookingTime || filters.dietary.length > 0 || filters.difficulty) && (
+              <span className="absolute -top-1 -right-1 size-3 bg-red-500 rounded-full border-2 border-slate-50 dark:border-background-dark"></span>
+            )}
           </button>
         </form>
         

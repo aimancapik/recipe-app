@@ -9,6 +9,7 @@ import RecipeDetailScreen from './screens/RecipeDetailScreen';
 import AIGenerateScreen from './screens/AIGenerateScreen';
 import SavedRecipesScreen from './screens/SavedRecipesScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import FilterScreen, { FilterOptions } from './screens/FilterScreen';
 
 const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>(Screen.HOME);
@@ -16,6 +17,12 @@ const App: React.FC = () => {
   const [recipes, setRecipes] = useState<Recipe[]>(RECIPES);
   const [searchQuery, setSearchQuery] = useState('');
   const [initialCategory, setInitialCategory] = useState<string | null>(null);
+  const [filters, setFilters] = useState<FilterOptions>({
+    sortBy: 'popular',
+    cookingTime: null,
+    dietary: [],
+    difficulty: null,
+  });
 
   const navigateTo = (screen: Screen, recipe?: Recipe) => {
     if (recipe) setSelectedRecipe(recipe);
@@ -58,13 +65,15 @@ const App: React.FC = () => {
         );
       case Screen.EXPLORE:
         return (
-          <ExploreScreen 
+          <ExploreScreen
             recipes={recipes}
             initialSearch={searchQuery}
             initialCategory={initialCategory}
             onRecipeClick={(r) => navigateTo(Screen.DETAIL, r)}
             onAIGenerate={() => navigateTo(Screen.AI_GENERATE)}
             onToggleFavorite={toggleFavorite}
+            onOpenFilter={() => navigateTo(Screen.FILTER)}
+            filters={filters}
           />
         );
       case Screen.DETAIL:
@@ -93,8 +102,17 @@ const App: React.FC = () => {
         );
       case Screen.PROFILE:
         return (
-          <ProfileScreen 
+          <ProfileScreen
             onBack={() => setCurrentScreen(Screen.HOME)}
+          />
+        );
+      case Screen.FILTER:
+        return (
+          <FilterScreen
+            onClose={() => setCurrentScreen(Screen.EXPLORE)}
+            onApply={(newFilters) => setFilters(newFilters)}
+            initialFilters={filters}
+            resultCount={recipes.length}
           />
         );
       default:
@@ -102,7 +120,7 @@ const App: React.FC = () => {
     }
   };
 
-  const showBottomNav = currentScreen !== Screen.DETAIL && currentScreen !== Screen.AI_GENERATE;
+  const showBottomNav = currentScreen !== Screen.DETAIL && currentScreen !== Screen.AI_GENERATE && currentScreen !== Screen.FILTER;
 
   return (
     <div className="max-w-md mx-auto bg-slate-50 dark:bg-background-dark min-h-screen shadow-xl flex flex-col relative overflow-x-hidden pb-24">
