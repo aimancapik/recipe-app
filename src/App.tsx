@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Screen, Recipe, GroceryItem } from '@/types';
 import { RECIPES } from '@/data/constants';
 import BottomNav from '@/components/BottomNav';
@@ -17,7 +17,19 @@ import PublishRecipeScreen from '@/pages/PublishRecipeScreen';
 const App: React.FC = () => {
     const [currentScreen, setCurrentScreen] = useState<Screen>(Screen.HOME);
     const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
-    const [recipes, setRecipes] = useState<Recipe[]>(RECIPES);
+    const [recipes, setRecipes] = useState<Recipe[]>(() => {
+        try {
+            const saved = localStorage.getItem('culinary_haven_recipes');
+            if (saved) return JSON.parse(saved);
+        } catch { /* ignore */ }
+        return RECIPES;
+    });
+
+    useEffect(() => {
+        try {
+            localStorage.setItem('culinary_haven_recipes', JSON.stringify(recipes));
+        } catch { /* ignore if storage full */ }
+    }, [recipes]);
     const [searchQuery, setSearchQuery] = useState('');
     const [initialCategory, setInitialCategory] = useState<string | null>(null);
     const [groceryItems, setGroceryItems] = useState<GroceryItem[]>([]);
@@ -80,6 +92,42 @@ const App: React.FC = () => {
 
     const clearCheckedGroceryItems = () => {
         setGroceryItems(prev => prev.filter(item => !item.checked));
+    };
+
+    const handlePublishRecipe = (data: {
+        title: string;
+        description: string;
+        coverImage: string | null;
+        prepTime: string;
+        serves: string;
+        difficulty: string;
+        ingredients: { id: string; name: string; qty: string; unit: string }[];
+        instructions: { id: string; description: string; image: string | null }[];
+    }) => {
+        const newRecipe: Recipe = {
+            id: `user-${Date.now()}`,
+            title: data.title || 'Untitled Recipe',
+            image: data.coverImage || 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=600',
+            prepTime: data.prepTime ? `${data.prepTime}m` : '30m',
+            rating: 0,
+            reviews: 0,
+            serves: data.serves || '01',
+            kcal: '0',
+            level: (data.difficulty as 'Easy' | 'Medium' | 'Hard') || 'Easy',
+            ingredients: data.ingredients.map(i => `${i.qty}${i.unit} ${i.name}`),
+            directions: data.instructions
+                .filter(s => s.description.trim())
+                .map((s, idx) => ({
+                    step: idx + 1,
+                    title: `Step ${idx + 1}`,
+                    description: s.description,
+                    image: s.image || null,
+                })),
+            category: 'popular',
+            isFavorite: false,
+        };
+        setRecipes(prev => [newRecipe, ...prev]);
+        navigateTo(Screen.HOME);
     };
 
     const renderScreen = () => {
@@ -162,6 +210,7 @@ const App: React.FC = () => {
                 return (
                     <PublishRecipeScreen
                         onBack={() => setCurrentScreen(Screen.HOME)}
+                        onPublish={handlePublishRecipe}
                     />
                 );
             default:

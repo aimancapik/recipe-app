@@ -104,11 +104,16 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                     <div className="space-y-6">
                         {recipe.directions.map((dir, idx) => (
                             <div key={idx} className="flex gap-4">
-                                <div className="flex-none flex items-center justify-center size-8 rounded-full bg-primary text-black font-bold text-sm">
+                                <div className="flex-none flex items-center justify-center size-8 rounded-full bg-primary text-black font-bold text-sm mt-1">
                                     {dir.step}
                                 </div>
-                                <div className="flex flex-col">
+                                <div className="flex flex-col flex-1">
                                     <h3 className="font-bold text-sm mb-1">{dir.title}</h3>
+                                    {dir.image && (
+                                        <div className="w-full aspect-video rounded-xl overflow-hidden mb-3 border border-gray-100 dark:border-zinc-700">
+                                            <img src={dir.image} alt={dir.title} className="w-full h-full object-cover" />
+                                        </div>
+                                    )}
                                     <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                                         {dir.description}
                                     </p>

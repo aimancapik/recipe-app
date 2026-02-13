@@ -15,6 +15,7 @@ export interface Direction {
     step: number;
     title: string;
     description: string;
+    image?: string | null;
 }
 
 export interface Recipe {

@@ -547,7 +547,17 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                                     <div className="absolute left-0 top-0 w-10 h-10 rounded-full bg-primary flex items-center justify-center font-bold text-[#181711] z-10 shadow-sm">
                                         {idx + 1}
                                     </div>
-                                    <p className="text-[#181711]/70 dark:text-white/70 leading-relaxed">{inst.description}</p>
+                                    <div className="flex flex-col sm:flex-row gap-4">
+                                        <div className="flex-1">
+                                            <h3 className="font-bold text-lg mb-1">Step {idx + 1}</h3>
+                                            <p className="text-[#181711]/70 dark:text-white/70 leading-relaxed">{inst.description}</p>
+                                        </div>
+                                        {inst.image && (
+                                            <div className="w-full sm:w-32 h-32 shrink-0 overflow-hidden rounded-lg bg-[#e6e5db] dark:bg-[#3d3c26]">
+                                                <img src={inst.image} alt={`Step ${idx + 1}`} className="w-full h-full object-cover" />
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             ))}
                         </div>
