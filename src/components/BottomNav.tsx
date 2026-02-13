@@ -5,9 +5,10 @@ import { Screen } from '@/types';
 interface BottomNavProps {
     currentScreen: Screen;
     onNavigate: (screen: Screen) => void;
+    onQuickAction?: () => void;
 }
 
-const BottomNav: React.FC<BottomNavProps> = ({ currentScreen, onNavigate }) => {
+const BottomNav: React.FC<BottomNavProps> = ({ currentScreen, onNavigate, onQuickAction }) => {
     return (
         <nav className="fixed bottom-0 left-0 right-0 border-t border-slate-100 dark:border-slate-800 bg-white/95 dark:bg-background-dark/95 backdrop-blur-md px-4 pb-4 pt-2 shadow-2xl z-50">
             <div className="flex max-w-md mx-auto items-center">
@@ -29,7 +30,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentScreen, onNavigate }) => {
 
                 <div className="flex flex-1 flex-col items-center justify-center">
                     <button
-                        onClick={() => onNavigate(Screen.AI_GENERATE)}
+                        onClick={() => onQuickAction?.()}
                         className="bg-primary size-12 rounded-full flex items-center justify-center -mt-8 shadow-lg border-4 border-slate-50 dark:border-background-dark active:scale-90 transition-transform"
                     >
                         <span className="material-symbols-outlined text-black font-bold">add</span>

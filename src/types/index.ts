@@ -7,7 +7,8 @@ export enum Screen {
     DETAIL = 'detail',
     AI_GENERATE = 'ai_generate',
     FILTER = 'filter',
-    GROCERY = 'grocery'
+    GROCERY = 'grocery',
+    PUBLISH = 'publish'
 }
 
 export interface Direction {

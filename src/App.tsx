@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Screen, Recipe, GroceryItem } from '@/types';
 import { RECIPES } from '@/data/constants';
 import BottomNav from '@/components/BottomNav';
+import QuickActionsOverlay from '@/components/QuickActionsOverlay';
 import HomeScreen from '@/pages/HomeScreen';
 import ExploreScreen from '@/pages/ExploreScreen';
 import RecipeDetailScreen from '@/pages/RecipeDetailScreen';
@@ -11,6 +12,7 @@ import SavedRecipesScreen from '@/pages/SavedRecipesScreen';
 import ProfileScreen from '@/pages/ProfileScreen';
 import FilterScreen, { FilterOptions } from '@/pages/FilterScreen';
 import GroceryListScreen from '@/pages/GroceryListScreen';
+import PublishRecipeScreen from '@/pages/PublishRecipeScreen';
 
 const App: React.FC = () => {
     const [currentScreen, setCurrentScreen] = useState<Screen>(Screen.HOME);
@@ -19,6 +21,7 @@ const App: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [initialCategory, setInitialCategory] = useState<string | null>(null);
     const [groceryItems, setGroceryItems] = useState<GroceryItem[]>([]);
+    const [quickActionsOpen, setQuickActionsOpen] = useState(false);
     const [filters, setFilters] = useState<FilterOptions>({
         sortBy: 'popular',
         cookingTime: null,
@@ -155,19 +158,35 @@ const App: React.FC = () => {
                         onBack={() => setCurrentScreen(Screen.HOME)}
                     />
                 );
+            case Screen.PUBLISH:
+                return (
+                    <PublishRecipeScreen
+                        onBack={() => setCurrentScreen(Screen.HOME)}
+                    />
+                );
             default:
                 return null;
         }
     };
 
-    const showBottomNav = currentScreen !== Screen.DETAIL && currentScreen !== Screen.AI_GENERATE && currentScreen !== Screen.FILTER && currentScreen !== Screen.GROCERY;
+    const showBottomNav = currentScreen !== Screen.DETAIL && currentScreen !== Screen.AI_GENERATE && currentScreen !== Screen.FILTER && currentScreen !== Screen.GROCERY && currentScreen !== Screen.PUBLISH;
 
     return (
         <div className="max-w-md mx-auto bg-slate-50 dark:bg-background-dark min-h-screen shadow-xl flex flex-col relative overflow-x-hidden pb-24">
             {renderScreen()}
             {showBottomNav && (
-                <BottomNav currentScreen={currentScreen} onNavigate={setCurrentScreen} />
+                <BottomNav
+                    currentScreen={currentScreen}
+                    onNavigate={setCurrentScreen}
+                    onQuickAction={() => setQuickActionsOpen(true)}
+                />
             )}
+            <QuickActionsOverlay
+                isOpen={quickActionsOpen}
+                onClose={() => setQuickActionsOpen(false)}
+                onCreateRecipe={() => navigateTo(Screen.PUBLISH)}
+                onAddToShoppingList={() => navigateTo(Screen.GROCERY)}
+            />
         </div>
     );
 };
