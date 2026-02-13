@@ -10,50 +10,48 @@ interface BottomNavProps {
 
 const BottomNav: React.FC<BottomNavProps> = ({ currentScreen, onNavigate, onQuickAction }) => {
     return (
-        <nav className="fixed bottom-0 left-0 right-0 border-t border-slate-100 dark:border-slate-800 bg-white/95 dark:bg-background-dark/95 backdrop-blur-md px-4 pb-4 pt-2 shadow-2xl z-50">
-            <div className="flex max-w-md mx-auto items-center">
-                <button
-                    onClick={() => onNavigate(Screen.HOME)}
-                    className={`flex flex-1 flex-col items-center justify-center gap-1 transition-colors ${currentScreen === Screen.HOME ? 'text-black dark:text-primary' : 'text-slate-400'}`}
-                >
-                    <span className={`material-symbols-outlined ${currentScreen === Screen.HOME ? 'fill-icon' : ''}`}>home</span>
-                    <p className={`text-[10px] ${currentScreen === Screen.HOME ? 'font-bold' : 'font-medium'}`}>Home</p>
-                </button>
+        <nav className="btm-nav btm-nav-md z-50 bg-base-100/95 backdrop-blur-md border-t border-base-200">
+            <button
+                onClick={() => onNavigate(Screen.HOME)}
+                className={currentScreen === Screen.HOME ? 'active text-primary' : 'text-base-content/40'}
+            >
+                <span className={`material-symbols-outlined ${currentScreen === Screen.HOME ? 'fill-icon' : ''}`}>home</span>
+                <span className="btm-nav-label text-[10px] font-medium">Home</span>
+            </button>
 
-                <button
-                    onClick={() => onNavigate(Screen.EXPLORE)}
-                    className={`flex flex-1 flex-col items-center justify-center gap-1 transition-colors ${currentScreen === Screen.EXPLORE ? 'text-black dark:text-primary' : 'text-slate-400'}`}
-                >
-                    <span className={`material-symbols-outlined ${currentScreen === Screen.EXPLORE ? 'fill-icon' : ''}`}>explore</span>
-                    <p className={`text-[10px] ${currentScreen === Screen.EXPLORE ? 'font-bold' : 'font-medium'}`}>Discover</p>
-                </button>
+            <button
+                onClick={() => onNavigate(Screen.EXPLORE)}
+                className={currentScreen === Screen.EXPLORE ? 'active text-primary' : 'text-base-content/40'}
+            >
+                <span className={`material-symbols-outlined ${currentScreen === Screen.EXPLORE ? 'fill-icon' : ''}`}>explore</span>
+                <span className="btm-nav-label text-[10px] font-medium">Discover</span>
+            </button>
 
-                <div className="flex flex-1 flex-col items-center justify-center">
-                    <button
-                        onClick={() => onQuickAction?.()}
-                        className="bg-primary size-12 rounded-full flex items-center justify-center -mt-8 shadow-lg border-4 border-slate-50 dark:border-background-dark active:scale-90 transition-transform"
-                    >
-                        <span className="material-symbols-outlined text-black font-bold">add</span>
-                    </button>
-                    <p className="text-[10px] font-medium text-slate-400 mt-1">Create</p>
-                </div>
-
+            <div className="flex flex-col items-center justify-center">
                 <button
-                    onClick={() => onNavigate(Screen.SAVED)}
-                    className={`flex flex-1 flex-col items-center justify-center gap-1 transition-colors ${currentScreen === Screen.SAVED ? 'text-black dark:text-primary' : 'text-slate-400'}`}
+                    onClick={() => onQuickAction?.()}
+                    className="btn btn-primary btn-circle btn-md -mt-8 shadow-lg border-4 border-base-100"
                 >
-                    <span className={`material-symbols-outlined ${currentScreen === Screen.SAVED ? 'fill-icon' : ''}`}>bookmark</span>
-                    <p className={`text-[10px] ${currentScreen === Screen.SAVED ? 'font-bold' : 'font-medium'}`}>Saved</p>
+                    <span className="material-symbols-outlined text-primary-content font-bold">add</span>
                 </button>
-
-                <button
-                    onClick={() => onNavigate(Screen.PROFILE)}
-                    className={`flex flex-1 flex-col items-center justify-center gap-1 transition-colors ${currentScreen === Screen.PROFILE ? 'text-black dark:text-primary' : 'text-slate-400'}`}
-                >
-                    <span className={`material-symbols-outlined ${currentScreen === Screen.PROFILE ? 'fill-icon' : ''}`}>person</span>
-                    <p className={`text-[10px] ${currentScreen === Screen.PROFILE ? 'font-bold' : 'font-medium'}`}>Profile</p>
-                </button>
+                <span className="text-[10px] font-medium text-base-content/40 mt-1">Create</span>
             </div>
+
+            <button
+                onClick={() => onNavigate(Screen.SAVED)}
+                className={currentScreen === Screen.SAVED ? 'active text-primary' : 'text-base-content/40'}
+            >
+                <span className={`material-symbols-outlined ${currentScreen === Screen.SAVED ? 'fill-icon' : ''}`}>bookmark</span>
+                <span className="btm-nav-label text-[10px] font-medium">Saved</span>
+            </button>
+
+            <button
+                onClick={() => onNavigate(Screen.PROFILE)}
+                className={currentScreen === Screen.PROFILE ? 'active text-primary' : 'text-base-content/40'}
+            >
+                <span className={`material-symbols-outlined ${currentScreen === Screen.PROFILE ? 'fill-icon' : ''}`}>person</span>
+                <span className="btm-nav-label text-[10px] font-medium">Profile</span>
+            </button>
         </nav>
     );
 };

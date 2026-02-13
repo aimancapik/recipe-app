@@ -60,7 +60,7 @@ export const RECIPES: Recipe[] = [
         isFavorite: true,
         ingredients: ['Spaghetti', 'Pancetta', 'Eggs', 'Pecorino Romano'],
         directions: [
-            { step: 1, title: 'Boil pasta', description: 'Cook spaghetti in a large pot of well-salted boiling water until al dente.' },
+            { step: 1, title: 'Boil pasta', description: 'Cook spaghetti in a large pot of well-salted boiling water until al dente.', timer: 600 },
             { step: 2, title: 'Cook pancetta', description: 'Fry pancetta in a pan until crispy and golden. Reserve the rendered fat.', image: 'https://images.unsplash.com/photo-1588168333986-5078d3ae3976?w=400' },
             { step: 3, title: 'Mix eggs and cheese', description: 'Whisk eggs with grated Pecorino Romano and black pepper in a bowl.' },
             { step: 4, title: 'Combine and serve', description: 'Toss hot pasta with pancetta, then quickly stir in egg mixture off heat. Serve immediately.', image: 'https://images.unsplash.com/photo-1612874742237-6526221588e3?w=400' }
@@ -81,7 +81,7 @@ export const RECIPES: Recipe[] = [
         ingredients: ['Salmon fillet', 'Garlic', 'Lemon', 'Asparagus'],
         directions: [
             { step: 1, title: 'Season the salmon', description: 'Pat salmon dry and season with salt, pepper, and minced garlic.' },
-            { step: 2, title: 'Sear salmon', description: 'Heat oil in a pan and sear salmon skin-side down for 4 minutes until crispy.', image: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=400' },
+            { step: 2, title: 'Sear salmon', description: 'Heat oil in a pan and sear salmon skin-side down for 4 minutes until crispy.', image: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=400', timer: 240 },
             { step: 3, title: 'Add lemon and asparagus', description: 'Flip the salmon, add lemon slices and asparagus. Cook for another 3 minutes.' }
         ]
     },
@@ -218,7 +218,7 @@ export const RECIPES: Recipe[] = [
             'Crushed peanuts & lime wedges'
         ],
         directions: [
-            { step: 1, title: 'Prep noodles', description: 'Soak rice noodles in warm water for 20 minutes until pliable. Drain and set aside.' },
+            { step: 1, title: 'Prep noodles', description: 'Soak rice noodles in warm water for 20 minutes until pliable. Drain and set aside.', timer: 1200 },
             { step: 2, title: 'Make the sauce', description: 'Whisk together fish sauce, tamarind paste, and brown sugar in a small bowl.' },
             { step: 3, title: 'Stir-fry', description: 'Cook shrimp in a hot wok until pink. Push to side, scramble the eggs, then add noodles and sauce. Toss everything together.', image: 'https://images.unsplash.com/photo-1543826173-1beeb97525d8?w=400' },
             { step: 4, title: 'Serve', description: 'Top with bean sprouts, crushed peanuts, and a squeeze of fresh lime juice.', image: 'https://images.unsplash.com/photo-1559314809-0d155014e29e?w=400' }

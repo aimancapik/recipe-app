@@ -26,32 +26,32 @@ const SavedRecipesScreen: React.FC<SavedRecipesScreenProps> = ({ recipes, onReci
     const showSearchHint = search.trim().length > 0 && search.trim().length < 3;
 
     return (
-        <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-background-dark">
+        <div className="flex flex-col min-h-screen bg-base-200">
             {/* Header */}
-            <header className="sticky top-0 z-20 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md px-4 pt-6 pb-2">
+            <header className="sticky top-0 z-20 bg-base-100/80 backdrop-blur-md px-4 pt-6 pb-2">
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
-                        <span onClick={onBack} className="material-symbols-outlined text-2xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 p-1 rounded-full transition-colors">arrow_back</span>
-                        <h1 className="text-2xl font-bold tracking-tight">Saved Recipes</h1>
+                        <button onClick={onBack} className="btn btn-ghost btn-circle btn-sm">
+                            <span className="material-symbols-outlined">arrow_back</span>
+                        </button>
+                        <h1 className="text-2xl font-bold tracking-tight text-base-content">Saved Recipes</h1>
                     </div>
-                    <button className="bg-primary/20 p-2 rounded-full">
-                        <span className="material-symbols-outlined text-black dark:text-white">tune</span>
+                    <button className="btn btn-ghost btn-circle btn-sm bg-primary/20">
+                        <span className="material-symbols-outlined">tune</span>
                     </button>
                 </div>
 
                 {/* Search Bar */}
-                <div className="relative mb-2">
-                    <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                        <span className="material-symbols-outlined text-gray-400">search</span>
-                    </div>
+                <label className="input input-bordered flex items-center gap-2 mb-2">
+                    <span className="material-symbols-outlined text-base-content/40">search</span>
                     <input
-                        className="w-full bg-[#f5f4f0] dark:bg-[#323120] border-none rounded-xl py-3 pl-10 pr-4 focus:ring-2 focus:ring-primary text-sm placeholder:text-slate-400"
+                        className="grow"
                         placeholder="Search your bookmarks..."
                         type="text"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
-                </div>
+                </label>
 
                 {showSearchHint && (
                     <p className="text-[10px] font-bold text-primary mb-2 animate-pulse uppercase tracking-wider">
@@ -65,9 +65,9 @@ const SavedRecipesScreen: React.FC<SavedRecipesScreenProps> = ({ recipes, onReci
                         <button
                             key={chip}
                             onClick={() => setFilter(chip)}
-                            className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${filter === chip
-                                    ? 'bg-primary text-black shadow-sm'
-                                    : 'bg-[#f5f4f0] dark:bg-[#323120] text-slate-600 dark:text-slate-400'
+                            className={`btn btn-sm rounded-full ${filter === chip
+                                ? 'btn-primary'
+                                : 'btn-ghost bg-base-200'
                                 }`}
                         >
                             {chip}
@@ -83,35 +83,35 @@ const SavedRecipesScreen: React.FC<SavedRecipesScreenProps> = ({ recipes, onReci
                         {filtered.map(recipe => (
                             <div
                                 key={recipe.id}
-                                className="flex flex-col gap-2 group cursor-pointer animate-in fade-in zoom-in-95 duration-300"
+                                className="card card-compact bg-base-100 shadow-sm cursor-pointer active:scale-95 transition-transform"
                                 onClick={() => onRecipeClick(recipe)}
                             >
-                                <div className="relative aspect-square rounded-xl overflow-hidden shadow-sm">
+                                <figure className="relative aspect-square">
                                     <img
                                         alt={recipe.title}
-                                        className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300"
+                                        className="w-full h-full object-cover"
                                         src={recipe.image}
                                     />
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onToggleFavorite(recipe.id); }}
-                                        className="absolute top-2 right-2 bg-white/90 dark:bg-black/50 p-1.5 rounded-full shadow-md active:scale-90 transition-transform"
+                                        className="absolute top-2 right-2 btn btn-circle btn-xs glass"
                                     >
-                                        <span className={`material-symbols-outlined fill-icon text-red-500 text-xl`}>favorite</span>
+                                        <span className="material-symbols-outlined fill-icon text-red-500 text-lg">favorite</span>
                                     </button>
                                     <div className="absolute bottom-2 left-2">
-                                        <span className="bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-full backdrop-blur-sm capitalize font-bold">{recipe.category}</span>
+                                        <div className="badge badge-neutral badge-sm capitalize">{recipe.category}</div>
                                     </div>
-                                </div>
-                                <div>
+                                </figure>
+                                <div className="card-body !p-3">
                                     <h3 className="font-bold text-sm leading-tight line-clamp-1">{recipe.title}</h3>
-                                    <div className="flex items-center gap-2 mt-1 opacity-70">
+                                    <div className="flex items-center gap-2 text-base-content/50 text-[10px]">
                                         <div className="flex items-center gap-0.5">
                                             <span className="material-symbols-outlined text-xs">schedule</span>
-                                            <span className="text-[10px] font-medium">{recipe.prepTime}</span>
+                                            <span className="font-medium">{recipe.prepTime}</span>
                                         </div>
                                         <div className="flex items-center gap-0.5">
                                             <span className="material-symbols-outlined text-xs">local_fire_department</span>
-                                            <span className="text-[10px] font-medium">{recipe.kcal} kcal</span>
+                                            <span className="font-medium">{recipe.kcal} kcal</span>
                                         </div>
                                     </div>
                                 </div>
@@ -119,12 +119,12 @@ const SavedRecipesScreen: React.FC<SavedRecipesScreenProps> = ({ recipes, onReci
                         ))}
                     </div>
                 ) : (
-                    <div className="flex flex-col items-center justify-center py-20 text-slate-400 text-center">
+                    <div className="flex flex-col items-center justify-center py-20 text-base-content/40 text-center">
                         <span className="material-symbols-outlined text-6xl mb-4">search_off</span>
                         <p className="text-lg font-medium">No saved recipes match your search.</p>
                         <button
                             onClick={() => { setSearch(''); setFilter('All'); }}
-                            className="mt-6 text-primary font-bold"
+                            className="btn btn-primary btn-sm mt-6"
                         >
                             Clear filters
                         </button>

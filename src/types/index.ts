@@ -16,6 +16,8 @@ export interface Direction {
     title: string;
     description: string;
     image?: string | null;
+    mediaType?: 'image' | 'video';
+    timer?: number; // duration in seconds
 }
 
 export interface Recipe {

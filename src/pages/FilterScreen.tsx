@@ -54,31 +54,29 @@ const FilterScreen: React.FC<FilterScreenProps> = ({
     };
 
     return (
-        <div className="relative flex h-screen max-w-md mx-auto flex-col bg-white dark:bg-background-dark overflow-hidden shadow-2xl">
+        <div className="relative flex h-screen max-w-md mx-auto flex-col bg-base-100 overflow-hidden shadow-2xl">
             {/* Header */}
-            <header className="flex items-center bg-white dark:bg-background-dark p-4 border-b border-primary/10 justify-between sticky top-0 z-10">
-                <div
-                    onClick={onClose}
-                    className="text-[#181711] dark:text-white flex size-10 shrink-0 items-center justify-center cursor-pointer hover:bg-primary/10 rounded-full"
-                >
-                    <span className="material-symbols-outlined">close</span>
+            <div className="navbar bg-base-100 border-b border-base-200 sticky top-0 z-10">
+                <div className="navbar-start">
+                    <button onClick={onClose} className="btn btn-ghost btn-circle btn-sm">
+                        <span className="material-symbols-outlined">close</span>
+                    </button>
                 </div>
-                <h2 className="text-[#181711] dark:text-white text-lg font-bold leading-tight tracking-tight flex-1 text-center">Filters</h2>
-                <div className="flex w-12 items-center justify-end">
-                    <button
-                        onClick={handleClearAll}
-                        className="text-[#181711]/60 dark:text-white/60 text-sm font-bold leading-normal hover:text-primary transition-colors"
-                    >
+                <div className="navbar-center">
+                    <h2 className="text-lg font-bold">Filters</h2>
+                </div>
+                <div className="navbar-end">
+                    <button onClick={handleClearAll} className="btn btn-ghost btn-sm text-base-content/60">
                         Clear
                     </button>
                 </div>
-            </header>
+            </div>
 
             {/* Main Content */}
             <main className="flex-1 overflow-y-auto p-4">
                 {/* Sort By Section */}
                 <section className="mb-8">
-                    <h3 className="text-[#181711] dark:text-white text-base font-bold mb-4">Sort By</h3>
+                    <h3 className="text-base font-bold mb-4">Sort By</h3>
                     <div className="flex flex-col gap-3">
                         {[
                             { value: 'popular' as SortOption, label: 'Popular' },
@@ -87,18 +85,16 @@ const FilterScreen: React.FC<FilterScreenProps> = ({
                         ].map(option => (
                             <label
                                 key={option.value}
-                                className="flex items-center gap-4 rounded-xl border border-solid border-primary/20 p-4 flex-row-reverse cursor-pointer hover:bg-primary/5 transition-colors"
+                                className={`flex items-center gap-4 rounded-xl border p-4 cursor-pointer transition-colors ${filters.sortBy === option.value ? 'border-primary bg-primary/10' : 'border-base-200 hover:bg-base-200'}`}
                             >
                                 <input
                                     type="radio"
                                     name="sort"
+                                    className="radio radio-primary"
                                     checked={filters.sortBy === option.value}
                                     onChange={() => setFilters(prev => ({ ...prev, sortBy: option.value }))}
-                                    className="h-5 w-5 border-2 border-primary/30 bg-transparent text-primary focus:ring-primary"
                                 />
-                                <div className="flex grow flex-col">
-                                    <p className="text-[#181711] dark:text-white text-sm font-semibold">{option.label}</p>
-                                </div>
+                                <span className="text-sm font-semibold">{option.label}</span>
                             </label>
                         ))}
                     </div>
@@ -106,7 +102,7 @@ const FilterScreen: React.FC<FilterScreenProps> = ({
 
                 {/* Cooking Time Section */}
                 <section className="mb-8">
-                    <h3 className="text-[#181711] dark:text-white text-base font-bold mb-4">Cooking Time</h3>
+                    <h3 className="text-base font-bold mb-4">Cooking Time</h3>
                     <div className="flex gap-2 flex-wrap">
                         {[
                             { value: 'under15' as CookingTime, label: 'Under 15 mins' },
@@ -120,10 +116,7 @@ const FilterScreen: React.FC<FilterScreenProps> = ({
                                     ...prev,
                                     cookingTime: prev.cookingTime === option.value ? null : option.value
                                 }))}
-                                className={`flex h-11 px-5 items-center justify-center rounded-full border text-sm cursor-pointer transition-colors ${filters.cookingTime === option.value
-                                        ? 'bg-primary text-[#181711] border-primary font-semibold'
-                                        : 'bg-background-light dark:bg-primary/10 text-[#181711] dark:text-white border-primary/10 font-medium hover:border-primary/50'
-                                    }`}
+                                className={`btn btn-sm rounded-full ${filters.cookingTime === option.value ? 'btn-primary' : 'btn-ghost bg-base-200'}`}
                             >
                                 {option.label}
                             </button>
@@ -134,8 +127,8 @@ const FilterScreen: React.FC<FilterScreenProps> = ({
                 {/* Dietary Section */}
                 <section className="mb-8">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-[#181711] dark:text-white text-base font-bold">Dietary</h3>
-                        <span className="text-xs text-primary font-bold">Multiple Select</span>
+                        <h3 className="text-base font-bold">Dietary</h3>
+                        <span className="badge badge-primary badge-sm">Multiple Select</span>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         {[
@@ -146,23 +139,20 @@ const FilterScreen: React.FC<FilterScreenProps> = ({
                         ].map(option => {
                             const isSelected = filters.dietary.includes(option.value);
                             return (
-                                <button
+                                <label
                                     key={option.value}
-                                    onClick={() => toggleDietary(option.value)}
-                                    className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${isSelected
-                                            ? 'border-primary/20 bg-primary/10'
-                                            : 'border-primary/10 bg-white dark:bg-background-dark/50'
-                                        }`}
+                                    className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${isSelected ? 'border-primary bg-primary/10' : 'border-base-200'}`}
                                 >
-                                    <span className={`material-symbols-outlined text-xl ${isSelected ? 'text-primary' : 'text-[#181711]/20'
-                                        }`}>
-                                        {isSelected ? 'check_box' : 'check_box_outline_blank'}
-                                    </span>
-                                    <span className={`text-sm text-[#181711] dark:text-white ${isSelected ? 'font-semibold' : 'font-medium'
-                                        }`}>
+                                    <input
+                                        type="checkbox"
+                                        className="checkbox checkbox-primary checkbox-sm"
+                                        checked={isSelected}
+                                        onChange={() => toggleDietary(option.value)}
+                                    />
+                                    <span className={`text-sm ${isSelected ? 'font-semibold' : 'font-medium'}`}>
                                         {option.label}
                                     </span>
-                                </button>
+                                </label>
                             );
                         })}
                     </div>
@@ -170,8 +160,8 @@ const FilterScreen: React.FC<FilterScreenProps> = ({
 
                 {/* Difficulty Section */}
                 <section className="mb-10">
-                    <h3 className="text-[#181711] dark:text-white text-base font-bold mb-4">Difficulty</h3>
-                    <div className="flex bg-background-light dark:bg-primary/5 p-1 rounded-xl">
+                    <h3 className="text-base font-bold mb-4">Difficulty</h3>
+                    <div className="join w-full">
                         {(['Easy', 'Medium', 'Hard'] as Difficulty[]).map(level => (
                             <button
                                 key={level}
@@ -179,10 +169,7 @@ const FilterScreen: React.FC<FilterScreenProps> = ({
                                     ...prev,
                                     difficulty: prev.difficulty === level ? null : level
                                 }))}
-                                className={`flex-1 py-3 px-2 rounded-lg text-sm transition-colors ${filters.difficulty === level
-                                        ? 'bg-white dark:bg-primary text-[#181711] shadow-sm font-bold'
-                                        : 'text-[#181711]/60 dark:text-white/60 font-medium'
-                                    }`}
+                                className={`join-item btn flex-1 ${filters.difficulty === level ? 'btn-primary' : 'btn-ghost bg-base-200'}`}
                             >
                                 {level}
                             </button>
@@ -192,16 +179,11 @@ const FilterScreen: React.FC<FilterScreenProps> = ({
             </main>
 
             {/* Sticky Footer */}
-            <footer className="p-4 bg-white dark:bg-background-dark border-t border-primary/10">
-                <button
-                    onClick={handleApply}
-                    className="w-full bg-primary hover:bg-primary/90 text-[#181711] font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2 text-base"
-                >
+            <footer className="p-4 bg-base-100 border-t border-base-200">
+                <button onClick={handleApply} className="btn btn-primary w-full gap-2">
                     <span>Apply Filters</span>
                     {resultCount > 0 && (
-                        <span className="bg-[#181711] text-primary text-[10px] px-1.5 py-0.5 rounded-full">
-                            {resultCount}
-                        </span>
+                        <div className="badge badge-neutral badge-sm">{resultCount}</div>
                     )}
                 </button>
             </footer>

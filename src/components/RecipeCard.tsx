@@ -11,10 +11,10 @@ interface RecipeCardProps {
 const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onClick, onToggleFavorite }) => {
     return (
         <div
-            className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden shadow-sm border border-slate-100 dark:border-slate-700 cursor-pointer active:scale-95 transition-transform"
+            className="card card-compact bg-base-100 shadow-sm border border-base-200 cursor-pointer active:scale-95 transition-transform"
             onClick={() => onClick(recipe)}
         >
-            <div className="relative h-40">
+            <figure className="relative h-40">
                 <img
                     src={recipe.image}
                     alt={recipe.title}
@@ -25,24 +25,23 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onClick, onToggleFavori
                         e.stopPropagation();
                         onToggleFavorite?.(recipe.id);
                     }}
-                    className={`absolute top-2 right-2 size-8 backdrop-blur-sm rounded-full flex items-center justify-center transition-colors ${recipe.isFavorite ? 'bg-white text-red-500' : 'bg-white/80 text-slate-400'
-                        }`}
+                    className={`absolute top-2 right-2 btn btn-circle btn-xs glass ${recipe.isFavorite ? 'text-red-500' : 'text-base-content/40'}`}
                 >
-                    <span className={`material-symbols-outlined text-xl ${recipe.isFavorite ? 'fill-1' : ''}`}>
+                    <span className={`material-symbols-outlined text-lg ${recipe.isFavorite ? 'fill-1' : ''}`}>
                         {recipe.isFavorite ? 'heart_check' : 'favorite'}
                     </span>
                 </button>
-            </div>
-            <div className="p-3">
-                <h4 className="font-bold text-sm leading-snug mb-2 line-clamp-1">{recipe.title}</h4>
+            </figure>
+            <div className="card-body !p-3">
+                <h4 className="font-bold text-sm leading-snug line-clamp-1 text-base-content">{recipe.title}</h4>
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1 text-slate-500 text-xs">
+                    <div className="flex items-center gap-1 text-base-content/50 text-xs">
                         <span className="material-symbols-outlined text-sm">schedule</span>
                         <span>{recipe.prepTime}</span>
                     </div>
                     <div className="flex items-center gap-1 text-xs">
-                        <span className="material-symbols-outlined text-sm text-primary fill-1">star</span>
-                        <span className="font-bold">{recipe.rating}</span>
+                        <span className="material-symbols-outlined text-sm text-warning fill-1">star</span>
+                        <span className="font-bold text-base-content">{recipe.rating}</span>
                     </div>
                 </div>
             </div>

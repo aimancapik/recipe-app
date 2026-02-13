@@ -10,9 +10,11 @@ interface HomeScreenProps {
     onSearch: (query: string) => void;
     onSeeAll: (category?: string) => void;
     onOpenGrocery: () => void;
+    isDark: boolean;
+    onToggleTheme: () => void;
 }
 
-const HomeScreen: React.FC<HomeScreenProps> = ({ recipes, onRecipeClick, onToggleFavorite, onSearch, onSeeAll, onOpenGrocery }) => {
+const HomeScreen: React.FC<HomeScreenProps> = ({ recipes, onRecipeClick, onToggleFavorite, onSearch, onSeeAll, onOpenGrocery, isDark, onToggleTheme }) => {
     const [activeCategory, setActiveCategory] = useState('popular');
     const [searchValue, setSearchValue] = useState('');
 
@@ -40,46 +42,57 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ recipes, onRecipeClick, onToggl
             {/* Header */}
             <header className="flex items-center justify-between p-4 pt-6">
                 <div className="flex items-center gap-3">
-                    <div className="size-12 rounded-full border-2 border-primary p-0.5">
-                        <div
-                            className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-full"
-                            style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100")' }}
-                        />
+                    <div className="avatar">
+                        <div className="w-12 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
+                            <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100" alt="Profile" />
+                        </div>
                     </div>
                     <div>
-                        <h2 className="text-xl font-bold leading-tight tracking-tight">Hello, Alex!</h2>
-                        <p className="text-slate-500 dark:text-slate-400 text-sm">What are you cooking today?</p>
+                        <h2 className="text-xl font-bold leading-tight tracking-tight text-base-content">Hello, Alex!</h2>
+                        <p className="text-base-content/50 text-sm">What are you cooking today?</p>
                     </div>
                 </div>
-                <button
-                    onClick={onOpenGrocery}
-                    className="relative p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200"
-                >
-                    <span className="material-symbols-outlined">shopping_bag</span>
-                    <span className="absolute top-2 right-2 size-2.5 bg-red-500 border-2 border-white dark:border-background-dark rounded-full"></span>
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={onToggleTheme}
+                        className="btn btn-ghost btn-circle btn-sm"
+                        title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+                    >
+                        <span className="material-symbols-outlined">{isDark ? 'light_mode' : 'dark_mode'}</span>
+                    </button>
+                    <button onClick={onOpenGrocery} className="btn btn-ghost btn-circle btn-sm indicator">
+                        <span className="indicator-item badge badge-error badge-xs"></span>
+                        <span className="material-symbols-outlined">shopping_bag</span>
+                    </button>
+                </div>
             </header>
 
             {/* Search Bar */}
             <form onSubmit={handleSearchSubmit} className="px-4 py-3">
-                <label className="flex items-center bg-white dark:bg-slate-800 rounded-xl px-4 h-14 w-full shadow-sm border border-slate-100 dark:border-slate-700 cursor-text">
-                    <span className="material-symbols-outlined text-slate-400">search</span>
-                    <input
-                        className="bg-transparent border-none focus:ring-0 w-full text-base placeholder:text-slate-400"
-                        placeholder="Search recipes..."
-                        type="text"
-                        value={searchValue}
-                        onChange={handleSearchChange}
-                    />
-                    <button type="submit" className="material-symbols-outlined text-primary">tune</button>
-                </label>
+                <div className="join w-full">
+                    <div className="flex-1">
+                        <label className="input input-bordered join-item w-full flex items-center gap-2">
+                            <span className="material-symbols-outlined text-base-content/40">search</span>
+                            <input
+                                className="grow"
+                                placeholder="Search recipes..."
+                                type="text"
+                                value={searchValue}
+                                onChange={handleSearchChange}
+                            />
+                        </label>
+                    </div>
+                    <button type="submit" className="btn btn-primary join-item">
+                        <span className="material-symbols-outlined">tune</span>
+                    </button>
+                </div>
             </form>
 
             {/* Categories */}
             <div className="py-4">
                 <div className="flex items-center justify-between px-4 mb-4">
-                    <h3 className="text-lg font-bold">Categories</h3>
-                    <button onClick={() => onSeeAll()} className="text-primary font-semibold text-sm">See All</button>
+                    <h3 className="text-lg font-bold text-base-content">Categories</h3>
+                    <button onClick={() => onSeeAll()} className="btn btn-ghost btn-sm text-primary">See All</button>
                 </div>
                 <div className="flex gap-4 overflow-x-auto px-4 no-scrollbar pb-2">
                     {CATEGORIES.map((cat) => (
@@ -90,14 +103,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ recipes, onRecipeClick, onToggl
                         >
                             <div className={`size-16 rounded-2xl flex items-center justify-center transition-all ${activeCategory === cat.id
                                 ? 'bg-primary shadow-lg shadow-primary/20 scale-105'
-                                : 'bg-white dark:bg-slate-800 shadow-sm'
+                                : 'bg-base-200'
                                 }`}>
-                                <span className={`material-symbols-outlined text-3xl ${activeCategory === cat.id ? 'text-white fill-icon' : 'text-slate-600 dark:text-slate-300'
+                                <span className={`material-symbols-outlined text-3xl ${activeCategory === cat.id ? 'text-primary-content fill-icon' : 'text-base-content/60'
                                     }`}>
                                     {cat.icon}
                                 </span>
                             </div>
-                            <span className={`text-sm ${activeCategory === cat.id ? 'font-bold' : 'font-medium text-slate-600 dark:text-slate-400'}`}>
+                            <span className={`text-sm ${activeCategory === cat.id ? 'font-bold text-base-content' : 'font-medium text-base-content/60'}`}>
                                 {cat.name}
                             </span>
                         </button>
@@ -108,10 +121,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ recipes, onRecipeClick, onToggl
             {/* Popular Recipes Section */}
             <div className="flex-1 px-4 py-4">
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-bold">
+                    <h3 className="text-lg font-bold text-base-content">
                         {activeCategory === 'popular' ? 'Popular Recipes' : `${activeCategory} Recipes`}
                     </h3>
-                    <button onClick={() => onSeeAll(activeCategory === 'popular' ? undefined : activeCategory)} className="text-primary font-semibold text-sm">See All</button>
+                    <button onClick={() => onSeeAll(activeCategory === 'popular' ? undefined : activeCategory)} className="btn btn-ghost btn-sm text-primary">See All</button>
                 </div>
                 <div className="grid grid-cols-2 gap-4 pb-2">
                     {filteredRecipes.map((recipe) => (
@@ -134,34 +147,34 @@ const RecipeCardSmall: React.FC<{
     onToggleFavorite: (id: string) => void;
 }> = ({ recipe, onClick, onToggleFavorite }) => (
     <div
-        className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden shadow-sm border border-slate-100 dark:border-slate-700 cursor-pointer active:scale-95 transition-transform"
+        className="card card-compact bg-base-100 shadow-sm border border-base-200 cursor-pointer active:scale-95 transition-transform"
         onClick={onClick}
     >
-        <div className="relative h-40">
-            <div
-                className="w-full h-full bg-cover bg-center"
-                style={{ backgroundImage: `url("${recipe.image}")` }}
+        <figure className="relative h-40">
+            <img
+                src={recipe.image}
+                alt={recipe.title}
+                className="w-full h-full object-cover"
             />
             <button
                 onClick={(e) => { e.stopPropagation(); onToggleFavorite(recipe.id); }}
-                className={`absolute top-2 right-2 size-8 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm ${recipe.isFavorite ? 'bg-white text-red-500' : 'bg-white/80 text-slate-400'
-                    }`}
+                className={`absolute top-2 right-2 btn btn-circle btn-xs glass ${recipe.isFavorite ? 'text-red-500' : 'text-base-content/40'}`}
             >
-                <span className={`material-symbols-outlined text-xl ${recipe.isFavorite ? 'fill-icon' : ''}`}>
+                <span className={`material-symbols-outlined text-lg ${recipe.isFavorite ? 'fill-icon' : ''}`}>
                     {recipe.isFavorite ? 'heart_check' : 'favorite'}
                 </span>
             </button>
-        </div>
-        <div className="p-3">
-            <h4 className="font-bold text-sm leading-snug mb-2 line-clamp-1">{recipe.title}</h4>
+        </figure>
+        <div className="card-body !p-3">
+            <h4 className="font-bold text-sm leading-snug line-clamp-1 text-base-content">{recipe.title}</h4>
             <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1 text-slate-500 text-xs">
+                <div className="flex items-center gap-1 text-base-content/50 text-xs">
                     <span className="material-symbols-outlined text-sm">schedule</span>
                     <span>{recipe.prepTime}</span>
                 </div>
                 <div className="flex items-center gap-1 text-xs">
-                    <span className="material-symbols-outlined text-sm text-primary fill-icon">star</span>
-                    <span className="font-bold">{recipe.rating}</span>
+                    <span className="material-symbols-outlined text-sm text-warning fill-icon">star</span>
+                    <span className="font-bold text-base-content">{recipe.rating}</span>
                 </div>
             </div>
         </div>

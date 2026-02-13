@@ -13,8 +13,10 @@ import ProfileScreen from '@/pages/ProfileScreen';
 import FilterScreen, { FilterOptions } from '@/pages/FilterScreen';
 import GroceryListScreen from '@/pages/GroceryListScreen';
 import PublishRecipeScreen from '@/pages/PublishRecipeScreen';
+import { useTheme } from '@/hooks/useTheme';
 
 const App: React.FC = () => {
+    const { isDark, toggleTheme } = useTheme();
     const [currentScreen, setCurrentScreen] = useState<Screen>(Screen.HOME);
     const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
     const [recipes, setRecipes] = useState<Recipe[]>(() => {
@@ -102,7 +104,7 @@ const App: React.FC = () => {
         serves: string;
         difficulty: string;
         ingredients: { id: string; name: string; qty: string; unit: string }[];
-        instructions: { id: string; description: string; image: string | null }[];
+        instructions: { id: string; description: string; image: string | null; mediaType?: 'image' | 'video'; timer?: number }[];
     }) => {
         const newRecipe: Recipe = {
             id: `user-${Date.now()}`,
@@ -122,6 +124,8 @@ const App: React.FC = () => {
                     title: `Step ${idx + 1}`,
                     description: s.description,
                     image: s.image || null,
+                    mediaType: s.mediaType || 'image' as const,
+                    timer: s.timer,
                 })),
             category: 'popular',
             isFavorite: false,
@@ -141,6 +145,8 @@ const App: React.FC = () => {
                         onSearch={handleSearchFromHome}
                         onSeeAll={handleSeeAll}
                         onOpenGrocery={() => navigateTo(Screen.GROCERY)}
+                        isDark={isDark}
+                        onToggleTheme={toggleTheme}
                     />
                 );
             case Screen.EXPLORE:
@@ -186,6 +192,8 @@ const App: React.FC = () => {
                 return (
                     <ProfileScreen
                         onBack={() => setCurrentScreen(Screen.HOME)}
+                        isDark={isDark}
+                        onToggleTheme={toggleTheme}
                     />
                 );
             case Screen.FILTER:

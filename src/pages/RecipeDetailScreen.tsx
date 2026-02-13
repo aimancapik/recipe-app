@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Recipe } from '@/types';
+import StepTimer from '@/components/StepTimer';
 
 interface RecipeDetailScreenProps {
     recipe: Recipe;
@@ -12,7 +13,7 @@ interface RecipeDetailScreenProps {
 
 const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack, onToggleFavorite, onAddToGrocery, onOpenGrocery }) => {
     return (
-        <div className="relative flex min-h-screen w-full flex-col bg-white dark:bg-[#1a1a1a]">
+        <div className="relative flex min-h-screen w-full flex-col bg-base-100">
             {/* Header Image & Overlay Nav */}
             <div className="relative w-full h-80">
                 <div
@@ -23,16 +24,12 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                 </div>
                 {/* Navigation */}
                 <div className="absolute top-0 left-0 right-0 flex justify-between items-center p-4">
-                    <button
-                        onClick={onBack}
-                        className="flex items-center justify-center size-10 rounded-full bg-white/20 backdrop-blur-md text-white border border-white/30"
-                    >
+                    <button onClick={onBack} className="btn btn-circle btn-sm glass text-white">
                         <span className="material-symbols-outlined">arrow_back</span>
                     </button>
                     <button
                         onClick={() => onToggleFavorite(recipe.id)}
-                        className={`flex items-center justify-center size-10 rounded-full bg-white/20 backdrop-blur-md border border-white/30 transition-colors ${recipe.isFavorite ? 'text-primary' : 'text-white'
-                            }`}
+                        className={`btn btn-circle btn-sm glass ${recipe.isFavorite ? 'text-primary' : 'text-white'}`}
                     >
                         <span className={`material-symbols-outlined ${recipe.isFavorite ? 'fill-icon' : ''}`}>
                             bookmark
@@ -42,35 +39,35 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
             </div>
 
             {/* Recipe Content */}
-            <div className="relative -mt-8 rounded-t-3xl bg-white dark:bg-[#1a1a1a] px-6 pt-8 pb-32 shadow-2xl">
+            <div className="relative -mt-8 rounded-t-3xl bg-base-100 px-6 pt-8 pb-32 shadow-2xl">
                 {/* Title and Rating */}
                 <div className="flex justify-between items-start mb-6">
                     <div className="flex flex-col gap-1">
-                        <h1 className="text-3xl font-bold tracking-tight text-[#1c1c1c] dark:text-white leading-tight">
+                        <h1 className="text-3xl font-bold tracking-tight text-base-content leading-tight">
                             {recipe.title}
                         </h1>
                         <div className="flex items-center gap-1">
-                            <span className="material-symbols-outlined text-primary fill-icon text-sm">star</span>
+                            <span className="material-symbols-outlined text-warning fill-icon text-sm">star</span>
                             <span className="text-sm font-semibold">{recipe.rating}</span>
-                            <span className="text-sm text-gray-500">({recipe.reviews} reviews)</span>
+                            <span className="text-sm text-base-content/50">({recipe.reviews} reviews)</span>
                         </div>
                     </div>
                 </div>
 
                 {/* Stats Bar */}
-                <div className="grid grid-cols-4 gap-2 mb-8">
+                <div className="stats stats-horizontal bg-primary/10 border border-primary/20 shadow-none w-full mb-8">
                     {[
                         { label: 'Prep', val: recipe.prepTime, icon: 'schedule' },
                         { label: 'Serves', val: recipe.serves, icon: 'group' },
                         { label: 'Kcal', val: recipe.kcal, icon: 'bolt' },
                         { label: 'Level', val: recipe.level, icon: 'bar_chart' }
                     ].map(stat => (
-                        <div key={stat.label} className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-primary/10 dark:bg-primary/5 border border-primary/20">
-                            <div className="size-10 flex items-center justify-center rounded-full bg-primary text-black">
-                                <span className="material-symbols-outlined text-xl">{stat.icon}</span>
+                        <div key={stat.label} className="stat place-items-center py-3 px-2">
+                            <div className="stat-figure text-primary">
+                                <span className="material-symbols-outlined">{stat.icon}</span>
                             </div>
-                            <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500">{stat.label}</span>
-                            <span className="text-xs font-bold">{stat.val}</span>
+                            <div className="stat-title text-[10px] uppercase tracking-wider">{stat.label}</div>
+                            <div className="stat-value text-sm">{stat.val}</div>
                         </div>
                     ))}
                 </div>
@@ -79,11 +76,11 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                 <div className="mb-8">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xl font-bold">Ingredients</h2>
-                        <span className="text-sm text-primary font-bold">{recipe.ingredients.length} Items</span>
+                        <div className="badge badge-primary badge-outline">{recipe.ingredients.length} Items</div>
                     </div>
                     <ul className="space-y-3">
                         {recipe.ingredients.map((ing, idx) => (
-                            <li key={idx} className="flex items-center gap-3 p-3 rounded-xl bg-background-light dark:bg-zinc-800/50">
+                            <li key={idx} className="flex items-center gap-3 p-3 rounded-xl bg-base-200">
                                 <div className="size-2 rounded-full bg-primary"></div>
                                 <span className="text-sm">{ing}</span>
                             </li>
@@ -91,7 +88,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                     </ul>
                     <button
                         onClick={() => onAddToGrocery(recipe)}
-                        className="w-full mt-4 flex items-center justify-center gap-2 py-3 border-2 border-primary text-sm font-bold rounded-xl text-[#1c1c1c] dark:text-white hover:bg-primary/10 transition-colors"
+                        className="btn btn-outline btn-primary w-full mt-4 gap-2"
                     >
                         <span className="material-symbols-outlined text-xl">shopping_cart</span>
                         Add all to Shopping List
@@ -101,34 +98,51 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                 {/* Directions */}
                 <div className="mb-8">
                     <h2 className="text-xl font-bold mb-4">Directions</h2>
-                    <div className="space-y-6">
+                    <ul className="steps steps-vertical w-full">
                         {recipe.directions.map((dir, idx) => (
-                            <div key={idx} className="flex gap-4">
-                                <div className="flex-none flex items-center justify-center size-8 rounded-full bg-primary text-black font-bold text-sm mt-1">
-                                    {dir.step}
-                                </div>
-                                <div className="flex flex-col flex-1">
+                            <li key={idx} className="step step-primary" data-content={dir.step}>
+                                <div className="flex flex-col flex-1 text-left ml-2">
                                     <h3 className="font-bold text-sm mb-1">{dir.title}</h3>
                                     {dir.image && (
-                                        <div className="w-full aspect-video rounded-xl overflow-hidden mb-3 border border-gray-100 dark:border-zinc-700">
-                                            <img src={dir.image} alt={dir.title} className="w-full h-full object-cover" />
+                                        <div className="w-full aspect-video rounded-xl overflow-hidden mb-3 border border-base-200 relative">
+                                            {dir.mediaType === 'video' ? (
+                                                <>
+                                                    <video
+                                                        src={dir.image}
+                                                        autoPlay
+                                                        loop
+                                                        muted
+                                                        playsInline
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                    <div className="badge badge-neutral badge-sm absolute bottom-2 left-2 gap-1">
+                                                        <span className="material-symbols-outlined text-xs">play_circle</span>
+                                                        VIDEO
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <img src={dir.image} alt={dir.title} className="w-full h-full object-cover" />
+                                            )}
                                         </div>
                                     )}
-                                    <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                                    <p className="text-sm text-base-content/60 leading-relaxed">
                                         {dir.description}
                                     </p>
+                                    {dir.timer && (
+                                        <StepTimer seconds={dir.timer} label="Step Timer" />
+                                    )}
                                 </div>
-                            </div>
+                            </li>
                         ))}
-                    </div>
+                    </ul>
                 </div>
             </div>
 
             {/* Floating CTA Button */}
-            <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto p-4 bg-white/80 dark:bg-[#1a1a1a]/80 backdrop-blur-lg z-50">
+            <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto p-4 bg-base-100/80 backdrop-blur-lg z-50">
                 <div className="flex flex-col gap-3">
                     <button
-                        className="w-full bg-primary hover:bg-primary/90 text-black font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
+                        className="btn btn-primary w-full gap-2 shadow-lg"
                         onClick={() => onAddToGrocery(recipe)}
                     >
                         <span className="material-symbols-outlined">shopping_cart</span>
@@ -136,7 +150,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                     </button>
                     <button
                         onClick={onOpenGrocery}
-                        className="flex items-center justify-center gap-1 text-sm font-bold text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
+                        className="btn btn-ghost btn-sm gap-1 text-base-content/50"
                     >
                         <span className="material-symbols-outlined text-lg">list_alt</span>
                         View Shopping List
