@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/**)",
+      "Bash(git -C \"c:\\\\Users\\\\AimanSyafiq\\\\Documents\\\\recipe-app\" status)",
+      "Bash(git -C \"c:\\\\Users\\\\AimanSyafiq\\\\Documents\\\\recipe-app\" diff index.html)",
+      "Bash(git -C \"c:\\\\Users\\\\AimanSyafiq\\\\Documents\\\\recipe-app\" add index.html)",
+      "Bash(git -C \"c:\\\\Users\\\\AimanSyafiq\\\\Documents\\\\recipe-app\" commit -m \"$\\(cat <<''EOF''\nfix: Add entry point script to index.html for Vite bundling\n\nRemoved unused importmap and added module script tag to load index.tsx.\nThis fixes the blank white screen on Vercel deployment.\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git -C \"c:\\\\Users\\\\AimanSyafiq\\\\Documents\\\\recipe-app\" push)",
+      "Bash(git -C \"c:\\\\Users\\\\AimanSyafiq\\\\Documents\\\\recipe-app\" log --oneline -3)",
+      "Bash(npm install:*)",
+      "Bash(curl:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git -C \"c:\\\\Users\\\\AimanSyafiq\\\\Documents\\\\recipe-app\" add:*)",
+      "Bash(git -C \"c:\\\\Users\\\\AimanSyafiq\\\\Documents\\\\recipe-app\" commit -m \"$\\(cat <<''EOF''\nfix: Lazy initialize Gemini API to prevent crash without API key\n\nThe app was crashing on load because GoogleGenAI was initialized\nimmediately with an empty API key. Now it only initializes when\nthe AI feature is actually used.\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git -C \"c:\\\\Users\\\\AimanSyafiq\\\\Documents\\\\recipe-app\" add package-lock.json)",
+      "Bash(git -C \"c:\\\\Users\\\\AimanSyafiq\\\\Documents\\\\recipe-app\" commit -m \"$\\(cat <<''EOF''\nchore: Add package-lock.json\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(npx vercel:*)",
+      "Bash(git -C \"c:\\\\Users\\\\AimanSyafiq\\\\Documents\\\\recipe-app\" commit --allow-empty -m \"chore: Trigger Vercel redeploy\")",
+      "Bash(git -C \"c:\\\\Users\\\\AimanSyafiq\\\\Documents\\\\recipe-app\" add constants.tsx screens/HomeScreen.tsx screens/ProfileScreen.tsx)",
+      "Bash(git -C \"c:\\\\Users\\\\AimanSyafiq\\\\Documents\\\\recipe-app\" commit -m \"$\\(cat <<''EOF''\nfix: Replace broken Google images with Unsplash images\n\nAll recipe and profile images now use accessible Unsplash URLs.\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git -C \"c:\\\\Users\\\\AimanSyafiq\\\\Documents\\\\recipe-app\" add -A)",
+      "Bash(git -C \"c:\\\\Users\\\\AimanSyafiq\\\\Documents\\\\recipe-app\" restore --staged .claude/settings.local.json)",
+      "Bash(git -C \"c:\\\\Users\\\\AimanSyafiq\\\\Documents\\\\recipe-app\" commit -m \"$\\(cat <<''EOF''\nfeat: Add FilterScreen with sort, cooking time, dietary, and difficulty filters\n\n- Created FilterScreen component with full filter UI\n- Added FILTER screen to navigation\n- Integrated filters with ExploreScreen\n- Filter button shows indicator when filters are active\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+    ]
+  }
+}
