@@ -1,7 +1,8 @@
-
 import React, { useState } from 'react';
-import { generateRecipeFromIngredients } from '@/services/geminiService';
+import { generateRecipeFromIngredients } from '@/services/llamaService';
 import { Recipe } from '@/types';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/lib/supabase';
 
 interface AIGenerateScreenProps {
     onBack: () => void;
@@ -9,23 +10,46 @@ interface AIGenerateScreenProps {
 }
 
 const AIGenerateScreen: React.FC<AIGenerateScreenProps> = ({ onBack, onRecipeReady }) => {
+    const { user } = useAuth();
     const [prompt, setPrompt] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const handleGenerate = async () => {
         if (!prompt.trim()) return;
+        if (!user) {
+            setError("You need to be logged in to use the AI chef.");
+            return;
+        }
+
         setLoading(true);
         setError(null);
         try {
+            // Check usage limit
+            const { data: allowed, error: usageError } = await supabase.rpc('increment_ai_usage', { p_id: user.id });
+
+            if (usageError) {
+                console.error("Usage check error:", usageError);
+                throw new Error("Failed to check usage limits.");
+            }
+
+            if (!allowed) {
+                setError("You've reached your limit of 10 AI recipes. Time to upgrade your kitchen skills manually!");
+                setLoading(false);
+                return; // Stop here
+            }
+
+            // Proceed to generate
             const recipe = await generateRecipeFromIngredients(prompt);
             if (recipe) {
                 onRecipeReady(recipe);
             } else {
                 setError("I couldn't whip something up this time. Try different ingredients?");
+                // Ideally, decrement usage count here if fail, but let's keep it simple (consumed attempt)
             }
-        } catch (e) {
-            setError("Something went wrong with the AI chef.");
+        } catch (e: any) {
+            console.error(e);
+            setError(e.message || "Something went wrong with the AI chef.");
         } finally {
             setLoading(false);
         }
@@ -45,6 +69,7 @@ const AIGenerateScreen: React.FC<AIGenerateScreenProps> = ({ onBack, onRecipeRea
                 <h1 className="text-3xl font-bold mb-2 text-base-content">AI Magic Chef</h1>
                 <p className="text-base-content/50 max-w-xs">
                     Tell me what's in your fridge, and I'll create a unique recipe just for you.
+                    <span className="block mt-1 text-xs font-bold text-primary">Limit: 10 Uses</span>
                 </p>
             </div>
 

@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Recipe } from '@/types';
+import RecipeCard from '@/components/RecipeCard';
 
 interface SavedRecipesScreenProps {
     recipes: Recipe[];
@@ -81,41 +82,13 @@ const SavedRecipesScreen: React.FC<SavedRecipesScreenProps> = ({ recipes, onReci
                 {filtered.length > 0 ? (
                     <div className="grid grid-cols-2 gap-4">
                         {filtered.map(recipe => (
-                            <div
+                            <RecipeCard
                                 key={recipe.id}
-                                className="card card-compact bg-base-100 shadow-sm cursor-pointer active:scale-95 transition-transform"
-                                onClick={() => onRecipeClick(recipe)}
-                            >
-                                <figure className="relative aspect-square">
-                                    <img
-                                        alt={recipe.title}
-                                        className="w-full h-full object-cover"
-                                        src={recipe.image}
-                                    />
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); onToggleFavorite(recipe.id); }}
-                                        className="absolute top-2 right-2 btn btn-circle btn-xs glass"
-                                    >
-                                        <span className="material-symbols-outlined fill-icon text-red-500 text-lg">favorite</span>
-                                    </button>
-                                    <div className="absolute bottom-2 left-2">
-                                        <div className="badge badge-neutral badge-sm capitalize">{recipe.category}</div>
-                                    </div>
-                                </figure>
-                                <div className="card-body !p-3">
-                                    <h3 className="font-bold text-sm leading-tight line-clamp-1">{recipe.title}</h3>
-                                    <div className="flex items-center gap-2 text-base-content/50 text-[10px]">
-                                        <div className="flex items-center gap-0.5">
-                                            <span className="material-symbols-outlined text-xs">schedule</span>
-                                            <span className="font-medium">{recipe.prepTime}</span>
-                                        </div>
-                                        <div className="flex items-center gap-0.5">
-                                            <span className="material-symbols-outlined text-xs">local_fire_department</span>
-                                            <span className="font-medium">{recipe.kcal} kcal</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                                recipe={recipe}
+                                onClick={onRecipeClick}
+                                onToggleFavorite={onToggleFavorite}
+                                showCategory={true}
+                            />
                         ))}
                     </div>
                 ) : (

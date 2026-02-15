@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { CATEGORIES } from '@/data/constants';
 import { Recipe } from '@/types';
 import { FilterOptions } from './FilterScreen';
+import RecipeCard from '@/components/RecipeCard';
 
 interface ExploreScreenProps {
     recipes: Recipe[];
@@ -203,31 +204,13 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
                         {filteredRecipes.length > 0 ? (
                             <div className="grid grid-cols-2 gap-4">
                                 {filteredRecipes.map(recipe => (
-                                    <div
+                                    <RecipeCard
                                         key={recipe.id}
-                                        className="card card-compact bg-base-100 shadow-sm cursor-pointer active:scale-95 transition-transform"
-                                        onClick={() => onRecipeClick(recipe)}
-                                    >
-                                        <figure className="relative h-40">
-                                            <img src={recipe.image} alt={recipe.title} className="w-full h-full object-cover" />
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); onToggleFavorite(recipe.id); }}
-                                                className={`absolute top-2 right-2 btn btn-circle btn-xs glass ${recipe.isFavorite ? 'text-red-500' : 'text-base-content/40'}`}
-                                            >
-                                                <span className={`material-symbols-outlined text-lg ${recipe.isFavorite ? 'fill-icon' : ''}`}>favorite</span>
-                                            </button>
-                                            <div className="absolute bottom-2 left-2">
-                                                <div className="badge badge-neutral badge-sm capitalize">{recipe.category}</div>
-                                            </div>
-                                        </figure>
-                                        <div className="card-body !p-3">
-                                            <h4 className="font-bold text-sm leading-snug line-clamp-1">{recipe.title}</h4>
-                                            <div className="flex items-center justify-between text-[10px] text-base-content/50">
-                                                <span className="flex items-center gap-0.5"><span className="material-symbols-outlined text-xs">schedule</span>{recipe.prepTime}</span>
-                                                <span className="flex items-center gap-0.5"><span className="material-symbols-outlined text-xs text-warning fill-icon">star</span>{recipe.rating}</span>
-                                            </div>
-                                        </div>
-                                    </div>
+                                        recipe={recipe}
+                                        onClick={onRecipeClick}
+                                        onToggleFavorite={onToggleFavorite}
+                                        showCategory={true}
+                                    />
                                 ))}
                             </div>
                         ) : (

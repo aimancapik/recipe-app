@@ -1,4 +1,5 @@
 
+
 export enum Screen {
     HOME = 'home',
     EXPLORE = 'explore',
@@ -8,7 +9,9 @@ export enum Screen {
     AI_GENERATE = 'ai_generate',
     FILTER = 'filter',
     GROCERY = 'grocery',
-    PUBLISH = 'publish'
+    PUBLISH = 'publish',
+    LOGIN = 'login',
+    SIGNUP = 'signup'
 }
 
 export interface Direction {
@@ -34,6 +37,7 @@ export interface Recipe {
     directions: Direction[];
     category: string;
     isFavorite?: boolean;
+    userId?: string;
 }
 
 export interface Category {

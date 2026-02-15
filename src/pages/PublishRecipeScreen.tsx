@@ -1,5 +1,7 @@
 
 import React, { useState, useRef } from 'react';
+import { uploadImage } from '@/lib/storage';
+import { videoToGif } from '@/lib/videoToGif';
 
 interface Ingredient {
     id: string;
@@ -37,7 +39,10 @@ const UNITS = ['g', 'kg', 'ml', 'tsp', 'tbsp', 'cup', 'pcs'];
 const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPublish }) => {
     const [step, setStep] = useState(1);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const cameraInputRef = useRef<HTMLInputElement>(null);
     const stepImageRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
+    const stepCameraRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
+    const stepVideoRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
@@ -55,26 +60,50 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
         { id: '1', description: '', image: null },
     ]);
 
-    const handleCoverImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const [uploading, setUploading] = useState(false);
+
+    const handleCoverImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
+        if (!file) return;
+        setUploading(true);
+        try {
+            const url = await uploadImage(file, 'covers');
+            setCoverImage(url);
+        } catch (err) {
+            console.error('Upload failed:', err);
+            // Fallback to base64 if storage isn't set up
             const reader = new FileReader();
             reader.onloadend = () => setCoverImage(reader.result as string);
             reader.readAsDataURL(file);
+        } finally {
+            setUploading(false);
         }
     };
 
-    const handleStepImageUpload = (stepId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleStepImageUpload = async (stepId: string, e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
-            const isVideo = file.type.startsWith('video/');
+        if (!file) return;
+        const isVideo = file.type.startsWith('video/');
+        setUploading(true);
+        try {
+            // Convert video to GIF before uploading
+            const fileToUpload = isVideo ? await videoToGif(file) : file;
+            const url = await uploadImage(fileToUpload, 'steps');
+            setInstructions(prev => prev.map(s =>
+                s.id === stepId ? { ...s, image: url, mediaType: 'image' } : s
+            ));
+        } catch (err) {
+            console.error('Upload failed:', err);
+            // Fallback to base64
             const reader = new FileReader();
             reader.onloadend = () => {
                 setInstructions(prev => prev.map(s =>
-                    s.id === stepId ? { ...s, image: reader.result as string, mediaType: isVideo ? 'video' : 'image' } : s
+                    s.id === stepId ? { ...s, image: reader.result as string, mediaType: 'image' } : s
                 ));
             };
             reader.readAsDataURL(file);
+        } finally {
+            setUploading(false);
         }
     };
 
@@ -153,19 +182,44 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                     ) : (
                         <>
                             <div className="flex size-16 items-center justify-center rounded-full bg-primary text-primary-content">
-                                <span className="material-symbols-outlined text-3xl">add_a_photo</span>
+                                <span className="material-symbols-outlined text-3xl">{uploading ? 'hourglass_empty' : 'add_a_photo'}</span>
                             </div>
                             <div className="flex flex-col items-center gap-1">
-                                <p className="text-base-content text-lg font-bold">Add Cover Photo</p>
+                                <p className="text-base-content text-lg font-bold">{uploading ? 'Uploading...' : 'Add Cover Photo'}</p>
                                 <p className="text-base-content/50 text-sm text-center">Great photos get 5x more views!</p>
                             </div>
-                            <button className="btn btn-outline btn-sm">Upload image</button>
+                            <div className="flex gap-2">
+                                <button
+                                    className="btn btn-outline btn-sm gap-2"
+                                    onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                                    disabled={uploading}
+                                >
+                                    <span className="material-symbols-outlined text-sm">photo_library</span>
+                                    Gallery
+                                </button>
+                                <button
+                                    className="btn btn-primary btn-sm gap-2"
+                                    onClick={(e) => { e.stopPropagation(); cameraInputRef.current?.click(); }}
+                                    disabled={uploading}
+                                >
+                                    <span className="material-symbols-outlined text-sm">photo_camera</span>
+                                    Camera
+                                </button>
+                            </div>
                         </>
                     )}
                     <input
                         ref={fileInputRef}
                         type="file"
                         accept="image/*"
+                        className="hidden"
+                        onChange={handleCoverImageUpload}
+                    />
+                    <input
+                        ref={cameraInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
                         className="hidden"
                         onChange={handleCoverImageUpload}
                     />
@@ -356,80 +410,123 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
             </div>
 
             <div className="space-y-6">
-                {instructions.map((inst, index) => (
-                    <div key={inst.id} className="card bg-base-100 shadow-sm overflow-hidden">
-                        <div className="flex items-center justify-between bg-primary/5 px-4 py-2 border-b border-base-200">
-                            <div className="flex items-center gap-2">
-                                <span className="material-symbols-outlined text-base-content/40 cursor-grab">drag_indicator</span>
-                                <span className="font-bold text-base-content">Step {index + 1}</span>
+                {instructions.map((inst, index) => {
+                    return (
+                        <div key={inst.id} className="card bg-base-100 shadow-sm overflow-hidden">
+                            <div className="flex items-center justify-between bg-primary/5 px-4 py-2 border-b border-base-200">
+                                <div className="flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-base-content/40 cursor-grab">drag_indicator</span>
+                                    <span className="font-bold text-base-content">Step {index + 1}</span>
+                                </div>
+                                <button onClick={() => removeInstructionStep(inst.id)} className="btn btn-ghost btn-circle btn-xs text-base-content/40 hover:text-error">
+                                    <span className="material-symbols-outlined text-xl">delete</span>
+                                </button>
                             </div>
-                            <button onClick={() => removeInstructionStep(inst.id)} className="btn btn-ghost btn-circle btn-xs text-base-content/40 hover:text-error">
-                                <span className="material-symbols-outlined text-xl">delete</span>
-                            </button>
-                        </div>
-                        <div className="p-4">
-                            <div className="flex flex-col gap-4">
-                                {inst.image ? (
-                                    <div className="relative w-full aspect-video rounded-lg border border-base-200 overflow-hidden">
-                                        {inst.mediaType === 'video' ? (
-                                            <video src={inst.image} autoPlay loop muted playsInline className="w-full h-full object-cover" />
-                                        ) : (
-                                            <div className="w-full h-full bg-cover bg-center" style={{ backgroundImage: `url('${inst.image}')` }} />
-                                        )}
-                                        <button onClick={() => removeStepImage(inst.id)} className="btn btn-circle btn-xs btn-neutral absolute top-2 right-2">
-                                            <span className="material-symbols-outlined text-sm">close</span>
-                                        </button>
-                                        {inst.mediaType === 'video' && (
-                                            <div className="badge badge-neutral badge-sm absolute bottom-2 left-2 gap-1">
-                                                <span className="material-symbols-outlined text-xs">play_circle</span> VIDEO
-                                            </div>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div
-                                        className="w-full aspect-video border-2 border-dashed border-base-300 rounded-lg flex flex-col items-center justify-center text-base-content/40 hover:border-primary hover:bg-primary/5 cursor-pointer transition-all"
-                                        onClick={() => stepImageRefs.current[inst.id]?.click()}
-                                    >
-                                        <span className="material-symbols-outlined text-3xl mb-1">add_a_photo</span>
-                                        <span className="text-xs font-medium">Add Photo or Short Video</span>
-                                    </div>
-                                )}
-                                <input
-                                    ref={el => { stepImageRefs.current[inst.id] = el; }}
-                                    type="file"
-                                    accept="image/*,video/mp4,video/webm,video/quicktime"
-                                    className="hidden"
-                                    onChange={(e) => handleStepImageUpload(inst.id, e)}
-                                />
-                                <textarea
-                                    className="textarea textarea-ghost w-full min-h-[100px] text-base leading-relaxed"
-                                    placeholder="Describe this step..."
-                                    value={inst.description}
-                                    onChange={e => updateInstructionStep(inst.id, { description: e.target.value })}
-                                />
-                                <div className="flex items-center gap-3 pt-3 border-t border-base-200">
-                                    <div className="flex items-center gap-2 text-base-content/50">
-                                        <span className="material-symbols-outlined text-[20px]">timer</span>
-                                        <span className="text-xs font-semibold">Step Timer (optional)</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <input
-                                            type="number"
-                                            placeholder="Min"
-                                            className="input input-bordered input-xs w-16 text-center"
-                                            value={inst.timer ? Math.floor(inst.timer / 60) : ''}
-                                            onChange={e => {
-                                                const mins = parseInt(e.target.value);
-                                                updateInstructionStep(inst.id, { timer: isNaN(mins) ? undefined : mins * 60 });
-                                            }}
-                                        />
-                                        <span className="text-xs text-base-content/40">min</span>
+                            <div className="p-4">
+                                <div className="flex flex-col gap-4">
+                                    {inst.image ? (
+                                        <div className="relative w-full aspect-video rounded-lg border border-base-200 overflow-hidden">
+                                            {inst.mediaType === 'video' ? (
+                                                <video src={inst.image} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full bg-cover bg-center" style={{ backgroundImage: `url('${inst.image}')` }} />
+                                            )}
+                                            <button onClick={() => removeStepImage(inst.id)} className="btn btn-circle btn-xs btn-neutral absolute top-2 right-2">
+                                                <span className="material-symbols-outlined text-sm">close</span>
+                                            </button>
+                                            {inst.mediaType === 'video' && (
+                                                <div className="badge badge-neutral badge-sm absolute bottom-2 left-2 gap-1">
+                                                    <span className="material-symbols-outlined text-xs">play_circle</span> VIDEO
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div
+                                            className="w-full aspect-video border-2 border-dashed border-base-300 rounded-lg flex flex-col items-center justify-center text-base-content/40 hover:border-primary hover:bg-primary/5 transition-all p-4"
+                                        >
+                                            <span className="material-symbols-outlined text-3xl mb-1">{uploading ? 'hourglass_empty' : 'add_a_photo'}</span>
+                                            <span className="text-xs font-semibold mb-3">{uploading ? 'Processing...' : 'Add Step Media'}</span>
+
+                                            {!uploading && (
+                                                <div className="flex flex-wrap justify-center gap-2">
+                                                    <button
+                                                        className="btn btn-xs btn-outline gap-1"
+                                                        onClick={(e) => { e.stopPropagation(); stepImageRefs.current[inst.id]?.click(); }}
+                                                    >
+                                                        <span className="material-symbols-outlined text-[14px]">photo_library</span>
+                                                        Gallery
+                                                    </button>
+                                                    <button
+                                                        className="btn btn-xs btn-primary gap-1"
+                                                        onClick={(e) => { e.stopPropagation(); stepCameraRefs.current[inst.id]?.click(); }}
+                                                    >
+                                                        <span className="material-symbols-outlined text-[14px]">photo_camera</span>
+                                                        Photo
+                                                    </button>
+                                                    <button
+                                                        className="btn btn-xs btn-secondary gap-1"
+                                                        onClick={(e) => { e.stopPropagation(); stepVideoRefs.current[inst.id]?.click(); }}
+                                                    >
+                                                        <span className="material-symbols-outlined text-[14px]">videocam</span>
+                                                        Video
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                    <input
+                                        ref={el => { stepImageRefs.current[inst.id] = el; }}
+                                        type="file"
+                                        accept="image/*,video/*"
+                                        className="hidden"
+                                        onChange={(e) => handleStepImageUpload(inst.id, e)}
+                                    />
+                                    <input
+                                        ref={el => { stepCameraRefs.current[inst.id] = el; }}
+                                        type="file"
+                                        accept="image/*"
+                                        capture="environment"
+                                        className="hidden"
+                                        onChange={(e) => handleStepImageUpload(inst.id, e)}
+                                    />
+                                    <input
+                                        ref={el => { stepVideoRefs.current[inst.id] = el; }}
+                                        type="file"
+                                        accept="video/*"
+                                        capture="environment"
+                                        className="hidden"
+                                        onChange={(e) => handleStepImageUpload(inst.id, e)}
+                                    />
+                                    <textarea
+                                        className="textarea textarea-ghost w-full min-h-[100px] text-base leading-relaxed"
+                                        placeholder="Describe this step..."
+                                        value={inst.description}
+                                        onChange={e => updateInstructionStep(inst.id, { description: e.target.value })}
+                                    />
+                                    <div className="flex items-center gap-3 pt-3 border-t border-base-200">
+                                        <div className="flex items-center gap-2 text-base-content/50">
+                                            <span className="material-symbols-outlined text-[20px]">timer</span>
+                                            <span className="text-xs font-semibold">Step Timer (optional)</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="number"
+                                                placeholder="Min"
+                                                className="input input-bordered input-xs w-16 text-center"
+                                                value={inst.timer ? Math.floor(inst.timer / 60) : ''}
+                                                onChange={e => {
+                                                    const mins = parseInt(e.target.value);
+                                                    updateInstructionStep(inst.id, { timer: isNaN(mins) ? undefined : mins * 60 });
+                                                }}
+                                            />
+                                            <span className="text-xs text-base-content/40">min</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                ))}
+                    )
+                })}
             </div>
 
             <button
@@ -448,100 +545,141 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
     // STEP 4: REVIEW & PREVIEW
     // ─────────────────────────────────────────────
     const renderStep4 = () => (
-        <div className="flex-1 overflow-y-auto pb-32">
-            <div className="p-4">
-                <div
-                    className="bg-cover bg-center flex flex-col justify-end overflow-hidden rounded-xl min-h-[350px] relative"
-                    style={{
-                        backgroundImage: coverImage
-                            ? `linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 50%), url('${coverImage}')`
-                            : 'linear-gradient(135deg, #f4e225 0%, #e6d31a 100%)'
-                    }}
-                >
-                    <div className="p-6">
-                        <div className="badge badge-primary badge-sm mb-2">PREVIEW MODE</div>
-                        <h1 className="text-white text-3xl font-bold leading-tight drop-shadow-md">
-                            {title || 'Your Recipe Title'}
-                        </h1>
-                        {description && (
-                            <p className="text-white/80 text-sm mt-1">{description}</p>
-                        )}
-                    </div>
+        <div className="flex-1 overflow-y-auto pb-32 no-scrollbar">
+            {/* Celebration Sparkles */}
+            <div className="fixed inset-0 pointer-events-none z-10 overflow-hidden">
+                <div className="absolute top-20 left-1/4 animate-sparkle text-success">
+                    <span className="material-symbols-outlined text-xl">sparkles</span>
                 </div>
-            </div>
-
-            <div className="flex gap-3 px-4 py-2 flex-wrap">
-                {prepTime && (
-                    <div className="badge badge-lg badge-primary badge-outline gap-1">
-                        <span className="material-symbols-outlined text-sm">timer</span>
-                        {prepTime} mins
-                    </div>
-                )}
-                <div className="badge badge-lg badge-primary badge-outline gap-1">
-                    <span className="material-symbols-outlined text-sm">bar_chart</span>
-                    {difficulty}
+                <div className="absolute top-40 right-1/4 animate-sparkle text-primary delay-75">
+                    <span className="material-symbols-outlined text-2xl">sparkles</span>
                 </div>
-                {serves && (
-                    <div className="badge badge-lg badge-primary badge-outline gap-1">
-                        <span className="material-symbols-outlined text-sm">group</span>
-                        {serves} Servings
-                    </div>
-                )}
+                <div className="absolute top-1/2 left-1/2 animate-sparkle text-success delay-150">
+                    <span className="material-symbols-outlined text-lg">star</span>
+                </div>
             </div>
 
             <div className="p-4 space-y-6">
+                {/* Hero Section */}
+                <div
+                    className="bg-cover bg-center flex flex-col justify-end overflow-hidden rounded-3xl min-h-[380px] relative shadow-2xl ring-1 ring-base-content/5"
+                    style={{
+                        backgroundImage: coverImage
+                            ? `linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0.4) 100%), url('${coverImage}')`
+                            : 'linear-gradient(135deg, #f4e225 0%, #e6d31a 100%)'
+                    }}
+                >
+                    <div className="absolute top-4 left-4">
+                        <div className="badge badge-success gap-1.5 py-3 px-4 shadow-lg border-0 backdrop-blur-md bg-success/80 text-success-content font-bold animate-pulse">
+                            <span className="material-symbols-outlined text-[14px] fill-1">check_circle</span>
+                            READY TO PUBLISH
+                        </div>
+                    </div>
+
+                    <div className="p-6">
+                        <h1 className="text-white text-3xl font-extrabold leading-tight tracking-tight drop-shadow-xl mb-2">
+                            {title || 'Your Recipe Title'}
+                        </h1>
+                        {description && (
+                            <p className="text-white/80 text-sm leading-relaxed line-clamp-2 mb-6 max-w-[90%] font-medium">
+                                {description}
+                            </p>
+                        )}
+
+                        {/* Glassmorphic Stats Bar */}
+                        <div className="grid grid-cols-3 gap-2 p-1.5 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl">
+                            <div className="flex flex-col items-center py-2 border-r border-white/10">
+                                <span className="material-symbols-outlined text-primary text-[20px] mb-0.5">timer</span>
+                                <span className="text-white text-xs font-bold">{prepTime || '0'}m</span>
+                                <span className="text-white/40 text-[9px] uppercase font-bold tracking-widest">Time</span>
+                            </div>
+                            <div className="flex flex-col items-center py-2 border-r border-white/10">
+                                <span className="material-symbols-outlined text-primary text-[20px] mb-0.5">bar_chart</span>
+                                <span className="text-white text-xs font-bold">{difficulty}</span>
+                                <span className="text-white/40 text-[9px] uppercase font-bold tracking-widest">Level</span>
+                            </div>
+                            <div className="flex flex-col items-center py-2">
+                                <span className="material-symbols-outlined text-primary text-[20px] mb-0.5">group</span>
+                                <span className="text-white text-xs font-bold">{serves || '0'}</span>
+                                <span className="text-white/40 text-[9px] uppercase font-bold tracking-widest">Serves</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Ingredients Section */}
                 {ingredients.length > 0 && (
-                    <div className="card bg-base-200">
-                        <div className="card-body p-6">
-                            <div className="flex items-center gap-2 mb-4">
-                                <span className="material-symbols-outlined text-primary">shopping_basket</span>
-                                <h2 className="text-xl font-bold">Ingredients</h2>
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-2 px-2">
+                            <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                                <span className="material-symbols-outlined text-[20px] fill-1">shopping_basket</span>
                             </div>
-                            <div className="space-y-1">
-                                {ingredients.map(ing => (
-                                    <label key={ing.id} className="flex gap-x-3 py-2.5 border-b border-base-300 last:border-0 items-center">
-                                        <input checked disabled className="checkbox checkbox-primary checkbox-sm" type="checkbox" />
-                                        <p className="text-base-content text-base">{ing.qty}{ing.unit} {ing.name}</p>
-                                    </label>
-                                ))}
-                            </div>
+                            <h2 className="text-lg font-bold tracking-tight">Ingredients</h2>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2.5">
+                            {ingredients.map(ing => (
+                                <div key={ing.id} className="flex items-center gap-3 p-4 rounded-2xl bg-base-100 border border-base-200 shadow-sm transition-all hover:border-primary/30">
+                                    <div className="flex-1">
+                                        <p className="text-base font-bold text-base-content leading-tight">{ing.name}</p>
+                                        <p className="text-xs font-semibold text-base-content/40 mt-0.5">{ing.qty} {ing.unit}</p>
+                                    </div>
+                                    <div className="size-6 rounded-full border-2 border-primary/20 flex items-center justify-center">
+                                        <div className="size-3 rounded-full bg-primary/20" />
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 )}
 
+                {/* Instructions Section */}
                 {instructions.filter(s => s.description.trim()).length > 0 && (
-                    <div>
-                        <div className="flex items-center gap-2 mb-6">
-                            <span className="material-symbols-outlined text-primary">restaurant_menu</span>
-                            <h2 className="text-xl font-bold">Instructions</h2>
+                    <div className="space-y-6 pb-12">
+                        <div className="flex items-center gap-2 px-2">
+                            <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                                <span className="material-symbols-outlined text-[20px] fill-1">restaurant_menu</span>
+                            </div>
+                            <h2 className="text-lg font-bold tracking-tight">Instructions</h2>
                         </div>
-                        <ul className="steps steps-vertical w-full">
+                        <div className="space-y-8 relative before:absolute before:left-[17px] before:top-4 before:bottom-4 before:w-0.5 before:bg-gradient-to-b before:from-primary before:to-base-300">
                             {instructions.filter(s => s.description.trim()).map((inst, idx) => (
-                                <li key={inst.id} className="step step-primary" data-content={idx + 1}>
-                                    <div className="flex flex-col sm:flex-row gap-4 text-left ml-2">
-                                        <div className="flex-1">
-                                            <h3 className="font-bold text-lg mb-1">Step {idx + 1}</h3>
-                                            <p className="text-base-content/70 leading-relaxed mb-2">{inst.description}</p>
-                                            {inst.timer && (
-                                                <div className="flex items-center gap-1.5 text-primary text-xs font-bold uppercase tracking-wider">
-                                                    <span className="material-symbols-outlined text-[16px]">timer</span>
-                                                    <span>{Math.floor(inst.timer / 60)} Minute Timer</span>
-                                                </div>
-                                            )}
-                                        </div>
+                                <div key={inst.id} className="relative pl-12 flex flex-col gap-4">
+                                    {/* Number Circle */}
+                                    <div className="absolute left-0 top-0 size-9 rounded-full bg-primary text-primary-content flex items-center justify-center font-black text-sm shadow-xl ring-4 ring-base-200 z-10 transition-transform hover:scale-110">
+                                        {idx + 1}
+                                    </div>
+
+                                    <div className="card bg-base-100 border border-base-200 shadow-md overflow-hidden rounded-2xl hover:shadow-lg transition-all group">
                                         {inst.image && (
-                                            <div className="w-full sm:w-32 h-32 shrink-0 overflow-hidden rounded-lg bg-base-200">
+                                            <div className="relative aspect-video overflow-hidden">
                                                 {inst.mediaType === 'video' ? (
-                                                    <video src={inst.image} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+                                                    <video src={inst.image} autoPlay loop muted playsInline className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                                                 ) : (
-                                                    <img src={inst.image} alt={`Step ${idx + 1}`} className="w-full h-full object-cover" />
+                                                    <img src={inst.image} alt={`Step ${idx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                                                 )}
+                                                <div className="absolute top-2 right-2 flex gap-1">
+                                                    {inst.mediaType === 'video' && (
+                                                        <div className="badge badge-neutral gap-1 border-0 bg-black/60 backdrop-blur-md">
+                                                            <span className="material-symbols-outlined text-xs">play_circle</span> VIDEO
+                                                        </div>
+                                                    )}
+                                                    {inst.timer && (
+                                                        <div className="badge badge-primary gap-1 border-0 shadow-lg">
+                                                            <span className="material-symbols-outlined text-xs">timer</span> {Math.floor(inst.timer / 60)}m
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         )}
+                                        <div className="p-4 px-5">
+                                            <p className="text-base-content/70 leading-relaxed text-base font-medium">
+                                                {inst.description}
+                                            </p>
+                                        </div>
                                     </div>
-                                </li>
+                                </div>
                             ))}
-                        </ul>
+                        </div>
                     </div>
                 )}
             </div>
@@ -552,28 +690,55 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
 
     return (
         <div className="flex flex-col min-h-screen bg-base-200">
-            {/* Header */}
-            <div className="sticky top-0 z-20 bg-base-100/95 backdrop-blur-md border-b border-base-200">
-                <div className="flex items-center p-4 pb-2 justify-between">
-                    <button
-                        onClick={step === 1 ? onBack : prevStep}
-                        className="btn btn-ghost btn-circle btn-sm"
-                    >
-                        <span className="material-symbols-outlined">arrow_back</span>
-                    </button>
-                    <h2 className="text-lg font-bold leading-tight tracking-tight flex-1 text-center text-base-content">
-                        {step === 4 ? 'Review & Preview' : `Step ${step} of 4: ${stepLabels[step - 1]}`}
-                    </h2>
-                    <div className="size-10" />
-                </div>
-                <div className="flex flex-col gap-2 px-4 pb-3">
-                    <div className="flex justify-between items-center">
-                        <span className="text-sm font-semibold uppercase tracking-wider text-base-content/40">
-                            {stepLabels[step - 1]}
-                        </span>
-                        <span className="text-sm font-bold text-base-content">{progressPercent}%</span>
+            {/* Premium Header */}
+            <div className={`sticky top-0 z-20 transition-all duration-300 ${step === 4 ? 'bg-success/5 shadow-lg' : 'bg-base-100/95 backdrop-blur-md'} border-b border-base-200`}>
+                <div className="max-w-md mx-auto p-4 pt-2">
+                    {/* Sheet Handle Vibe */}
+                    <div className="flex justify-center mb-2">
+                        <div className="h-1 w-10 rounded-full bg-base-300" />
                     </div>
-                    <progress className="progress progress-primary w-full" value={progressPercent} max="100"></progress>
+                    <div className="flex items-center justify-between mb-4">
+                        <button
+                            onClick={step === 1 ? onBack : prevStep}
+                            className="btn btn-ghost btn-circle btn-sm -ml-2"
+                        >
+                            <span className="material-symbols-outlined">arrow_back</span>
+                        </button>
+                        <div className="flex-1 px-3">
+                            <div className="flex items-center gap-3">
+                                <div
+                                    className={`radial-progress ${step === 4 ? 'text-success' : 'text-primary'} font-bold transition-all duration-500`}
+                                    style={{ "--value": progressPercent, "--size": "3rem", "--thickness": "4px" } as any}
+                                    role="progressbar"
+                                >
+                                    <span className="text-[10px]">{progressPercent}%</span>
+                                </div>
+                                <div>
+                                    <h2 className="text-base font-bold leading-none mb-1">Recipe Progress</h2>
+                                    <p className="text-xs text-base-content/50 font-medium tracking-wide">
+                                        Step {step} of 4: {stepLabels[step - 1]}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        {step === 4 ? (
+                            <div className="success-animate bg-success text-success-content px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm">
+                                <span className="material-symbols-outlined text-[18px] fill-1">check_circle</span>
+                                <span className="text-xs font-bold uppercase tracking-wider">Done!</span>
+                            </div>
+                        ) : (
+                            <div className="badge badge-neutral badge-sm opacity-50">Draft</div>
+                        )}
+                    </div>
+                    <div className="relative h-1.5 w-full bg-base-300 rounded-full overflow-hidden">
+                        <div
+                            className={`absolute top-0 left-0 h-full transition-all duration-700 ease-out rounded-full ${step === 4 ? 'bg-success' : 'bg-primary'}`}
+                            style={{ width: `${progressPercent}%` }}
+                        />
+                        {step === 4 && (
+                            <div className="absolute top-0 left-0 h-full w-full bg-success opacity-20 animate-pulse" />
+                        )}
+                    </div>
                 </div>
             </div>
 

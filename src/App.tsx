@@ -1,7 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { Screen, Recipe, GroceryItem } from '@/types';
-import { RECIPES } from '@/data/constants';
+import React, { useState, useCallback } from 'react';
+import { Screen, Recipe } from '@/types';
 import BottomNav from '@/components/BottomNav';
 import QuickActionsOverlay from '@/components/QuickActionsOverlay';
 import HomeScreen from '@/pages/HomeScreen';
@@ -13,28 +12,35 @@ import ProfileScreen from '@/pages/ProfileScreen';
 import FilterScreen, { FilterOptions } from '@/pages/FilterScreen';
 import GroceryListScreen from '@/pages/GroceryListScreen';
 import PublishRecipeScreen from '@/pages/PublishRecipeScreen';
+import AuthScreen from '@/pages/AuthScreen';
+import SplashScreen from '@/components/SplashScreen';
 import { useTheme } from '@/hooks/useTheme';
+import { useRecipes } from '@/hooks/useRecipes';
+import { useFavorites } from '@/hooks/useFavorites';
+import { useGrocery } from '@/hooks/useGrocery';
+import { useAuth } from '@/hooks/useAuth';
 
 const App: React.FC = () => {
     const { isDark, toggleTheme } = useTheme();
-    const [currentScreen, setCurrentScreen] = useState<Screen>(Screen.HOME);
-    const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
-    const [recipes, setRecipes] = useState<Recipe[]>(() => {
-        try {
-            const saved = localStorage.getItem('culinary_haven_recipes');
-            if (saved) return JSON.parse(saved);
-        } catch { /* ignore */ }
-        return RECIPES;
-    });
+    const { recipes, loading, addRecipe } = useRecipes();
+    const { favoriteIds, isFavorite, toggleFavorite } = useFavorites();
+    const { items: groceryItems, toggleItem: toggleGroceryItem, clearChecked: clearCheckedGroceryItems, addFromRecipe } = useGrocery();
+    const {
+        user,
+        signIn,
+        signUp,
+        signInWithGoogle,
+        signInWithFacebook,
+        resetPassword,
+        signOut,
+        updateProfile
+    } = useAuth();
 
-    useEffect(() => {
-        try {
-            localStorage.setItem('culinary_haven_recipes', JSON.stringify(recipes));
-        } catch { /* ignore if storage full */ }
-    }, [recipes]);
+    const [currentScreen, setCurrentScreen] = useState<Screen>(Screen.HOME);
+    const [showSplash, setShowSplash] = useState(true);
+    const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [initialCategory, setInitialCategory] = useState<string | null>(null);
-    const [groceryItems, setGroceryItems] = useState<GroceryItem[]>([]);
     const [quickActionsOpen, setQuickActionsOpen] = useState(false);
     const [filters, setFilters] = useState<FilterOptions>({
         sortBy: 'popular',
@@ -42,6 +48,17 @@ const App: React.FC = () => {
         dietary: [],
         difficulty: null,
     });
+
+    // Stores where to go back to after login
+    const [returnScreen, setReturnScreen] = useState<Screen>(Screen.HOME);
+    // Stores a pending action to execute after successful login
+    const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+
+    // Merge favorite status into recipes
+    const recipesWithFavorites = recipes.map(r => ({
+        ...r,
+        isFavorite: isFavorite(r.id),
+    }));
 
     const navigateTo = (screen: Screen, recipe?: Recipe) => {
         if (recipe) setSelectedRecipe(recipe);
@@ -53,8 +70,51 @@ const App: React.FC = () => {
         window.scrollTo(0, 0);
     };
 
-    const toggleFavorite = (id: string) => {
-        setRecipes(prev => prev.map(r => r.id === id ? { ...r, isFavorite: !r.isFavorite } : r));
+    /**
+     * Gate an action behind auth.
+     * If logged in, runs the action immediately.
+     * If not, saves the action and redirects to login.
+     */
+    const requireAuth = useCallback((action: () => void, returnTo: Screen = Screen.HOME) => {
+        if (user) {
+            action();
+        } else {
+            setPendingAction(() => action);
+            setReturnScreen(returnTo);
+            setCurrentScreen(Screen.LOGIN);
+        }
+    }, [user]);
+
+    // Execute pending action after login and redirect back
+    const handleAuthSuccess = useCallback(() => {
+        if (pendingAction) {
+            pendingAction();
+            setPendingAction(null);
+        }
+        setCurrentScreen(returnScreen);
+    }, [pendingAction, returnScreen]);
+
+    // Wrap onAuthStateChange to detect login
+    // Splash screen timeout
+    React.useEffect(() => {
+        const timer = setTimeout(() => {
+            setShowSplash(false);
+        }, 2500);
+        return () => clearTimeout(timer);
+    }, []);
+
+    const handleSignIn = async (email: string, password: string) => {
+        await signIn(email, password);
+        handleAuthSuccess();
+    };
+
+    const handleSignUp = async (email: string, password: string) => {
+        await signUp(email, password);
+        handleAuthSuccess();
+    };
+
+    const handleToggleFavorite = (id: string) => {
+        requireAuth(() => toggleFavorite(id), currentScreen);
     };
 
     const handleSearchFromHome = (query: string) => {
@@ -70,33 +130,13 @@ const App: React.FC = () => {
     };
 
     const addIngredientsToGrocery = (recipe: Recipe) => {
-        setGroceryItems(prev => {
-            const existingNames = new Set(prev.map(item => item.name.toLowerCase()));
-            const newItems: GroceryItem[] = recipe.ingredients
-                .filter(ing => !existingNames.has(ing.toLowerCase()))
-                .map((ing, idx) => ({
-                    id: `${recipe.id}-${Date.now()}-${idx}`,
-                    name: ing,
-                    checked: false,
-                    recipeTitle: recipe.title,
-                    recipeImage: recipe.image,
-                }));
-            return [...prev, ...newItems];
-        });
-        navigateTo(Screen.GROCERY);
+        requireAuth(() => {
+            addFromRecipe(recipe);
+            navigateTo(Screen.GROCERY);
+        }, Screen.DETAIL);
     };
 
-    const toggleGroceryItem = (id: string) => {
-        setGroceryItems(prev => prev.map(item =>
-            item.id === id ? { ...item, checked: !item.checked } : item
-        ));
-    };
-
-    const clearCheckedGroceryItems = () => {
-        setGroceryItems(prev => prev.filter(item => !item.checked));
-    };
-
-    const handlePublishRecipe = (data: {
+    const handlePublishRecipe = async (data: {
         title: string;
         description: string;
         coverImage: string | null;
@@ -106,8 +146,7 @@ const App: React.FC = () => {
         ingredients: { id: string; name: string; qty: string; unit: string }[];
         instructions: { id: string; description: string; image: string | null; mediaType?: 'image' | 'video'; timer?: number }[];
     }) => {
-        const newRecipe: Recipe = {
-            id: `user-${Date.now()}`,
+        const newRecipe: Omit<Recipe, 'id'> = {
             title: data.title || 'Untitled Recipe',
             image: data.coverImage || 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=600',
             prepTime: data.prepTime ? `${data.prepTime}m` : '30m',
@@ -130,46 +169,104 @@ const App: React.FC = () => {
             category: 'popular',
             isFavorite: false,
         };
-        setRecipes(prev => [newRecipe, ...prev]);
+
+        try {
+            await addRecipe(newRecipe);
+        } catch (err) {
+            console.error('Failed to publish recipe:', err);
+        }
         navigateTo(Screen.HOME);
     };
 
+    const handleAIPublish = async () => {
+        if (!selectedRecipe) return;
+
+        // Remove temp ID and ensure user ID/favorites are reset
+        const { id, isFavorite, ...recipeData } = selectedRecipe;
+
+        try {
+            await addRecipe(recipeData);
+            setCurrentScreen(Screen.HOME);
+        } catch (e) {
+            console.error("Failed to publish AI recipe", e);
+        }
+    };
+
+    const [isNavHidden, setIsNavHidden] = useState(false);
+
     const renderScreen = () => {
+        if (loading && currentScreen === Screen.HOME) {
+            return (
+                <div className="flex items-center justify-center min-h-screen">
+                    <span className="loading loading-spinner loading-lg text-primary"></span>
+                </div>
+            );
+        }
+
         switch (currentScreen) {
+            case Screen.LOGIN:
+                return (
+                    <AuthScreen
+                        mode="login"
+                        onToggleMode={() => setCurrentScreen(Screen.SIGNUP)}
+                        onSignIn={handleSignIn}
+                        onSignUp={handleSignUp}
+                        onGoogleSignIn={signInWithGoogle}
+                        onFacebookSignIn={signInWithFacebook}
+                        onForgotPassword={resetPassword}
+                        onSkip={() => { setPendingAction(null); setCurrentScreen(returnScreen); }}
+                    />
+                );
+            case Screen.SIGNUP:
+                return (
+                    <AuthScreen
+                        mode="signup"
+                        onToggleMode={() => setCurrentScreen(Screen.LOGIN)}
+                        onSignIn={handleSignIn}
+                        onSignUp={handleSignUp}
+                        onGoogleSignIn={signInWithGoogle}
+                        onFacebookSignIn={signInWithFacebook}
+                        onForgotPassword={resetPassword}
+                        onSkip={() => { setPendingAction(null); setCurrentScreen(returnScreen); }}
+                    />
+                );
             case Screen.HOME:
                 return (
                     <HomeScreen
-                        recipes={recipes}
+                        recipes={recipesWithFavorites}
                         onRecipeClick={(r) => navigateTo(Screen.DETAIL, r)}
-                        onToggleFavorite={toggleFavorite}
+                        onToggleFavorite={handleToggleFavorite}
                         onSearch={handleSearchFromHome}
                         onSeeAll={handleSeeAll}
-                        onOpenGrocery={() => navigateTo(Screen.GROCERY)}
+                        onOpenGrocery={() => requireAuth(() => navigateTo(Screen.GROCERY), Screen.HOME)}
                         isDark={isDark}
                         onToggleTheme={toggleTheme}
+                        user={user}
                     />
                 );
             case Screen.EXPLORE:
                 return (
                     <ExploreScreen
-                        recipes={recipes}
+                        recipes={recipesWithFavorites}
                         initialSearch={searchQuery}
                         initialCategory={initialCategory}
                         onRecipeClick={(r) => navigateTo(Screen.DETAIL, r)}
                         onAIGenerate={() => navigateTo(Screen.AI_GENERATE)}
-                        onToggleFavorite={toggleFavorite}
+                        onToggleFavorite={handleToggleFavorite}
                         onOpenFilter={() => navigateTo(Screen.FILTER)}
                         filters={filters}
                     />
                 );
             case Screen.DETAIL:
+                const isTempRecipe = selectedRecipe?.id.startsWith('temp-');
                 return selectedRecipe ? (
                     <RecipeDetailScreen
-                        recipe={selectedRecipe}
+                        recipe={{ ...selectedRecipe, isFavorite: isFavorite(selectedRecipe.id) }}
                         onBack={() => setCurrentScreen(Screen.HOME)}
-                        onToggleFavorite={toggleFavorite}
+                        onToggleFavorite={handleToggleFavorite}
                         onAddToGrocery={addIngredientsToGrocery}
-                        onOpenGrocery={() => navigateTo(Screen.GROCERY)}
+                        onOpenGrocery={() => requireAuth(() => navigateTo(Screen.GROCERY), Screen.DETAIL)}
+                        onPublish={isTempRecipe ? handleAIPublish : undefined}
                     />
                 ) : null;
             case Screen.AI_GENERATE:
@@ -182,18 +279,27 @@ const App: React.FC = () => {
             case Screen.SAVED:
                 return (
                     <SavedRecipesScreen
-                        recipes={recipes}
+                        recipes={recipesWithFavorites}
                         onRecipeClick={(r) => navigateTo(Screen.DETAIL, r)}
-                        onToggleFavorite={toggleFavorite}
+                        onToggleFavorite={handleToggleFavorite}
                         onBack={() => setCurrentScreen(Screen.HOME)}
                     />
                 );
             case Screen.PROFILE:
+                const userRecipeCount = recipes.filter(r => r.userId === user?.id).length;
+                const favoriteCount = favoriteIds.size;
+
                 return (
                     <ProfileScreen
                         onBack={() => setCurrentScreen(Screen.HOME)}
                         isDark={isDark}
                         onToggleTheme={toggleTheme}
+                        user={user}
+                        onSignOut={signOut}
+                        onUpdateProfile={updateProfile}
+                        recipeCount={userRecipeCount}
+                        favoriteCount={favoriteCount}
+                        onModalToggle={setIsNavHidden}
                     />
                 );
             case Screen.FILTER:
@@ -226,23 +332,34 @@ const App: React.FC = () => {
         }
     };
 
-    const showBottomNav = currentScreen !== Screen.DETAIL && currentScreen !== Screen.AI_GENERATE && currentScreen !== Screen.FILTER && currentScreen !== Screen.GROCERY && currentScreen !== Screen.PUBLISH;
+    const showBottomNav = !isNavHidden && ![Screen.DETAIL, Screen.AI_GENERATE, Screen.FILTER, Screen.GROCERY, Screen.PUBLISH, Screen.LOGIN, Screen.SIGNUP].includes(currentScreen);
+
+    if (showSplash) {
+        return <SplashScreen />;
+    }
 
     return (
-        <div className="max-w-md mx-auto bg-slate-50 dark:bg-background-dark min-h-screen shadow-xl flex flex-col relative overflow-x-hidden pb-24">
+        <div className={`max-w-md mx-auto ${currentScreen === Screen.LOGIN || currentScreen === Screen.SIGNUP ? '' : (isDark ? 'bg-background-dark text-white' : 'bg-slate-50 text-base-content')} min-h-screen shadow-xl flex flex-col relative overflow-x-hidden ${showBottomNav ? 'pb-24' : ''}`}>
             {renderScreen()}
             {showBottomNav && (
                 <BottomNav
                     currentScreen={currentScreen}
-                    onNavigate={setCurrentScreen}
+                    onNavigate={(screen) => {
+                        if (screen === Screen.SAVED || screen === Screen.PROFILE) {
+                            requireAuth(() => setCurrentScreen(screen), currentScreen);
+                        } else {
+                            setCurrentScreen(screen);
+                        }
+                    }}
                     onQuickAction={() => setQuickActionsOpen(true)}
                 />
             )}
             <QuickActionsOverlay
                 isOpen={quickActionsOpen}
                 onClose={() => setQuickActionsOpen(false)}
-                onCreateRecipe={() => navigateTo(Screen.PUBLISH)}
-                onAddToShoppingList={() => navigateTo(Screen.GROCERY)}
+                onCreateRecipe={() => requireAuth(() => navigateTo(Screen.PUBLISH), Screen.HOME)}
+                onAddToShoppingList={() => requireAuth(() => navigateTo(Screen.GROCERY), Screen.HOME)}
+                onModalToggle={setIsNavHidden}
             />
         </div>
     );

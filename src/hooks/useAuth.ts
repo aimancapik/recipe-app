@@ -1,0 +1,123 @@
+/**
+ * useAuth Hook
+ * =============
+ * Manages authentication state via Supabase Auth.
+ * Supports email/password, Google OAuth, and Facebook OAuth.
+ */
+
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+import type { User, Session } from '@supabase/supabase-js';
+
+export function useAuth() {
+    const [user, setUser] = useState<User | null>(null);
+    const [session, setSession] = useState<Session | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
+            setUser(session?.user ?? null);
+            setLoading(false);
+        });
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            (_event, session) => {
+                setSession(session);
+                setUser(session?.user ?? null);
+            }
+        );
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    const signUp = async (email: string, password: string) => {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+    };
+
+    const signIn = async (email: string, password: string) => {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+    };
+
+    const signInWithGoogle = async () => {
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: { redirectTo: window.location.origin },
+        });
+        if (error) throw error;
+    };
+
+    const signInWithFacebook = async () => {
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'facebook',
+            options: { redirectTo: window.location.origin },
+        });
+        if (error) throw error;
+    };
+
+    const resetPassword = async (email: string) => {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (error) throw error;
+    };
+
+    const signOut = async () => {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+    };
+
+    const updateProfile = async (updates: {
+        full_name?: string;
+        avatar_url?: string;
+        bio?: string;
+        socials?: {
+            instagram?: string;
+            twitter?: string;
+            youtube?: string;
+        };
+    }) => {
+        if (!user) return;
+
+        // 1. Update Auth Metadata (for easy access in state)
+        const { error: authError } = await supabase.auth.updateUser({
+            data: updates
+        });
+        if (authError) throw authError;
+
+        // 2. Sync to 'profiles' table (for public querying and uniqueness)
+        const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert({
+                id: user.id,
+                full_name: updates.full_name,
+                avatar_url: updates.avatar_url,
+                bio: updates.bio,
+                socials: updates.socials,
+                updated_at: new Date().toISOString()
+            });
+
+        if (profileError) {
+            // If it's a unique constraint violation
+            if (profileError.code === '23505') {
+                throw new Error('This name is already taken. Please choose another one.');
+            }
+            throw profileError;
+        }
+    };
+
+    return {
+        user,
+        session,
+        loading,
+        signUp,
+        signIn,
+        signInWithGoogle,
+        signInWithFacebook,
+        resetPassword,
+        signOut,
+        updateProfile,
+    };
+}

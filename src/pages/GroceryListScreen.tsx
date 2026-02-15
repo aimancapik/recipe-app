@@ -1,24 +1,44 @@
 
-import React from 'react';
-import { Recipe } from '@/types';
+import React, { useMemo } from 'react';
+import { GroceryItem } from '@/types';
 
 interface GroceryListScreenProps {
-    groceryItems: { recipe: Recipe; items: { ingredient: string; checked: boolean }[] }[];
+    items: GroceryItem[];
+    onToggleItem: (id: string) => void;
+    onClearChecked: () => void;
     onBack: () => void;
-    onToggleItem: (recipeId: string, ingredientIndex: number) => void;
-    onRemoveRecipe: (recipeId: string) => void;
-    onClearAll: () => void;
+}
+
+interface GroceryGroup {
+    recipeTitle: string;
+    recipeImage: string;
+    items: GroceryItem[];
 }
 
 const GroceryListScreen: React.FC<GroceryListScreenProps> = ({
-    groceryItems,
-    onBack,
+    items,
     onToggleItem,
-    onRemoveRecipe,
-    onClearAll,
+    onClearChecked,
+    onBack,
 }) => {
-    const totalItems = groceryItems.reduce((acc, g) => acc + g.items.length, 0);
-    const checkedItems = groceryItems.reduce((acc, g) => acc + g.items.filter(i => i.checked).length, 0);
+    // Group items by recipe
+    const groups = useMemo(() => {
+        const map = new Map<string, GroceryGroup>();
+        items.forEach(item => {
+            if (!map.has(item.recipeTitle)) {
+                map.set(item.recipeTitle, {
+                    recipeTitle: item.recipeTitle,
+                    recipeImage: item.recipeImage,
+                    items: [],
+                });
+            }
+            map.get(item.recipeTitle)!.items.push(item);
+        });
+        return Array.from(map.values());
+    }, [items]);
+
+    const totalItems = items.length;
+    const checkedItems = items.filter(i => i.checked).length;
     const progress = totalItems > 0 ? Math.round((checkedItems / totalItems) * 100) : 0;
 
     return (
@@ -34,16 +54,16 @@ const GroceryListScreen: React.FC<GroceryListScreenProps> = ({
                     <h2 className="text-lg font-bold">Shopping List</h2>
                 </div>
                 <div className="navbar-end">
-                    {groceryItems.length > 0 && (
-                        <button onClick={onClearAll} className="btn btn-ghost btn-sm text-error">
-                            Clear all
+                    {checkedItems > 0 && (
+                        <button onClick={onClearChecked} className="btn btn-ghost btn-sm text-error">
+                            Clear done
                         </button>
                     )}
                 </div>
             </div>
 
             <main className="flex-1 px-4 pb-24 pt-4">
-                {groceryItems.length > 0 ? (
+                {items.length > 0 ? (
                     <>
                         {/* Progress Tracker */}
                         <div className="card bg-base-100 shadow-sm mb-6">
@@ -71,38 +91,32 @@ const GroceryListScreen: React.FC<GroceryListScreenProps> = ({
 
                         {/* Grocery Groups */}
                         <div className="space-y-4">
-                            {groceryItems.map(group => {
+                            {groups.map(group => {
                                 const groupChecked = group.items.filter(i => i.checked).length;
                                 const groupTotal = group.items.length;
                                 return (
-                                    <div key={group.recipe.id} className="card bg-base-100 shadow-sm">
+                                    <div key={group.recipeTitle} className="card bg-base-100 shadow-sm">
                                         <div className="card-body p-4">
                                             {/* Group Header */}
                                             <div className="flex items-center justify-between mb-3">
                                                 <div className="flex items-center gap-3">
                                                     <div className="avatar">
                                                         <div className="w-10 rounded-lg">
-                                                            <img src={group.recipe.image} alt={group.recipe.title} />
+                                                            <img src={group.recipeImage} alt={group.recipeTitle} />
                                                         </div>
                                                     </div>
                                                     <div>
-                                                        <h3 className="font-bold text-sm line-clamp-1">{group.recipe.title}</h3>
+                                                        <h3 className="font-bold text-sm line-clamp-1">{group.recipeTitle}</h3>
                                                         <span className="text-xs text-base-content/50">{groupChecked}/{groupTotal} items</span>
                                                     </div>
                                                 </div>
-                                                <button
-                                                    onClick={() => onRemoveRecipe(group.recipe.id)}
-                                                    className="btn btn-ghost btn-circle btn-xs text-base-content/40 hover:text-error"
-                                                >
-                                                    <span className="material-symbols-outlined text-sm">delete</span>
-                                                </button>
                                             </div>
                                             {/* Items */}
                                             <ul className="space-y-1">
-                                                {group.items.map((item, idx) => (
+                                                {group.items.map(item => (
                                                     <li
-                                                        key={idx}
-                                                        onClick={() => onToggleItem(group.recipe.id, idx)}
+                                                        key={item.id}
+                                                        onClick={() => onToggleItem(item.id)}
                                                         className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors hover:bg-base-200 ${item.checked ? 'opacity-50' : ''}`}
                                                     >
                                                         <input
@@ -112,7 +126,7 @@ const GroceryListScreen: React.FC<GroceryListScreenProps> = ({
                                                             readOnly
                                                         />
                                                         <span className={`text-sm flex-1 ${item.checked ? 'line-through text-base-content/40' : 'text-base-content'}`}>
-                                                            {item.ingredient}
+                                                            {item.name}
                                                         </span>
                                                         {item.checked && (
                                                             <span className="material-symbols-outlined text-success text-sm">check_circle</span>
@@ -142,7 +156,7 @@ const GroceryListScreen: React.FC<GroceryListScreenProps> = ({
                     </div>
                 )}
             </main>
-        </div >
+        </div>
     );
 };
 

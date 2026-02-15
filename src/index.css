@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&display=swap');
 
 @plugin "daisyui" {
   themes: bumblebee --default, dark;
@@ -6,6 +8,7 @@
 
 @theme {
   --font-display: "Work Sans", sans-serif;
+  --font-handwriting: "Caveat", cursive;
   --color-primary-custom: #f4e225;
   --color-background-light: #f8f8f5;
   --color-background-dark: #222110;
@@ -31,6 +34,82 @@
   font-variation-settings: 'FILL' 1;
 }
 
+
 .fill-1 {
   font-variation-settings: 'FILL' 1;
+}
+
+@keyframes success-pulse {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.05);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.success-animate {
+  animation: success-pulse 0.5s ease-out;
+}
+
+.glow-completion {
+  box-shadow: 0 0 20px rgba(74, 222, 128, 0.2);
+}
+
+@keyframes sparkle {
+  0% {
+    transform: scale(0) rotate(0deg);
+    opacity: 0;
+  }
+
+  50% {
+    transform: scale(1.2) rotate(180deg);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(0) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+.animate-sparkle {
+  animation: sparkle 1s ease-in-out infinite;
+}
+
+@keyframes float-up {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(-100px) scale(0.5);
+    opacity: 0;
+  }
+}
+
+.animate-float {
+  animation: float-up 2s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 1.2s ease-out forwards;
 }

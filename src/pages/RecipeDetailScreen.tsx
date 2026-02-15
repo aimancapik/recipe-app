@@ -9,11 +9,12 @@ interface RecipeDetailScreenProps {
     onToggleFavorite: (id: string) => void;
     onAddToGrocery: (recipe: Recipe) => void;
     onOpenGrocery: () => void;
+    onPublish?: () => void;
 }
 
-const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack, onToggleFavorite, onAddToGrocery, onOpenGrocery }) => {
+const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack, onToggleFavorite, onAddToGrocery, onOpenGrocery, onPublish }) => {
     return (
-        <div className="relative flex min-h-screen w-full flex-col bg-base-100">
+        <div className="relative flex min-h-screen w-full flex-col bg-base-100 pb-24">
             {/* Header Image & Overlay Nav */}
             <div className="relative w-full h-80">
                 <div
@@ -27,19 +28,21 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                     <button onClick={onBack} className="btn btn-circle btn-sm glass text-white">
                         <span className="material-symbols-outlined">arrow_back</span>
                     </button>
-                    <button
-                        onClick={() => onToggleFavorite(recipe.id)}
-                        className={`btn btn-circle btn-sm glass ${recipe.isFavorite ? 'text-primary' : 'text-white'}`}
-                    >
-                        <span className={`material-symbols-outlined ${recipe.isFavorite ? 'fill-icon' : ''}`}>
-                            bookmark
-                        </span>
-                    </button>
+                    {!onPublish && (
+                        <button
+                            onClick={() => onToggleFavorite(recipe.id)}
+                            className={`btn btn-circle btn-sm glass border-none transition-all active:scale-90 ${recipe.isFavorite ? 'text-red-500' : 'text-white'}`}
+                        >
+                            <span className={`material-symbols-outlined ${recipe.isFavorite ? 'fill-icon scale-110' : ''}`}>
+                                {recipe.isFavorite ? 'heart_check' : 'favorite'}
+                            </span>
+                        </button>
+                    )}
                 </div>
             </div>
 
             {/* Recipe Content */}
-            <div className="relative -mt-8 rounded-t-3xl bg-base-100 px-6 pt-8 pb-32 shadow-2xl">
+            <div className="relative -mt-8 rounded-t-3xl bg-base-100 px-6 pt-8 pb-8 shadow-2xl">
                 {/* Title and Rating */}
                 <div className="flex justify-between items-start mb-6">
                     <div className="flex flex-col gap-1">
@@ -138,25 +141,18 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                 </div>
             </div>
 
-            {/* Floating CTA Button */}
-            <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto p-4 bg-base-100/80 backdrop-blur-lg z-50">
-                <div className="flex flex-col gap-3">
+            {/* Publish Button (Fixed Bottom) */}
+            {onPublish && (
+                <div className="fixed bottom-6 left-6 right-6 z-30">
                     <button
-                        className="btn btn-primary w-full gap-2 shadow-lg"
-                        onClick={() => onAddToGrocery(recipe)}
+                        onClick={onPublish}
+                        className="btn btn-primary w-full shadow-2xl text-lg font-bold border-none h-14 rounded-2xl animate-in slide-in-from-bottom duration-500"
                     >
-                        <span className="material-symbols-outlined">shopping_cart</span>
-                        Add to Shopping List
-                    </button>
-                    <button
-                        onClick={onOpenGrocery}
-                        className="btn btn-ghost btn-sm gap-1 text-base-content/50"
-                    >
-                        <span className="material-symbols-outlined text-lg">list_alt</span>
-                        View Shopping List
+                        <span className="material-symbols-outlined fill-icon scale-125 mr-2">publish</span>
+                        Publish to Community
                     </button>
                 </div>
-            </div>
+            )}
         </div>
     );
 };

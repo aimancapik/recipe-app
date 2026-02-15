@@ -1,7 +1,8 @@
-
 import React, { useState } from 'react';
+import { User } from '@supabase/supabase-js';
 import { Recipe } from '@/types';
 import { CATEGORIES } from '@/data/constants';
+import RecipeCard from '@/components/RecipeCard';
 
 interface HomeScreenProps {
     recipes: Recipe[];
@@ -12,9 +13,12 @@ interface HomeScreenProps {
     onOpenGrocery: () => void;
     isDark: boolean;
     onToggleTheme: () => void;
+    user: User | null;
 }
 
-const HomeScreen: React.FC<HomeScreenProps> = ({ recipes, onRecipeClick, onToggleFavorite, onSearch, onSeeAll, onOpenGrocery, isDark, onToggleTheme }) => {
+const HomeScreen: React.FC<HomeScreenProps> = ({ recipes, onRecipeClick, onToggleFavorite, onSearch, onSeeAll, onOpenGrocery, isDark, onToggleTheme, user }) => {
+    const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Chef';
+    const avatarUrl = user?.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100';
     const [activeCategory, setActiveCategory] = useState('popular');
     const [searchValue, setSearchValue] = useState('');
 
@@ -44,11 +48,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ recipes, onRecipeClick, onToggl
                 <div className="flex items-center gap-3">
                     <div className="avatar">
                         <div className="w-12 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
-                            <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100" alt="Profile" />
+                            <img src={avatarUrl} alt="Profile" />
                         </div>
                     </div>
                     <div>
-                        <h2 className="text-xl font-bold leading-tight tracking-tight text-base-content">Hello, Alex!</h2>
+                        <h2 className="text-xl font-bold leading-tight tracking-tight text-base-content">Hello, {displayName}!</h2>
                         <p className="text-base-content/50 text-sm">What are you cooking today?</p>
                     </div>
                 </div>
@@ -128,11 +132,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ recipes, onRecipeClick, onToggl
                 </div>
                 <div className="grid grid-cols-2 gap-4 pb-2">
                     {filteredRecipes.map((recipe) => (
-                        <RecipeCardSmall
+                        <RecipeCard
                             key={recipe.id}
                             recipe={recipe}
                             onClick={() => onRecipeClick(recipe)}
                             onToggleFavorite={onToggleFavorite}
+                            showCategory={activeCategory === 'popular'}
                         />
                     ))}
                 </div>
@@ -141,44 +146,5 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ recipes, onRecipeClick, onToggl
     );
 };
 
-const RecipeCardSmall: React.FC<{
-    recipe: Recipe;
-    onClick: () => void;
-    onToggleFavorite: (id: string) => void;
-}> = ({ recipe, onClick, onToggleFavorite }) => (
-    <div
-        className="card card-compact bg-base-100 shadow-sm border border-base-200 cursor-pointer active:scale-95 transition-transform"
-        onClick={onClick}
-    >
-        <figure className="relative h-40">
-            <img
-                src={recipe.image}
-                alt={recipe.title}
-                className="w-full h-full object-cover"
-            />
-            <button
-                onClick={(e) => { e.stopPropagation(); onToggleFavorite(recipe.id); }}
-                className={`absolute top-2 right-2 btn btn-circle btn-xs glass ${recipe.isFavorite ? 'text-red-500' : 'text-base-content/40'}`}
-            >
-                <span className={`material-symbols-outlined text-lg ${recipe.isFavorite ? 'fill-icon' : ''}`}>
-                    {recipe.isFavorite ? 'heart_check' : 'favorite'}
-                </span>
-            </button>
-        </figure>
-        <div className="card-body !p-3">
-            <h4 className="font-bold text-sm leading-snug line-clamp-1 text-base-content">{recipe.title}</h4>
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1 text-base-content/50 text-xs">
-                    <span className="material-symbols-outlined text-sm">schedule</span>
-                    <span>{recipe.prepTime}</span>
-                </div>
-                <div className="flex items-center gap-1 text-xs">
-                    <span className="material-symbols-outlined text-sm text-warning fill-icon">star</span>
-                    <span className="font-bold text-base-content">{recipe.rating}</span>
-                </div>
-            </div>
-        </div>
-    </div>
-);
 
 export default HomeScreen;

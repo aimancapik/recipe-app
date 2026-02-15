@@ -26,3 +26,34 @@ dist-ssr
 
 # MCP server config (contains API keys)
 mcp.config.json
+
+# Environment variables (Supabase keys etc.)
+.env
+.env.local
+.env.development
+.env.production
+.env.*.local
+
+# Temporary and tool-specific files
+temp_profiles.sql
+.agent/
+.claude/
+.antigravity/
+
+# OS-specific files
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Development artifacts
+.eslintcache
+coverage/
+*.pid
+*.seed
+
+# Local databases
+**/*.sqlite
+**/*.db
+
+# Build directories
+build/
