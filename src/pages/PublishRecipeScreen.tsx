@@ -1,7 +1,8 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { uploadImage } from '@/lib/storage';
 import { videoToGif } from '@/lib/videoToGif';
+import { Recipe } from '@/types';
 
 interface Ingredient {
     id: string;
@@ -21,6 +22,8 @@ interface InstructionStep {
 interface PublishRecipeScreenProps {
     onBack: () => void;
     onPublish?: (data: RecipeFormData) => void;
+    onUpdate?: (id: string, data: RecipeFormData) => void;
+    editingRecipe?: Recipe | null;
 }
 
 interface RecipeFormData {
@@ -36,7 +39,8 @@ interface RecipeFormData {
 
 const UNITS = ['g', 'kg', 'ml', 'tsp', 'tbsp', 'cup', 'pcs'];
 
-const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPublish }) => {
+const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPublish, onUpdate, editingRecipe }) => {
+    const isEditing = !!editingRecipe;
     const [step, setStep] = useState(1);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -59,6 +63,39 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
     const [instructions, setInstructions] = useState<InstructionStep[]>([
         { id: '1', description: '', image: null },
     ]);
+
+    // Pre-fill form when editing
+    useEffect(() => {
+        if (editingRecipe) {
+            setTitle(editingRecipe.title || '');
+            setDescription('');
+            setCoverImage(editingRecipe.image || null);
+            setPrepTime(editingRecipe.prepTime?.replace(/[^0-9]/g, '') || '');
+            setServes(editingRecipe.serves || '');
+            setDifficulty(editingRecipe.level || 'Easy');
+
+            // Parse ingredients back to form format
+            const parsedIngredients: Ingredient[] = editingRecipe.ingredients.map((ing, idx) => {
+                // Try to parse "100g Flour" format
+                const match = ing.match(/^([\d.]+)\s*(g|kg|ml|tsp|tbsp|cup|pcs)?\s*(.+)$/i);
+                if (match) {
+                    return { id: `edit-${idx}`, qty: match[1], unit: match[2] || 'g', name: match[3].trim() };
+                }
+                return { id: `edit-${idx}`, qty: '', unit: 'pcs', name: ing };
+            });
+            setIngredients(parsedIngredients);
+
+            // Parse directions
+            const parsedInstructions: InstructionStep[] = editingRecipe.directions.map((dir, idx) => ({
+                id: `edit-${idx}`,
+                description: dir.description,
+                image: dir.image || null,
+                mediaType: dir.mediaType || 'image',
+                timer: dir.timer,
+            }));
+            setInstructions(parsedInstructions.length > 0 ? parsedInstructions : [{ id: '1', description: '', image: null }]);
+        }
+    }, [editingRecipe]);
 
     const [uploading, setUploading] = useState(false);
 
@@ -150,9 +187,12 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
     };
 
     const handlePublish = () => {
-        onPublish?.({
-            title, description, coverImage, prepTime, serves, difficulty, ingredients, instructions,
-        });
+        const data = { title, description, coverImage, prepTime, serves, difficulty, ingredients, instructions };
+        if (isEditing && editingRecipe) {
+            onUpdate?.(editingRecipe.id, data);
+        } else {
+            onPublish?.(data);
+        }
     };
 
     const nextStep = () => setStep(prev => Math.min(prev + 1, 4));
@@ -533,7 +573,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                 onClick={addInstructionStep}
                 className="w-full mt-8 py-4 border-2 border-dashed border-primary rounded-xl flex items-center justify-center gap-2 text-base-content font-bold hover:bg-primary/10 transition-colors group"
             >
-                <div className="bg-primary text-primary-content p-1 rounded-full group-hover:scale-110 transition-transform">
+                <div className="size-8 aspect-square bg-primary text-primary-content rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
                     <span className="material-symbols-outlined text-lg leading-none">add</span>
                 </div>
                 Add Another Step
@@ -546,18 +586,6 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
     // ─────────────────────────────────────────────
     const renderStep4 = () => (
         <div className="flex-1 overflow-y-auto pb-32 no-scrollbar">
-            {/* Celebration Sparkles */}
-            <div className="fixed inset-0 pointer-events-none z-10 overflow-hidden">
-                <div className="absolute top-20 left-1/4 animate-sparkle text-success">
-                    <span className="material-symbols-outlined text-xl">sparkles</span>
-                </div>
-                <div className="absolute top-40 right-1/4 animate-sparkle text-primary delay-75">
-                    <span className="material-symbols-outlined text-2xl">sparkles</span>
-                </div>
-                <div className="absolute top-1/2 left-1/2 animate-sparkle text-success delay-150">
-                    <span className="material-symbols-outlined text-lg">star</span>
-                </div>
-            </div>
 
             <div className="p-4 space-y-6">
                 {/* Hero Section */}
@@ -572,7 +600,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                     <div className="absolute top-4 left-4">
                         <div className="badge badge-success gap-1.5 py-3 px-4 shadow-lg border-0 backdrop-blur-md bg-success/80 text-success-content font-bold animate-pulse">
                             <span className="material-symbols-outlined text-[14px] fill-1">check_circle</span>
-                            READY TO PUBLISH
+                            {isEditing ? 'READY TO UPDATE' : 'READY TO PUBLISH'}
                         </div>
                     </div>
 
@@ -706,12 +734,12 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                         </button>
                         <div className="flex-1 px-3">
                             <div className="flex items-center gap-3">
-                                <div
-                                    className={`radial-progress ${step === 4 ? 'text-success' : 'text-primary'} font-bold transition-all duration-500`}
-                                    style={{ "--value": progressPercent, "--size": "3rem", "--thickness": "4px" } as any}
-                                    role="progressbar"
-                                >
-                                    <span className="text-[10px]">{progressPercent}%</span>
+                                <div className={`size-12 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-all duration-500 ${step === 4 ? 'border-success bg-success/10 text-success' : 'border-primary bg-primary/10 text-primary'}`}>
+                                    {step === 4 ? (
+                                        <span className="material-symbols-outlined text-[20px] fill-icon">check</span>
+                                    ) : (
+                                        <span className="text-[11px]">{progressPercent}%</span>
+                                    )}
                                 </div>
                                 <div>
                                     <h2 className="text-base font-bold leading-none mb-1">Recipe Progress</h2>
@@ -736,7 +764,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                             style={{ width: `${progressPercent}%` }}
                         />
                         {step === 4 && (
-                            <div className="absolute top-0 left-0 h-full w-full bg-success opacity-20 animate-pulse" />
+                            <div className="absolute top-0 left-0 h-full w-full bg-success opacity-20" />
                         )}
                     </div>
                 </div>
@@ -748,7 +776,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
             {step === 4 && renderStep4()}
 
             {/* Bottom Navigation */}
-            <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-base-100/80 backdrop-blur-md border-t border-base-200 p-4 z-30">
+            <div className="fixed bottom-0 left-0 right-0 max-w-[480px] mx-auto bg-base-100/80 backdrop-blur-md border-t border-base-200 p-4 z-30">
                 {step === 1 ? (
                     <button onClick={nextStep} className="btn btn-primary w-full btn-lg gap-2 shadow-lg">
                         Next: Ingredients
@@ -767,8 +795,8 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                             </button>
                         ) : (
                             <button onClick={handlePublish} className="btn btn-primary flex-[2] btn-lg gap-2 shadow-lg">
-                                <span className="material-symbols-outlined text-[20px]">publish</span>
-                                Publish Recipe
+                                <span className="material-symbols-outlined text-[20px]">{isEditing ? 'save' : 'publish'}</span>
+                                {isEditing ? 'Update Recipe' : 'Publish Recipe'}
                             </button>
                         )}
                     </div>

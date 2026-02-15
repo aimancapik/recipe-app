@@ -22,6 +22,7 @@ interface ProfileScreenProps {
     recipeCount: number;
     favoriteCount: number;
     onModalToggle?: (hidden: boolean) => void;
+    onMyRecipes?: () => void;
 }
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({
@@ -33,7 +34,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
     onUpdateProfile,
     recipeCount,
     favoriteCount,
-    onModalToggle
+    onModalToggle,
+    onMyRecipes
 }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
@@ -128,7 +130,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 </div>
             </div>
 
-            <main className="flex-1 overflow-y-auto pb-24">
+            <main className="flex-1 overflow-y-auto">
                 {/* Profile Header */}
                 <div className="flex p-6 flex-col items-center">
                     <div
@@ -136,7 +138,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                         onClick={handleAvatarClick}
                     >
                         {avatarUrl ? (
-                            <div className="w-28 rounded-full ring ring-primary ring-offset-base-100 ring-offset-4 overflow-hidden">
+                            <div className="w-28 aspect-square rounded-full ring ring-primary ring-offset-base-100 ring-offset-4 overflow-hidden">
                                 <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
                                 {uploading && (
                                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-full">
@@ -145,7 +147,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                                 )}
                             </div>
                         ) : (
-                            <div className="w-28 rounded-full ring ring-primary ring-offset-base-100 ring-offset-4 bg-primary text-primary-content">
+                            <div className="w-28 aspect-square rounded-full ring ring-primary ring-offset-base-100 ring-offset-4 bg-primary text-primary-content flex items-center justify-center">
                                 {uploading ? (
                                     <span className="loading loading-spinner loading-md"></span>
                                 ) : (
@@ -255,7 +257,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                     <h3 className="px-4 text-xs font-bold text-base-content/40 uppercase tracking-widest mb-1">Account</h3>
                     <ul className="menu bg-base-100 gap-1 shadow-sm w-full p-2">
                         <li>
-                            <a className="flex items-center gap-3 py-3">
+                            <a onClick={onMyRecipes} className="flex items-center gap-3 py-3 cursor-pointer">
                                 <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
                                     <span className="material-symbols-outlined text-[22px]">menu_book</span>
                                 </div>

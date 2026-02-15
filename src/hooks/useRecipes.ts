@@ -151,10 +151,92 @@ export function useRecipes() {
         }
     };
 
+    // Delete a recipe (ingredients & directions cascade automatically)
+    const deleteRecipe = async (id: string) => {
+        try {
+            const { error: deleteError } = await supabase
+                .from('recipes')
+                .delete()
+                .eq('id', id);
+
+            if (deleteError) throw deleteError;
+
+            // Refresh the list
+            await fetchRecipes();
+        } catch (err: any) {
+            console.error('useRecipes delete error:', err);
+            throw err;
+        }
+    };
+
+    // Update an existing recipe (metadata + replace ingredients & directions)
+    const updateRecipe = async (id: string, recipe: Omit<Recipe, 'id'>) => {
+        try {
+            // 1. Update the recipe row
+            const { error: recipeError } = await supabase
+                .from('recipes')
+                .update({
+                    title: recipe.title,
+                    image: recipe.image,
+                    prep_time: recipe.prepTime,
+                    rating: recipe.rating,
+                    reviews: recipe.reviews,
+                    serves: recipe.serves,
+                    kcal: recipe.kcal,
+                    level: recipe.level,
+                    category: recipe.category,
+                })
+                .eq('id', id);
+
+            if (recipeError) throw recipeError;
+
+            // 2. Replace ingredients: delete old, insert new
+            await supabase.from('ingredients').delete().eq('recipe_id', id);
+            if (recipe.ingredients.length > 0) {
+                const { error: ingError } = await supabase
+                    .from('ingredients')
+                    .insert(
+                        recipe.ingredients.map((name, idx) => ({
+                            recipe_id: id,
+                            name,
+                            sort_order: idx,
+                        }))
+                    );
+                if (ingError) throw ingError;
+            }
+
+            // 3. Replace directions: delete old, insert new
+            await supabase.from('directions').delete().eq('recipe_id', id);
+            if (recipe.directions.length > 0) {
+                const { error: dirError } = await supabase
+                    .from('directions')
+                    .insert(
+                        recipe.directions.map((dir, idx) => ({
+                            recipe_id: id,
+                            step: dir.step,
+                            title: dir.title,
+                            description: dir.description,
+                            image: dir.image || null,
+                            media_type: dir.mediaType || 'image',
+                            timer: dir.timer || null,
+                            sort_order: idx,
+                        }))
+                    );
+                if (dirError) throw dirError;
+            }
+
+            // Refresh the list
+            await fetchRecipes();
+        } catch (err: any) {
+            console.error('useRecipes update error:', err);
+            throw err;
+        }
+    };
+
     // Fetch on mount
     useEffect(() => {
         fetchRecipes();
     }, [fetchRecipes]);
 
-    return { recipes, loading, error, fetchRecipes, addRecipe, setRecipes };
+    return { recipes, loading, error, fetchRecipes, addRecipe, deleteRecipe, updateRecipe, setRecipes };
 }

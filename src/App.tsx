@@ -13,6 +13,7 @@ import FilterScreen, { FilterOptions } from '@/pages/FilterScreen';
 import GroceryListScreen from '@/pages/GroceryListScreen';
 import PublishRecipeScreen from '@/pages/PublishRecipeScreen';
 import AuthScreen from '@/pages/AuthScreen';
+import MyRecipesScreen from '@/pages/MyRecipesScreen';
 import SplashScreen from '@/components/SplashScreen';
 import { useTheme } from '@/hooks/useTheme';
 import { useRecipes } from '@/hooks/useRecipes';
@@ -22,7 +23,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 const App: React.FC = () => {
     const { isDark, toggleTheme } = useTheme();
-    const { recipes, loading, addRecipe } = useRecipes();
+    const { recipes, loading, addRecipe, deleteRecipe, updateRecipe } = useRecipes();
     const { favoriteIds, isFavorite, toggleFavorite } = useFavorites();
     const { items: groceryItems, toggleItem: toggleGroceryItem, clearChecked: clearCheckedGroceryItems, addFromRecipe } = useGrocery();
     const {
@@ -53,6 +54,7 @@ const App: React.FC = () => {
     const [returnScreen, setReturnScreen] = useState<Screen>(Screen.HOME);
     // Stores a pending action to execute after successful login
     const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+    const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
 
     // Merge favorite status into recipes
     const recipesWithFavorites = recipes.map(r => ({
@@ -178,6 +180,49 @@ const App: React.FC = () => {
         navigateTo(Screen.HOME);
     };
 
+    const handleUpdateRecipe = async (id: string, data: {
+        title: string;
+        description: string;
+        coverImage: string | null;
+        prepTime: string;
+        serves: string;
+        difficulty: string;
+        ingredients: { id: string; name: string; qty: string; unit: string }[];
+        instructions: { id: string; description: string; image: string | null; mediaType?: 'image' | 'video'; timer?: number }[];
+    }) => {
+        const updatedRecipe: Omit<Recipe, 'id'> = {
+            title: data.title || 'Untitled Recipe',
+            image: data.coverImage || 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=600',
+            prepTime: data.prepTime ? `${data.prepTime}m` : '30m',
+            rating: editingRecipe?.rating || 0,
+            reviews: editingRecipe?.reviews || 0,
+            serves: data.serves || '01',
+            kcal: editingRecipe?.kcal || '0',
+            level: (data.difficulty as 'Easy' | 'Medium' | 'Hard') || 'Easy',
+            ingredients: data.ingredients.map(i => `${i.qty}${i.unit} ${i.name}`),
+            directions: data.instructions
+                .filter(s => s.description.trim())
+                .map((s, idx) => ({
+                    step: idx + 1,
+                    title: `Step ${idx + 1}`,
+                    description: s.description,
+                    image: s.image || null,
+                    mediaType: s.mediaType || 'image' as const,
+                    timer: s.timer,
+                })),
+            category: editingRecipe?.category || 'popular',
+            isFavorite: false,
+        };
+
+        try {
+            await updateRecipe(id, updatedRecipe);
+        } catch (err) {
+            console.error('Failed to update recipe:', err);
+        }
+        setEditingRecipe(null);
+        navigateTo(Screen.MY_RECIPES);
+    };
+
     const handleAIPublish = async () => {
         if (!selectedRecipe) return;
 
@@ -300,6 +345,7 @@ const App: React.FC = () => {
                         recipeCount={userRecipeCount}
                         favoriteCount={favoriteCount}
                         onModalToggle={setIsNavHidden}
+                        onMyRecipes={() => setCurrentScreen(Screen.MY_RECIPES)}
                     />
                 );
             case Screen.FILTER:
@@ -323,8 +369,27 @@ const App: React.FC = () => {
             case Screen.PUBLISH:
                 return (
                     <PublishRecipeScreen
-                        onBack={() => setCurrentScreen(Screen.HOME)}
+                        onBack={() => {
+                            setEditingRecipe(null);
+                            setCurrentScreen(editingRecipe ? Screen.MY_RECIPES : Screen.HOME);
+                        }}
                         onPublish={handlePublishRecipe}
+                        onUpdate={handleUpdateRecipe}
+                        editingRecipe={editingRecipe}
+                    />
+                );
+            case Screen.MY_RECIPES:
+                const myRecipes = recipesWithFavorites.filter(r => r.userId === user?.id);
+                return (
+                    <MyRecipesScreen
+                        recipes={myRecipes}
+                        onBack={() => setCurrentScreen(Screen.PROFILE)}
+                        onEdit={(recipe) => {
+                            setEditingRecipe(recipe);
+                            setCurrentScreen(Screen.PUBLISH);
+                        }}
+                        onDelete={deleteRecipe}
+                        onRecipeClick={(r) => navigateTo(Screen.DETAIL, r)}
                     />
                 );
             default:
@@ -332,14 +397,14 @@ const App: React.FC = () => {
         }
     };
 
-    const showBottomNav = !isNavHidden && ![Screen.DETAIL, Screen.AI_GENERATE, Screen.FILTER, Screen.GROCERY, Screen.PUBLISH, Screen.LOGIN, Screen.SIGNUP].includes(currentScreen);
+    const showBottomNav = !isNavHidden && ![Screen.DETAIL, Screen.AI_GENERATE, Screen.FILTER, Screen.GROCERY, Screen.PUBLISH, Screen.LOGIN, Screen.SIGNUP, Screen.MY_RECIPES].includes(currentScreen);
 
     if (showSplash) {
         return <SplashScreen />;
     }
 
     return (
-        <div className={`max-w-md mx-auto ${currentScreen === Screen.LOGIN || currentScreen === Screen.SIGNUP ? '' : (isDark ? 'bg-background-dark text-white' : 'bg-slate-50 text-base-content')} min-h-screen shadow-xl flex flex-col relative overflow-x-hidden ${showBottomNav ? 'pb-24' : ''}`}>
+        <div className={`max-w-md mx-auto ${currentScreen === Screen.LOGIN || currentScreen === Screen.SIGNUP ? '' : (isDark ? 'bg-background-dark text-white' : 'bg-slate-50 text-base-content')} min-h-screen shadow-xl flex flex-col relative overflow-x-hidden ${showBottomNav ? 'pb-20' : ''}`}>
             {renderScreen()}
             {showBottomNav && (
                 <BottomNav

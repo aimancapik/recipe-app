@@ -11,7 +11,8 @@ export enum Screen {
     GROCERY = 'grocery',
     PUBLISH = 'publish',
     LOGIN = 'login',
-    SIGNUP = 'signup'
+    SIGNUP = 'signup',
+    MY_RECIPES = 'my_recipes'
 }
 
 export interface Direction {

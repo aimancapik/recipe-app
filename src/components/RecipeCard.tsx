@@ -25,7 +25,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onClick, onToggleFavori
                         e.stopPropagation();
                         onToggleFavorite?.(recipe.id);
                     }}
-                    className={`absolute top-3 right-3 w-8 h-8 btn btn-circle glass border-none hover:bg-white/20 active:scale-90 transition-all ${recipe.isFavorite ? 'text-red-500' : 'text-white'}`}
+                    className={`absolute top-3 right-3 size-8 btn btn-circle glass border-none hover:bg-white/20 active:scale-90 transition-all ${recipe.isFavorite ? 'text-red-500' : 'text-white'}`}
                 >
                     <span className={`material-symbols-outlined text-[18px] transition-all ${recipe.isFavorite ? 'fill-icon scale-110' : ''}`}>
                         {recipe.isFavorite ? 'heart_check' : 'favorite'}

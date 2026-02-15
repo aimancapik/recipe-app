@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Recipe } from '@/types';
 import StepTimer from '@/components/StepTimer';
 
@@ -9,12 +9,26 @@ interface RecipeDetailScreenProps {
     onToggleFavorite: (id: string) => void;
     onAddToGrocery: (recipe: Recipe) => void;
     onOpenGrocery: () => void;
-    onPublish?: () => void;
+    onPublish?: () => Promise<void> | void;
 }
 
 const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack, onToggleFavorite, onAddToGrocery, onOpenGrocery, onPublish }) => {
+    const [publishing, setPublishing] = useState(false);
+
+    const handlePublish = async () => {
+        if (!onPublish || publishing) return;
+        setPublishing(true);
+        try {
+            await onPublish();
+        } catch (e) {
+            console.error('Publish failed', e);
+        } finally {
+            setPublishing(false);
+        }
+    };
+
     return (
-        <div className="relative flex min-h-screen w-full flex-col bg-base-100 pb-24">
+        <div className={`relative flex min-h-screen w-full flex-col bg-base-100 ${onPublish ? 'pb-24' : ''}`}>
             {/* Header Image & Overlay Nav */}
             <div className="relative w-full h-80">
                 <div
@@ -143,13 +157,23 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
 
             {/* Publish Button (Fixed Bottom) */}
             {onPublish && (
-                <div className="fixed bottom-6 left-6 right-6 z-30">
+                <div className="fixed bottom-6 left-6 right-6 max-w-[456px] mx-auto z-30">
                     <button
-                        onClick={onPublish}
+                        onClick={handlePublish}
+                        disabled={publishing}
                         className="btn btn-primary w-full shadow-2xl text-lg font-bold border-none h-14 rounded-2xl animate-in slide-in-from-bottom duration-500"
                     >
-                        <span className="material-symbols-outlined fill-icon scale-125 mr-2">publish</span>
-                        Publish to Community
+                        {publishing ? (
+                            <>
+                                <span className="loading loading-spinner loading-md"></span>
+                                Publishing...
+                            </>
+                        ) : (
+                            <>
+                                <span className="material-symbols-outlined fill-icon scale-125 mr-2">publish</span>
+                                Publish to Community
+                            </>
+                        )}
                     </button>
                 </div>
             )}

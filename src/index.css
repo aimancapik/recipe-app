@@ -18,6 +18,47 @@
   body {
     font-family: var(--font-display);
     min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  /* Consistent focus styling for all form inputs */
+  input:focus,
+  textarea:focus,
+  select:focus,
+  .input:focus,
+  .input:focus-within,
+  .textarea:focus,
+  .select:focus {
+    border-color: var(--color-primary-custom) !important;
+    outline: none !important;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary-custom) 30%, transparent) !important;
+  }
+}
+
+/* Force circular buttons to be perfectly round */
+.btn-circle {
+  aspect-ratio: 1 / 1 !important;
+  border-radius: 9999px !important;
+  padding: 0 !important;
+}
+
+/* Responsive app container — centers on larger screens */
+#root {
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+@media (min-width: 640px) {
+  #root {
+    max-width: 480px;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.08);
+    min-height: 100dvh;
+  }
+}
+
+@media (min-width: 1024px) {
+  #root {
+    max-width: 430px;
   }
 }
 

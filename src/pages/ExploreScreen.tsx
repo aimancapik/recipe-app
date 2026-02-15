@@ -138,7 +138,7 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
                 )}
             </div>
 
-            <main className="px-4 pb-20">
+            <main className="px-4">
                 {!isSearching ? (
                     <>
                         <div className="flex items-center justify-between mb-4 mt-6">

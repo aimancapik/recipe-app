@@ -47,7 +47,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ recipes, onRecipeClick, onToggl
             <header className="flex items-center justify-between p-4 pt-6">
                 <div className="flex items-center gap-3">
                     <div className="avatar">
-                        <div className="w-12 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
+                        <div className="w-12 aspect-square rounded-full ring ring-primary ring-offset-base-100 ring-offset-2 overflow-hidden">
                             <img src={avatarUrl} alt="Profile" />
                         </div>
                     </div>
