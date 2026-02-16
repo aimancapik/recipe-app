@@ -23,10 +23,11 @@ interface PublishRecipeScreenProps {
     onBack: () => void;
     onPublish?: (data: RecipeFormData) => void;
     onUpdate?: (id: string, data: RecipeFormData) => void;
+    onSaveDraft?: (data: RecipeFormData) => void;
     editingRecipe?: Recipe | null;
 }
 
-interface RecipeFormData {
+export interface RecipeFormData {
     title: string;
     description: string;
     coverImage: string | null;
@@ -39,7 +40,7 @@ interface RecipeFormData {
 
 const UNITS = ['g', 'kg', 'ml', 'tsp', 'tbsp', 'cup', 'pcs'];
 
-const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPublish, onUpdate, editingRecipe }) => {
+const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPublish, onUpdate, onSaveDraft, editingRecipe }) => {
     const isEditing = !!editingRecipe;
     const [step, setStep] = useState(1);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -188,7 +189,11 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
 
     const handlePublish = () => {
         const data = { title, description, coverImage, prepTime, serves, difficulty, ingredients, instructions };
-        if (isEditing && editingRecipe) {
+        const isTempDraft = editingRecipe?.id.startsWith('temp-');
+
+        if (isTempDraft && onSaveDraft) {
+            onSaveDraft(data);
+        } else if (isEditing && editingRecipe && !isTempDraft) {
             onUpdate?.(editingRecipe.id, data);
         } else {
             onPublish?.(data);
@@ -197,7 +202,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
 
     const nextStep = () => setStep(prev => Math.min(prev + 1, 4));
     const prevStep = () => setStep(prev => Math.max(prev - 1, 1));
-    const progressPercent = step * 25;
+    const progressPercent = step === 4 ? 100 : Math.round((step - 1) * 33.33);
 
     // ─────────────────────────────────────────────
     // STEP 1: BASIC INFO
@@ -795,8 +800,10 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                             </button>
                         ) : (
                             <button onClick={handlePublish} className="btn btn-primary flex-[2] btn-lg gap-2 shadow-lg">
-                                <span className="material-symbols-outlined text-[20px]">{isEditing ? 'save' : 'publish'}</span>
-                                {isEditing ? 'Update Recipe' : 'Publish Recipe'}
+                                <span className="material-symbols-outlined text-[20px]">
+                                    {editingRecipe?.id.startsWith('temp-') ? 'check_circle' : isEditing ? 'save' : 'publish'}
+                                </span>
+                                {editingRecipe?.id.startsWith('temp-') ? 'Save Changes' : isEditing ? 'Update Recipe' : 'Publish Recipe'}
                             </button>
                         )}
                     </div>

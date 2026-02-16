@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import LoadingAnimation from '@/components/LoadingAnimation';
 
 
 interface AuthScreenProps {
@@ -272,7 +273,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
                                 }}
                             >
                                 {loading ? (
-                                    <span className="loading loading-spinner loading-sm"></span>
+                                    <LoadingAnimation size={24} />
                                 ) : forgotMode ? (
                                     'Send Reset Link'
                                 ) : mode === 'login' ? (

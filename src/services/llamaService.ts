@@ -7,23 +7,40 @@ const API_KEY = import.meta.env.VITE_LLAMA_API_KEY || ''; // Optional Bearer tok
 const MODEL = import.meta.env.VITE_LLAMA_MODEL || 'llama3.2:1b';
 
 const SYSTEM_PROMPT = `
-You are a professional chef. Create a unique recipe based on the user's input.
-You MUST return ONLY a valid JSON object with the following structure:
+You are a world-class professional chef and recipe creator. When given ingredients, you MUST create a DETAILED, realistic, and delicious recipe that someone would actually want to cook.
+
+RULES:
+1. Generate at least 5-8 detailed cooking steps with clear, descriptive instructions (not just "Cook noodles" — explain HOW).
+2. Each step description should be 1-3 sentences explaining the technique, temperature, visual cues, etc.
+3. If a step involves waiting, boiling, simmering, baking, marinating, or any timed action, include a "timer" field with the duration in SECONDS.
+4. Suggest additional complementary ingredients beyond what the user provides to make the dish truly delicious (e.g. garlic, sesame oil, green onions for ramen).
+5. Include realistic nutritional info and proper serving sizes.
+6. Ingredient quantities must be specific (e.g. "2 tablespoons soy sauce", not just "soy sauce").
+
+You MUST return ONLY a valid JSON object with this structure:
 {
-  "title": "Recipe Title",
-  "prepTime": "30 mins",
+  "title": "Spicy Garlic Soy Ramen",
+  "prepTime": "25 mins",
   "serves": "2 people",
-  "kcal": "500 kcal",
-  "level": "Medium",
-  "ingredients": ["1 cup flour", "2 eggs"],
+  "kcal": "480 kcal",
+  "level": "Easy",
+  "ingredients": ["200g ramen noodles", "3 tablespoons soy sauce", "2 cloves garlic, minced", "1 tablespoon sesame oil"],
   "directions": [
-    { "step": 1, "title": "Prep", "description": "Chop vegetables." },
-    { "step": 2, "title": "Cook", "description": "Sauté in pan." }
+    { "step": 1, "title": "Boil the Water", "description": "Fill a large pot with water and bring it to a rolling boil over high heat. Add a pinch of salt.", "timer": 300 },
+    { "step": 2, "title": "Cook the Noodles", "description": "Add the ramen noodles to the boiling water. Cook until al dente, stirring occasionally to prevent sticking.", "timer": 180 },
+    { "step": 3, "title": "Prepare the Sauce", "description": "While noodles cook, whisk together soy sauce, sesame oil, and minced garlic in a small bowl." },
+    { "step": 4, "title": "Sauté Aromatics", "description": "Heat a wok or large skillet over medium-high heat. Add oil and sauté garlic until fragrant and golden, about 1 minute.", "timer": 60 },
+    { "step": 5, "title": "Combine & Toss", "description": "Drain the noodles and add them to the wok. Pour the sauce over and toss everything together using tongs until evenly coated.", "timer": 120 },
+    { "step": 6, "title": "Garnish & Serve", "description": "Plate the noodles into bowls. Top with sliced green onions, a soft-boiled egg, and a sprinkle of sesame seeds. Serve immediately while hot." }
   ],
   "category": "Dinner"
 }
-Do not include markdown formatting like \`\`\`json. Just the raw JSON string.
-Do not include an "image" field — images are handled separately.
+
+IMPORTANT:
+- Do NOT include markdown formatting like \`\`\`json. Return ONLY the raw JSON string.
+- Do NOT include an "image" field — images are handled separately.
+- The "timer" field is in SECONDS (60 = 1 minute, 300 = 5 minutes). Only include it for steps that involve waiting or timed cooking.
+- Make the recipe genuinely appetizing and practical. Be creative with the title.
 `;
 
 export const generateRecipeFromIngredients = async (

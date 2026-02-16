@@ -1,12 +1,12 @@
-
 import React from 'react';
+import LoadingAnimation from '@/components/LoadingAnimation';
 
 const SplashScreen: React.FC = () => {
     return (
         <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center overflow-hidden">
             {/* Logo Section */}
             <div className="flex flex-col items-center justify-center animate-fade-in">
-                <div className="mb-8 w-48 h-48 md:w-64 md:h-64 flex items-center justify-center">
+                <div className="mb-4 w-48 h-48 md:w-64 md:h-64 flex items-center justify-center">
                     <img
                         src="https://lh3.googleusercontent.com/aida-public/AB6AXuBB0Z99yTi-Rnz0DJNqedXkdc_TKAUN4COxDTDP_pYprPX_ekPIFa4e9UUpWegFxqfb_4QwgYMyZBPQ5uB2-atlbf29L94Pa-dX8TICVwoa2zQQ_UmTf5mgZZ8ceAXA1JM5jItcaBVi8Fw4Ua2jSd80yr6KYHNAe4iyTFITXb06oQe70oX8kiY0uQaNThNXRlfedzK4QYconxxeEKZxJdfeZ1KNAwKUNTBA1klSstiPydoJcmmtPhEPGGQKk_zQDRNEm_r4INobdV0"
                         alt="Let Em Cook Logo"
@@ -21,14 +21,9 @@ const SplashScreen: React.FC = () => {
                 </div>
             </div>
 
-            {/* Loading Indicator */}
-            <div className="absolute bottom-16 flex flex-col items-center">
-                <div className="flex space-x-2 mb-4">
-                    <div className="w-2 h-2 bg-[#f4e225] rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-[#f4e225] rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                    <div className="w-2 h-2 bg-[#f4e225] rounded-full animate-bounce" style={{ animationDelay: '0.3s' }}></div>
-                </div>
-                <span className="text-xs text-gray-400 font-medium tracking-wide uppercase">GATHERING INGREDIENTS...</span>
+            {/* Loading Animation Section */}
+            <div className="absolute bottom-12 flex flex-col items-center">
+                <LoadingAnimation size={128} text="GATHERING INGREDIENTS..." />
             </div>
         </div>
     );

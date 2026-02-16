@@ -3,47 +3,91 @@ import { User } from '@supabase/supabase-js';
 import { Recipe } from '@/types';
 import { CATEGORIES } from '@/data/constants';
 import RecipeCard from '@/components/RecipeCard';
+import LoadingAnimation from '@/components/LoadingAnimation';
 
 interface HomeScreenProps {
     recipes: Recipe[];
     onRecipeClick: (recipe: Recipe) => void;
     onToggleFavorite: (id: string) => void;
-    onSearch: (query: string) => void;
     onSeeAll: (category?: string) => void;
     onOpenGrocery: () => void;
     isDark: boolean;
     onToggleTheme: () => void;
     user: User | null;
+    onLoadMore: () => void;
+    hasMore: boolean;
+    loadingMore: boolean;
+    loading: boolean;
 }
 
-const HomeScreen: React.FC<HomeScreenProps> = ({ recipes, onRecipeClick, onToggleFavorite, onSearch, onSeeAll, onOpenGrocery, isDark, onToggleTheme, user }) => {
+const HomeScreen: React.FC<HomeScreenProps> = ({
+    recipes,
+    onRecipeClick,
+    onToggleFavorite,
+    onSeeAll,
+    onOpenGrocery,
+    isDark,
+    onToggleTheme,
+    user,
+    onLoadMore,
+    hasMore,
+    loadingMore,
+    loading
+}) => {
     const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Chef';
     const avatarUrl = user?.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100';
     const [activeCategory, setActiveCategory] = useState('popular');
     const [searchValue, setSearchValue] = useState('');
+    const [isFocused, setIsFocused] = useState(false);
 
-    const filteredRecipes = recipes.filter(r =>
-        activeCategory === 'popular' ? true : r.category === activeCategory
-    );
+    const searchQuery = searchValue.trim().toLowerCase();
+    const isSearching = searchQuery.length >= 2;
 
-    const handleSearchSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (searchValue.trim().length >= 3) {
-            onSearch(searchValue);
+    const filteredRecipes = recipes.filter(r => {
+        const matchesCategory = activeCategory === 'popular' || r.category === activeCategory;
+        if (!isSearching) return matchesCategory;
+        return matchesCategory && (
+            r.title.toLowerCase().includes(searchQuery) ||
+            r.ingredients.some(ing => ing.toLowerCase().includes(searchQuery)) ||
+            r.category.toLowerCase().includes(searchQuery)
+        );
+    });
+
+    // Intersection Observer for Infinite Scroll
+    const observerTarget = React.useRef(null);
+
+    // Keep latest values in refs so the observer callback always reads fresh state
+    const stateRef = React.useRef({ hasMore, loadingMore, loading, onLoadMore });
+    React.useEffect(() => {
+        stateRef.current = { hasMore, loadingMore, loading, onLoadMore };
+    });
+
+    React.useEffect(() => {
+        const observer = new IntersectionObserver(
+            entries => {
+                const { hasMore, loadingMore, loading, onLoadMore } = stateRef.current;
+                if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+                    onLoadMore();
+                }
+            },
+            {
+                threshold: 0.1,
+                rootMargin: '200px'
+            }
+        );
+
+        if (observerTarget.current) {
+            observer.observe(observerTarget.current);
         }
-    };
 
-    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const val = e.target.value;
-        setSearchValue(val);
-        if (val.trim().length >= 3) {
-            onSearch(val);
-        }
-    };
+        return () => observer.disconnect();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Set up once — callback reads fresh values from refs
+
+    const inputRef = React.useRef<HTMLInputElement>(null);
 
     return (
-        <div className="flex flex-col">
-            {/* Header */}
+        <div className="flex flex-col pb-20">
             <header className="flex items-center justify-between p-4 pt-6">
                 <div className="flex items-center gap-3">
                     <div className="avatar">
@@ -72,29 +116,38 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ recipes, onRecipeClick, onToggl
             </header>
 
             {/* Search Bar */}
-            <form onSubmit={handleSearchSubmit} className="px-4 py-3">
-                <div className="join w-full">
-                    <div className="flex-1">
-                        <label className="input input-bordered join-item w-full flex items-center gap-2">
-                            <span className="material-symbols-outlined text-base-content/40">search</span>
-                            <input
-                                className="grow"
-                                placeholder="Search recipes..."
-                                type="text"
-                                value={searchValue}
-                                onChange={handleSearchChange}
-                            />
-                        </label>
-                    </div>
-                    <button type="submit" className="btn btn-primary join-item">
-                        <span className="material-symbols-outlined">tune</span>
-                    </button>
-                </div>
-            </form>
+            <div className="px-4 py-3">
+                <label className={`input w-full flex items-center gap-2 rounded-full transition-all ${
+                    isFocused
+                        ? 'ring-2 ring-primary ring-offset-2 ring-offset-base-100'
+                        : 'border border-base-300'
+                }`}>
+                    <span className="material-symbols-outlined text-base-content/40 text-xl">search</span>
+                    <input
+                        ref={inputRef}
+                        className="grow text-sm"
+                        placeholder="Search recipes, ingredients..."
+                        type="text"
+                        value={searchValue}
+                        onChange={(e) => setSearchValue(e.target.value)}
+                        onFocus={() => setIsFocused(true)}
+                        onBlur={() => setIsFocused(false)}
+                    />
+                    {searchValue && (
+                        <button
+                            type="button"
+                            onClick={() => { setSearchValue(''); inputRef.current?.focus(); }}
+                            className="btn btn-ghost btn-circle btn-xs"
+                        >
+                            <span className="material-symbols-outlined text-base-content/40 text-lg">close</span>
+                        </button>
+                    )}
+                </label>
+            </div>
 
             {/* Categories */}
-            <div className="py-4">
-                <div className="flex items-center justify-between px-4 mb-4">
+            <div className="py-2">
+                <div className="flex items-center justify-between px-4 mb-3">
                     <h3 className="text-lg font-bold text-base-content">Categories</h3>
                     <button onClick={() => onSeeAll()} className="btn btn-ghost btn-sm text-primary">See All</button>
                 </div>
@@ -105,16 +158,16 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ recipes, onRecipeClick, onToggl
                             onClick={() => setActiveCategory(cat.id)}
                             className="flex flex-col items-center gap-2 shrink-0 group"
                         >
-                            <div className={`size-16 rounded-2xl flex items-center justify-center transition-all ${activeCategory === cat.id
+                            <div className={`size-14 rounded-2xl flex items-center justify-center transition-all ${activeCategory === cat.id
                                 ? 'bg-primary shadow-lg shadow-primary/20 scale-105'
                                 : 'bg-base-200'
                                 }`}>
-                                <span className={`material-symbols-outlined text-3xl ${activeCategory === cat.id ? 'text-primary-content fill-icon' : 'text-base-content/60'
+                                <span className={`material-symbols-outlined text-2xl ${activeCategory === cat.id ? 'text-primary-content fill-1' : 'text-base-content/60'
                                     }`}>
                                     {cat.icon}
                                 </span>
                             </div>
-                            <span className={`text-sm ${activeCategory === cat.id ? 'font-bold text-base-content' : 'font-medium text-base-content/60'}`}>
+                            <span className={`text-xs ${activeCategory === cat.id ? 'font-bold text-base-content' : 'font-medium text-base-content/60'}`}>
                                 {cat.name}
                             </span>
                         </button>
@@ -122,24 +175,54 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ recipes, onRecipeClick, onToggl
                 </div>
             </div>
 
-            {/* Popular Recipes Section */}
-            <div className="flex-1 px-4 py-4">
+            {/* Recipes Section */}
+            <div className="flex-1 px-4 py-4 min-h-[400px]">
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-bold text-base-content">
-                        {activeCategory === 'popular' ? 'Popular Recipes' : `${activeCategory} Recipes`}
+                        {isSearching
+                            ? `Results (${filteredRecipes.length})`
+                            : activeCategory === 'popular' ? 'Popular Recipes' : `${activeCategory} Recipes`}
                     </h3>
-                    <button onClick={() => onSeeAll(activeCategory === 'popular' ? undefined : activeCategory)} className="btn btn-ghost btn-sm text-primary">See All</button>
+                    {!isSearching && (
+                        <button onClick={() => onSeeAll(activeCategory === 'popular' ? undefined : activeCategory)} className="btn btn-ghost btn-sm text-primary">See All</button>
+                    )}
                 </div>
-                <div className="grid grid-cols-2 gap-4 pb-2">
-                    {filteredRecipes.map((recipe) => (
-                        <RecipeCard
-                            key={recipe.id}
-                            recipe={recipe}
-                            onClick={() => onRecipeClick(recipe)}
-                            onToggleFavorite={onToggleFavorite}
-                            showCategory={activeCategory === 'popular'}
-                        />
-                    ))}
+
+                {filteredRecipes.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-4">
+                        {filteredRecipes.map((recipe) => (
+                            <RecipeCard
+                                key={recipe.id}
+                                recipe={recipe}
+                                onClick={() => onRecipeClick(recipe)}
+                                onToggleFavorite={onToggleFavorite}
+                                showCategory={activeCategory === 'popular'}
+                            />
+                        ))}
+                    </div>
+                ) : isSearching && !loading ? (
+                    <div className="flex flex-col items-center justify-center py-16 text-base-content/40">
+                        <span className="material-symbols-outlined text-5xl mb-3">search_off</span>
+                        <p className="text-base font-medium">No recipes found</p>
+                        <p className="text-sm mt-1">Try a different keyword or category</p>
+                    </div>
+                ) : null}
+
+                {/* Loading Sentinel */}
+                <div ref={observerTarget} className="flex flex-col items-center justify-center min-h-[100px] py-8 opacity-60">
+                    {(loading || loadingMore) ? (
+                        <div className="flex flex-col items-center gap-3">
+                            <LoadingAnimation size={50} />
+                            {loading && <p className="text-xs font-bold uppercase tracking-widest text-base-content/40">Gathering Ingredients...</p>}
+                        </div>
+                    ) : (
+                        !hasMore && recipes.length > 0 && (
+                            <div className="flex flex-col items-center gap-2">
+                                <div className="size-1 w-12 rounded-full bg-base-content/10 mb-2"></div>
+                                <p className="text-sm font-medium text-base-content/30 italic">You've reached the end of the pantry!</p>
+                            </div>
+                        )
+                    )}
                 </div>
             </div>
         </div>

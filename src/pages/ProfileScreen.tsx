@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import LoadingAnimation from '@/components/LoadingAnimation';
 import { User } from '@supabase/supabase-js';
 import AvatarPickerModal from '@/components/AvatarPickerModal';
 import { getAvatarUrl } from '@/data/avatars';
@@ -120,7 +121,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                             disabled={saving}
                             className="btn btn-ghost text-primary font-bold btn-sm"
                         >
-                            {saving ? <span className="loading loading-spinner loading-xs"></span> : 'Save'}
+                            {saving ? <LoadingAnimation size={16} /> : 'Save'}
                         </button>
                     ) : (
                         <button onClick={() => setIsEditing(true)} className="btn btn-ghost btn-circle btn-sm">
@@ -142,14 +143,14 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                                 <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
                                 {uploading && (
                                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-full">
-                                        <span className="loading loading-spinner loading-md text-white"></span>
+                                        <LoadingAnimation size={32} />
                                     </div>
                                 )}
                             </div>
                         ) : (
                             <div className="w-28 aspect-square rounded-full ring ring-primary ring-offset-base-100 ring-offset-4 bg-primary text-primary-content flex items-center justify-center">
                                 {uploading ? (
-                                    <span className="loading loading-spinner loading-md"></span>
+                                    <LoadingAnimation size={32} />
                                 ) : (
                                     <span className="text-4xl font-bold">{initial}</span>
                                 )}

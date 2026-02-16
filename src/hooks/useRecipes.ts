@@ -19,70 +19,122 @@
  * data transformation (DB format → app format) in one place.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Recipe, Direction } from '@/types';
+
+const PAGE_SIZE = 10;
+
+function transformRow(row: any): Recipe {
+    return {
+        id: row.id,
+        title: row.title,
+        image: row.image,
+        prepTime: row.prep_time,
+        rating: Number(row.rating),
+        reviews: row.reviews,
+        serves: row.serves,
+        kcal: row.kcal,
+        level: row.level as 'Easy' | 'Medium' | 'Hard',
+        category: row.category,
+        userId: row.user_id,
+        isFavorite: false,
+        ingredients: (row.ingredients || [])
+            .sort((a: any, b: any) => a.sort_order - b.sort_order)
+            .map((i: any) => i.name),
+        directions: (row.directions || [])
+            .sort((a: any, b: any) => a.sort_order - b.sort_order)
+            .map((d: any): Direction => ({
+                step: d.step,
+                title: d.title,
+                description: d.description,
+                image: d.image || null,
+                mediaType: d.media_type || 'image',
+                timer: d.timer || undefined,
+            })),
+    };
+}
 
 export function useRecipes() {
     const [recipes, setRecipes] = useState<Recipe[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [hasMore, setHasMore] = useState(true);
 
-    // Fetch all recipes with their ingredients and directions
-    const fetchRecipes = useCallback(async () => {
+    // Refs to track mutable values without causing dependency churn
+    const loadedCountRef = useRef(0);
+    const isFetchingRef = useRef(false);
+    const hasMoreRef = useRef(true);
+
+    // Fetch recipes with pagination — stable callback (no state deps)
+    const fetchRecipes = useCallback(async (isLoadMore = false) => {
+        if (isFetchingRef.current) return;
+        isFetchingRef.current = true;
+
         try {
-            setLoading(true);
+            if (isLoadMore) setLoadingMore(true);
+            else setLoading(true);
+
             setError(null);
+            const offset = isLoadMore ? loadedCountRef.current : 0;
 
             // Supabase lets us fetch related tables in one query
-            const { data, error: fetchError } = await supabase
+            const { data, count, error: fetchError } = await supabase
                 .from('recipes')
                 .select(`
                     *,
                     ingredients ( name, sort_order ),
                     directions ( step, title, description, image, media_type, timer, sort_order )
-                `)
-                .order('created_at', { ascending: false });
+                `, { count: 'exact' })
+                .order('created_at', { ascending: false })
+                .range(offset, offset + PAGE_SIZE - 1);
 
             if (fetchError) throw fetchError;
 
-            // Transform from Supabase DB format → our app's Recipe type
-            const transformed: Recipe[] = (data || []).map(row => ({
-                id: row.id,
-                title: row.title,
-                image: row.image,
-                prepTime: row.prep_time,
-                rating: Number(row.rating),
-                reviews: row.reviews,
-                serves: row.serves,
-                kcal: row.kcal,
-                level: row.level as 'Easy' | 'Medium' | 'Hard',
-                category: row.category,
-                userId: row.user_id,
-                isFavorite: false, // favorites are handled by useFavorites hook
-                ingredients: (row.ingredients || [])
-                    .sort((a: any, b: any) => a.sort_order - b.sort_order)
-                    .map((i: any) => i.name),
-                directions: (row.directions || [])
-                    .sort((a: any, b: any) => a.sort_order - b.sort_order)
-                    .map((d: any): Direction => ({
-                        step: d.step,
-                        title: d.title,
-                        description: d.description,
-                        image: d.image || null,
-                        mediaType: d.media_type || 'image',
-                        timer: d.timer || undefined,
-                    })),
-            }));
+            const transformed = (data || []).map(transformRow);
 
-            setRecipes(transformed);
+            if (isLoadMore) {
+                setRecipes(prev => {
+                    const updated = [...prev, ...transformed];
+                    loadedCountRef.current = updated.length;
+                    return updated;
+                });
+            } else {
+                loadedCountRef.current = transformed.length;
+                setRecipes(transformed);
+            }
+
+            // Determine if more pages exist
+            const totalLoaded = isLoadMore
+                ? loadedCountRef.current
+                : transformed.length;
+
+            if (count !== null) {
+                const moreAvailable = totalLoaded < count;
+                hasMoreRef.current = moreAvailable;
+                setHasMore(moreAvailable);
+            } else {
+                const moreAvailable = transformed.length === PAGE_SIZE;
+                hasMoreRef.current = moreAvailable;
+                setHasMore(moreAvailable);
+            }
         } catch (err: any) {
             setError(err.message || 'Failed to fetch recipes');
             console.error('useRecipes fetch error:', err);
         } finally {
             setLoading(false);
+            setLoadingMore(false);
+            isFetchingRef.current = false;
         }
     }, []);
+
+    // Stable loadMore — uses refs so it never causes observer churn
+    const loadMore = useCallback(() => {
+        if (!isFetchingRef.current && hasMoreRef.current) {
+            fetchRecipes(true);
+        }
+    }, [fetchRecipes]);
 
     // Add a new recipe (used by PublishRecipeScreen)
     const addRecipe = async (recipe: Omit<Recipe, 'id'>) => {
@@ -233,10 +285,11 @@ export function useRecipes() {
         }
     };
 
-    // Fetch on mount
+    // Fetch on mount only
     useEffect(() => {
         fetchRecipes();
-    }, [fetchRecipes]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-    return { recipes, loading, error, fetchRecipes, addRecipe, deleteRecipe, updateRecipe, setRecipes };
+    return { recipes, loading, loadingMore, hasMore, error, fetchRecipes, loadMore, addRecipe, deleteRecipe, updateRecipe, setRecipes };
 }

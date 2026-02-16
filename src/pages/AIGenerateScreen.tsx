@@ -3,6 +3,7 @@ import { generateRecipeFromIngredients } from '@/services/llamaService';
 import { Recipe } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
+import LoadingAnimation from '@/components/LoadingAnimation';
 
 interface AIGenerateScreenProps {
     onBack: () => void;
@@ -45,12 +46,22 @@ const AIGenerateScreen: React.FC<AIGenerateScreenProps> = ({ onBack, onRecipeRea
             try {
                 const { data, error: fetchError } = await supabase
                     .from('profiles')
-                    .select('ai_usage_count')
+                    .select('ai_usage_count, last_ai_usage_at')
                     .eq('id', user.id)
                     .single();
 
                 if (!fetchError && data) {
-                    setUsageCount(data.ai_usage_count || 0);
+                    const lastUsage = data.last_ai_usage_at ? new Date(data.last_ai_usage_at) : null;
+                    const today = new Date();
+
+                    // Client-side visual reset if it's a new day
+                    const isNewDay = lastUsage && (
+                        lastUsage.getDate() !== today.getDate() ||
+                        lastUsage.getMonth() !== today.getMonth() ||
+                        lastUsage.getFullYear() !== today.getFullYear()
+                    );
+
+                    setUsageCount(isNewDay ? 0 : (data.ai_usage_count || 0));
                 }
             } catch (e) {
                 console.error('Failed to fetch usage count:', e);
@@ -76,7 +87,7 @@ const AIGenerateScreen: React.FC<AIGenerateScreenProps> = ({ onBack, onRecipeRea
         }
 
         if (isLimitReached) {
-            setError("You've reached your limit of 10 AI recipes. Time to upgrade your kitchen skills manually!");
+            setError(`You've reached your daily limit of ${MAX_USES} AI recipes. Your quota will refresh tomorrow!`);
             return;
         }
 
@@ -142,10 +153,10 @@ const AIGenerateScreen: React.FC<AIGenerateScreenProps> = ({ onBack, onRecipeRea
                     {/* Remaining Uses Badge */}
                     {remainingUses !== null && (
                         <div className={`mt-3 badge gap-1.5 py-3 px-4 font-bold text-xs ${isLimitReached
-                                ? 'badge-error text-error-content'
-                                : remainingUses <= 3
-                                    ? 'badge-warning text-warning-content'
-                                    : 'badge-primary text-primary-content'
+                            ? 'badge-error text-error-content'
+                            : remainingUses <= 3
+                                ? 'badge-warning text-warning-content'
+                                : 'badge-primary text-primary-content'
                             }`}>
                             <span className="material-symbols-outlined text-[14px] fill-icon">
                                 {isLimitReached ? 'block' : 'local_fire_department'}
@@ -166,8 +177,8 @@ const AIGenerateScreen: React.FC<AIGenerateScreenProps> = ({ onBack, onRecipeRea
                                     key={label}
                                     onClick={() => toggleDietary(label)}
                                     className={`btn btn-sm rounded-full gap-1.5 transition-all duration-200 ${isSelected
-                                            ? 'btn-primary shadow-md shadow-primary/20 scale-105'
-                                            : 'btn-ghost bg-base-100 border-base-300 hover:border-primary/50'
+                                        ? 'btn-primary shadow-md shadow-primary/20 scale-105'
+                                        : 'btn-ghost bg-base-100 border-base-300 hover:border-primary/50'
                                         }`}
                                 >
                                     <span className="text-sm">{icon}</span>
@@ -207,7 +218,7 @@ const AIGenerateScreen: React.FC<AIGenerateScreenProps> = ({ onBack, onRecipeRea
                 >
                     {loading ? (
                         <>
-                            <span className="loading loading-spinner loading-md"></span>
+                            <LoadingAnimation size={24} />
                             <span>Stirring the pot...</span>
                         </>
                     ) : (

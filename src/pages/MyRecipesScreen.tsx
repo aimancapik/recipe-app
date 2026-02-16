@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import LoadingAnimation from '@/components/LoadingAnimation';
 import { Recipe } from '@/types';
 
 interface MyRecipesScreenProps {
@@ -158,7 +159,7 @@ const MyRecipesScreen: React.FC<MyRecipesScreenProps> = ({
                                     className="flex size-9 items-center justify-center rounded-full text-error/60 hover:bg-error/10 hover:text-error transition-all"
                                 >
                                     {deletingId === recipe.id ? (
-                                        <span className="loading loading-spinner loading-xs"></span>
+                                        <LoadingAnimation size={20} />
                                     ) : (
                                         <span className="material-symbols-outlined text-[20px]">delete</span>
                                     )}
@@ -195,7 +196,7 @@ const MyRecipesScreen: React.FC<MyRecipesScreenProps> = ({
                                     disabled={!!deletingId}
                                 >
                                     {deletingId ? (
-                                        <span className="loading loading-spinner loading-sm"></span>
+                                        <LoadingAnimation size={24} />
                                     ) : (
                                         <>
                                             <span className="material-symbols-outlined text-[18px]">delete</span>

@@ -14,6 +14,7 @@ import GroceryListScreen from '@/pages/GroceryListScreen';
 import PublishRecipeScreen from '@/pages/PublishRecipeScreen';
 import AuthScreen from '@/pages/AuthScreen';
 import MyRecipesScreen from '@/pages/MyRecipesScreen';
+import LoadingAnimation from '@/components/LoadingAnimation';
 import SplashScreen from '@/components/SplashScreen';
 import { useTheme } from '@/hooks/useTheme';
 import { useRecipes } from '@/hooks/useRecipes';
@@ -23,7 +24,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 const App: React.FC = () => {
     const { isDark, toggleTheme } = useTheme();
-    const { recipes, loading, addRecipe, deleteRecipe, updateRecipe } = useRecipes();
+    const { recipes, loading, loadingMore, hasMore, loadMore, addRecipe, deleteRecipe, updateRecipe } = useRecipes();
     const { favoriteIds, isFavorite, toggleFavorite } = useFavorites();
     const { items: groceryItems, toggleItem: toggleGroceryItem, clearChecked: clearCheckedGroceryItems, addFromRecipe } = useGrocery();
     const {
@@ -119,12 +120,6 @@ const App: React.FC = () => {
         requireAuth(() => toggleFavorite(id), currentScreen);
     };
 
-    const handleSearchFromHome = (query: string) => {
-        setSearchQuery(query);
-        setInitialCategory(null);
-        setCurrentScreen(Screen.EXPLORE);
-    };
-
     const handleSeeAll = (category?: string) => {
         setSearchQuery('');
         setInitialCategory(category || null);
@@ -178,6 +173,34 @@ const App: React.FC = () => {
             console.error('Failed to publish recipe:', err);
         }
         navigateTo(Screen.HOME);
+    };
+
+    const handleSaveDraftRecipe = (data: any) => {
+        if (!editingRecipe) return;
+
+        const updatedDraft: Recipe = {
+            ...editingRecipe,
+            title: data.title || 'Untitled Recipe',
+            image: data.coverImage || editingRecipe.image,
+            prepTime: data.prepTime ? `${data.prepTime}m` : editingRecipe.prepTime,
+            serves: data.serves || editingRecipe.serves,
+            level: (data.difficulty as 'Easy' | 'Medium' | 'Hard') || editingRecipe.level,
+            ingredients: data.ingredients.map((i: any) => `${i.qty}${i.unit} ${i.name}`),
+            directions: data.instructions
+                .filter((s: any) => s.description.trim())
+                .map((s: any, idx: number) => ({
+                    step: idx + 1,
+                    title: `Step ${idx + 1}`,
+                    description: s.description,
+                    image: s.image || null,
+                    mediaType: s.mediaType || 'image' as const,
+                    timer: s.timer,
+                })),
+        };
+
+        setSelectedRecipe(updatedDraft);
+        setEditingRecipe(null);
+        setCurrentScreen(Screen.DETAIL);
     };
 
     const handleUpdateRecipe = async (id: string, data: {
@@ -240,14 +263,6 @@ const App: React.FC = () => {
     const [isNavHidden, setIsNavHidden] = useState(false);
 
     const renderScreen = () => {
-        if (loading && currentScreen === Screen.HOME) {
-            return (
-                <div className="flex items-center justify-center min-h-screen">
-                    <span className="loading loading-spinner loading-lg text-primary"></span>
-                </div>
-            );
-        }
-
         switch (currentScreen) {
             case Screen.LOGIN:
                 return (
@@ -281,12 +296,15 @@ const App: React.FC = () => {
                         recipes={recipesWithFavorites}
                         onRecipeClick={(r) => navigateTo(Screen.DETAIL, r)}
                         onToggleFavorite={handleToggleFavorite}
-                        onSearch={handleSearchFromHome}
                         onSeeAll={handleSeeAll}
                         onOpenGrocery={() => requireAuth(() => navigateTo(Screen.GROCERY), Screen.HOME)}
                         isDark={isDark}
                         onToggleTheme={toggleTheme}
                         user={user}
+                        onLoadMore={loadMore}
+                        hasMore={hasMore}
+                        loadingMore={loadingMore}
+                        loading={loading}
                     />
                 );
             case Screen.EXPLORE:
@@ -312,6 +330,10 @@ const App: React.FC = () => {
                         onAddToGrocery={addIngredientsToGrocery}
                         onOpenGrocery={() => requireAuth(() => navigateTo(Screen.GROCERY), Screen.DETAIL)}
                         onPublish={isTempRecipe ? handleAIPublish : undefined}
+                        onEdit={isTempRecipe ? (recipe) => {
+                            setEditingRecipe(recipe);
+                            setCurrentScreen(Screen.PUBLISH);
+                        } : undefined}
                     />
                 ) : null;
             case Screen.AI_GENERATE:
@@ -375,6 +397,7 @@ const App: React.FC = () => {
                         }}
                         onPublish={handlePublishRecipe}
                         onUpdate={handleUpdateRecipe}
+                        onSaveDraft={handleSaveDraftRecipe}
                         editingRecipe={editingRecipe}
                     />
                 );

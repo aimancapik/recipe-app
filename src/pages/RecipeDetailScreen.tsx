@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import LoadingAnimation from '@/components/LoadingAnimation';
 import { Recipe } from '@/types';
 import StepTimer from '@/components/StepTimer';
 
@@ -10,9 +11,10 @@ interface RecipeDetailScreenProps {
     onAddToGrocery: (recipe: Recipe) => void;
     onOpenGrocery: () => void;
     onPublish?: () => Promise<void> | void;
+    onEdit?: (recipe: Recipe) => void;
 }
 
-const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack, onToggleFavorite, onAddToGrocery, onOpenGrocery, onPublish }) => {
+const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack, onToggleFavorite, onAddToGrocery, onOpenGrocery, onPublish, onEdit }) => {
     const [publishing, setPublishing] = useState(false);
 
     const handlePublish = async () => {
@@ -72,109 +74,138 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                 </div>
 
                 {/* Stats Bar */}
-                <div className="stats stats-horizontal bg-primary/10 border border-primary/20 shadow-none w-full mb-8">
+                <div className="grid grid-cols-4 gap-2 mb-8 p-1 rounded-2xl bg-base-200/50 border border-base-200">
                     {[
-                        { label: 'Prep', val: recipe.prepTime, icon: 'schedule' },
+                        { label: 'Time', val: recipe.prepTime, icon: 'schedule' },
                         { label: 'Serves', val: recipe.serves, icon: 'group' },
                         { label: 'Kcal', val: recipe.kcal, icon: 'bolt' },
                         { label: 'Level', val: recipe.level, icon: 'bar_chart' }
                     ].map(stat => (
-                        <div key={stat.label} className="stat place-items-center py-3 px-2">
-                            <div className="stat-figure text-primary">
-                                <span className="material-symbols-outlined">{stat.icon}</span>
-                            </div>
-                            <div className="stat-title text-[10px] uppercase tracking-wider">{stat.label}</div>
-                            <div className="stat-value text-sm">{stat.val}</div>
+                        <div key={stat.label} className="flex flex-col items-center py-3 bg-base-100/50 rounded-xl shadow-sm first:bg-primary/5 last:bg-primary/5">
+                            <span className="material-symbols-outlined text-primary text-[20px] mb-1">{stat.icon}</span>
+                            <span className="text-base-content font-bold text-xs">{stat.val}</span>
+                            <span className="text-[9px] uppercase font-bold text-base-content/40 tracking-wider">{stat.label}</span>
                         </div>
                     ))}
                 </div>
 
                 {/* Ingredients */}
-                <div className="mb-8">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xl font-bold">Ingredients</h2>
-                        <div className="badge badge-primary badge-outline">{recipe.ingredients.length} Items</div>
+                <div className="mb-10">
+                    <div className="flex items-center justify-between mb-5 px-1">
+                        <h2 className="text-xl font-bold flex items-center gap-2">
+                            <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                                <span className="material-symbols-outlined text-[20px] fill-1">shopping_basket</span>
+                            </div>
+                            Ingredients
+                        </h2>
+                        <span className="text-xs font-bold text-primary px-3 py-1 bg-primary/10 rounded-full">{recipe.ingredients.length} items</span>
                     </div>
-                    <ul className="space-y-3">
+                    <div className="grid grid-cols-1 gap-2.5">
                         {recipe.ingredients.map((ing, idx) => (
-                            <li key={idx} className="flex items-center gap-3 p-3 rounded-xl bg-base-200">
-                                <div className="size-2 rounded-full bg-primary"></div>
-                                <span className="text-sm">{ing}</span>
-                            </li>
+                            <div key={idx} className="flex items-center gap-3 p-4 rounded-xl bg-base-100 border border-base-200 hover:border-primary/20 transition-colors shadow-sm group">
+                                <div className="size-6 rounded-full border-2 border-primary/20 flex items-center justify-center group-hover:border-primary/50 transition-colors">
+                                    <div className="size-2 rounded-full bg-primary/30" />
+                                </div>
+                                <span className="text-sm font-medium text-base-content/80">{ing}</span>
+                            </div>
                         ))}
-                    </ul>
+                    </div>
                     <button
                         onClick={() => onAddToGrocery(recipe)}
-                        className="btn btn-outline btn-primary w-full mt-4 gap-2"
+                        className="btn btn-primary btn-outline w-full mt-6 h-12 rounded-xl gap-2 border-primary/30 hover:bg-primary/5 hover:border-primary text-primary"
                     >
-                        <span className="material-symbols-outlined text-xl">shopping_cart</span>
+                        <span className="material-symbols-outlined text-[20px]">add_shopping_cart</span>
                         Add all to Shopping List
                     </button>
                 </div>
 
                 {/* Directions */}
                 <div className="mb-8">
-                    <h2 className="text-xl font-bold mb-4">Directions</h2>
-                    <ul className="steps steps-vertical w-full">
+                    <h2 className="text-xl font-bold mb-6 px-1">Directions</h2>
+                    <div className="space-y-6 relative before:absolute before:left-[17px] before:top-4 before:bottom-4 before:w-0.5 before:bg-gradient-to-b before:from-primary before:to-base-300">
                         {recipe.directions.map((dir, idx) => (
-                            <li key={idx} className="step step-primary" data-content={dir.step}>
-                                <div className="flex flex-col flex-1 text-left ml-2">
-                                    <h3 className="font-bold text-sm mb-1">{dir.title}</h3>
+                            <div key={idx} className="relative pl-12 flex flex-col gap-3">
+                                {/* Number Circle */}
+                                <div className="absolute left-0 top-0 size-9 rounded-full bg-primary text-primary-content flex items-center justify-center font-black text-sm shadow-lg ring-4 ring-base-100 z-10">
+                                    {idx + 1}
+                                </div>
+
+                                <div className="flex flex-col flex-1 text-left">
+                                    <h3 className="font-bold text-base mb-2 text-base-content">{dir.title}</h3>
+
                                     {dir.image && (
-                                        <div className="w-full aspect-video rounded-xl overflow-hidden mb-3 border border-base-200 relative">
+                                        <div className="w-full aspect-video rounded-2xl overflow-hidden mb-3 border border-base-200 shadow-sm relative group">
                                             {dir.mediaType === 'video' ? (
-                                                <>
-                                                    <video
-                                                        src={dir.image}
-                                                        autoPlay
-                                                        loop
-                                                        muted
-                                                        playsInline
-                                                        className="w-full h-full object-cover"
-                                                    />
-                                                    <div className="badge badge-neutral badge-sm absolute bottom-2 left-2 gap-1">
-                                                        <span className="material-symbols-outlined text-xs">play_circle</span>
-                                                        VIDEO
-                                                    </div>
-                                                </>
+                                                <video
+                                                    src={dir.image}
+                                                    autoPlay
+                                                    loop
+                                                    muted
+                                                    playsInline
+                                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                                />
                                             ) : (
-                                                <img src={dir.image} alt={dir.title} className="w-full h-full object-cover" />
+                                                <img
+                                                    src={dir.image}
+                                                    alt={dir.title}
+                                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                                />
                                             )}
+                                            <div className="absolute top-2 right-2 flex gap-1">
+                                                {dir.mediaType === 'video' && (
+                                                    <div className="badge badge-neutral gap-1 border-0 bg-black/60 backdrop-blur-md">
+                                                        <span className="material-symbols-outlined text-xs">play_circle</span> VIDEO
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     )}
-                                    <p className="text-sm text-base-content/60 leading-relaxed">
+
+                                    <p className="text-base-content/70 leading-relaxed text-sm font-medium pr-2">
                                         {dir.description}
                                     </p>
+
                                     {dir.timer && (
-                                        <StepTimer seconds={dir.timer} label="Step Timer" />
+                                        <div className="max-w-xs">
+                                            <StepTimer seconds={dir.timer} label="Cooking Timer" />
+                                        </div>
                                     )}
                                 </div>
-                            </li>
+                            </div>
                         ))}
-                    </ul>
+                    </div>
                 </div>
             </div>
 
             {/* Publish Button (Fixed Bottom) */}
             {onPublish && (
-                <div className="fixed bottom-6 left-6 right-6 max-w-[456px] mx-auto z-30">
-                    <button
-                        onClick={handlePublish}
-                        disabled={publishing}
-                        className="btn btn-primary w-full shadow-2xl text-lg font-bold border-none h-14 rounded-2xl animate-in slide-in-from-bottom duration-500"
-                    >
-                        {publishing ? (
-                            <>
-                                <span className="loading loading-spinner loading-md"></span>
-                                Publishing...
-                            </>
-                        ) : (
-                            <>
-                                <span className="material-symbols-outlined fill-icon scale-125 mr-2">publish</span>
-                                Publish to Community
-                            </>
+                <div className="fixed bottom-8 left-4 right-4 max-w-[450px] mx-auto z-40">
+                    <div className="bg-base-100/80 backdrop-blur-xl p-3 rounded-[32px] border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex gap-3 items-center animate-in slide-in-from-bottom-8 duration-700">
+                        {onEdit && (
+                            <button
+                                onClick={() => onEdit(recipe)}
+                                disabled={publishing}
+                                className="btn btn-neutral btn-circle h-14 w-14 rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-lg border-none bg-base-300 hover:bg-base-200"
+                                title="Edit Recipe"
+                            >
+                                <span className="material-symbols-outlined text-base-content/70">edit</span>
+                            </button>
                         )}
-                    </button>
+                        <button
+                            onClick={handlePublish}
+                            disabled={publishing}
+                            className="btn btn-primary flex-1 h-14 rounded-2xl text-lg font-bold shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] border-none"
+                        >
+                            {publishing ? (
+                                <LoadingAnimation size={24} />
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    <span className="material-symbols-outlined fill-1">publish</span>
+                                    <span>Publish Recipe</span>
+                                </div>
+                            )}
+                        </button>
+                    </div>
                 </div>
             )}
         </div>
