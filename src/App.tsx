@@ -140,6 +140,7 @@ const App: React.FC = () => {
         prepTime: string;
         serves: string;
         difficulty: string;
+        category: string;
         ingredients: { id: string; name: string; qty: string; unit: string }[];
         instructions: { id: string; description: string; image: string | null; mediaType?: 'image' | 'video'; timer?: number }[];
     }) => {
@@ -163,7 +164,7 @@ const App: React.FC = () => {
                     mediaType: s.mediaType || 'image' as const,
                     timer: s.timer,
                 })),
-            category: 'popular',
+            category: data.category || 'breakfast',
             isFavorite: false,
         };
 
@@ -185,6 +186,7 @@ const App: React.FC = () => {
             prepTime: data.prepTime ? `${data.prepTime}m` : editingRecipe.prepTime,
             serves: data.serves || editingRecipe.serves,
             level: (data.difficulty as 'Easy' | 'Medium' | 'Hard') || editingRecipe.level,
+            category: data.category || editingRecipe.category,
             ingredients: data.ingredients.map((i: any) => `${i.qty}${i.unit} ${i.name}`),
             directions: data.instructions
                 .filter((s: any) => s.description.trim())
@@ -210,6 +212,7 @@ const App: React.FC = () => {
         prepTime: string;
         serves: string;
         difficulty: string;
+        category: string;
         ingredients: { id: string; name: string; qty: string; unit: string }[];
         instructions: { id: string; description: string; image: string | null; mediaType?: 'image' | 'video'; timer?: number }[];
     }) => {
@@ -233,7 +236,7 @@ const App: React.FC = () => {
                     mediaType: s.mediaType || 'image' as const,
                     timer: s.timer,
                 })),
-            category: editingRecipe?.category || 'popular',
+            category: data.category || editingRecipe?.category || 'breakfast',
             isFavorite: false,
         };
 

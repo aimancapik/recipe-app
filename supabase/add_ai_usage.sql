@@ -1,38 +1,38 @@
 -- ============================================================
--- ADD AI USAGE COUNT
--- Run this in your Supabase SQL Editor
+-- ADD AI USAGE COUNT (CLEAN FIX)
 -- ============================================================
 
--- Add column to track usage and last usage timestamp
-alter table profiles 
-add column if not exists ai_usage_count int default 0,
-add column if not exists last_ai_usage_at timestamp with time zone default now();
+-- 1. Drop the old version first to avoid signature conflicts
+drop function if exists increment_ai_usage(uuid, date);
+drop function if exists increment_ai_usage(uuid);
 
--- Function to check and increment usage safely with DAILY reset
--- Returns true if allowed (count < 10) and incremented
--- Returns false if limit reached
-create or replace function increment_ai_usage(p_id uuid)
-returns boolean
+-- 2. Create the new version
+create or replace function increment_ai_usage(p_id uuid, p_current_date text)
+returns jsonb
 language plpgsql
 security definer
 as $$
 declare
   current_count int;
   last_usage timestamp with time zone;
+  v_date date;
 begin
+  -- Convert input text to date
+  v_date := p_current_date::date;
+
   -- Get current count and last usage time
   select ai_usage_count, last_ai_usage_at into current_count, last_usage
   from profiles 
   where id = p_id;
   
-  -- If it's a new day, reset the count
-  if (last_usage::date < now()::date) then
+  -- If last usage was on a date strictly before the provided user date, reset
+  if (last_usage::date < v_date) then
     current_count := 0;
   end if;
 
   -- Check limit
   if current_count >= 10 then
-    return false;
+    return jsonb_build_object('allowed', false, 'count', current_count);
   end if;
   
   -- Increment and update timestamp
@@ -42,6 +42,9 @@ begin
     last_ai_usage_at = now()
   where id = p_id;
   
-  return true;
+  return jsonb_build_object('allowed', true, 'count', current_count + 1);
 end;
 $$;
+
+-- 3. Explicitly grant permissions just in case
+grant execute on function increment_ai_usage(uuid, text) to anon, authenticated, service_role;

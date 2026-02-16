@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { generateRecipeFromIngredients } from '@/services/llamaService';
+import { generateRecipeFromIngredients } from '@/api/aiRecipe';
 import { Recipe } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/lib/supabase';
+import { getUserUsage, incrementAIUsage } from '@/api/userUsage';
 import LoadingAnimation from '@/components/LoadingAnimation';
 
 interface AIGenerateScreenProps {
@@ -38,30 +38,38 @@ const AIGenerateScreen: React.FC<AIGenerateScreenProps> = ({ onBack, onRecipeRea
     const [error, setError] = useState<string | null>(null);
     const [selectedDietary, setSelectedDietary] = useState<string[]>([]);
     const [usageCount, setUsageCount] = useState<number | null>(null);
+    const [timeToReset, setTimeToReset] = useState<string>('');
+
+    // Calculate time until next midnight
+    const calculateTimeToReset = () => {
+        const now = new Date();
+        const tomorrow = new Date(now);
+        tomorrow.setHours(24, 0, 0, 0);
+        const diffMs = tomorrow.getTime() - now.getTime();
+
+        const hours = Math.floor(diffMs / (1000 * 60 * 60));
+        const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+        return `${hours}h ${minutes}m`;
+    };
+
+    // Update timer every minute
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setTimeToReset(calculateTimeToReset());
+        }, 60000);
+        setTimeToReset(calculateTimeToReset());
+        return () => clearInterval(timer);
+    }, []);
 
     // Fetch usage count on mount
     useEffect(() => {
         const fetchUsage = async () => {
             if (!user) return;
             try {
-                const { data, error: fetchError } = await supabase
-                    .from('profiles')
-                    .select('ai_usage_count, last_ai_usage_at')
-                    .eq('id', user.id)
-                    .single();
-
-                if (!fetchError && data) {
-                    const lastUsage = data.last_ai_usage_at ? new Date(data.last_ai_usage_at) : null;
-                    const today = new Date();
-
-                    // Client-side visual reset if it's a new day
-                    const isNewDay = lastUsage && (
-                        lastUsage.getDate() !== today.getDate() ||
-                        lastUsage.getMonth() !== today.getMonth() ||
-                        lastUsage.getFullYear() !== today.getFullYear()
-                    );
-
-                    setUsageCount(isNewDay ? 0 : (data.ai_usage_count || 0));
+                const data = await getUserUsage(user.id);
+                if (data) {
+                    setUsageCount(data.isNewDay ? 0 : data.ai_usage_count);
                 }
             } catch (e) {
                 console.error('Failed to fetch usage count:', e);
@@ -94,13 +102,10 @@ const AIGenerateScreen: React.FC<AIGenerateScreenProps> = ({ onBack, onRecipeRea
         setLoading(true);
         setError(null);
         try {
-            // Check usage limit
-            const { data: allowed, error: usageError } = await supabase.rpc('increment_ai_usage', { p_id: user.id });
+            // Check usage limit via centralized service
+            const { allowed, count } = await incrementAIUsage(user.id);
 
-            if (usageError) {
-                console.error("Usage check error:", usageError);
-                throw new Error("Failed to check usage limits.");
-            }
+            setUsageCount(count);
 
             if (!allowed) {
                 setError("You've reached your limit of 10 AI recipes. Time to upgrade your kitchen skills manually!");
@@ -111,8 +116,6 @@ const AIGenerateScreen: React.FC<AIGenerateScreenProps> = ({ onBack, onRecipeRea
             // Proceed to generate with dietary filters
             const recipe = await generateRecipeFromIngredients(prompt, selectedDietary);
             if (recipe) {
-                // Update local usage count
-                setUsageCount(prev => (prev !== null ? prev + 1 : 1));
                 onRecipeReady(recipe);
             } else {
                 setError("I couldn't whip something up this time. Try different ingredients?");
@@ -152,16 +155,23 @@ const AIGenerateScreen: React.FC<AIGenerateScreenProps> = ({ onBack, onRecipeRea
 
                     {/* Remaining Uses Badge */}
                     {remainingUses !== null && (
-                        <div className={`mt-3 badge gap-1.5 py-3 px-4 font-bold text-xs ${isLimitReached
-                            ? 'badge-error text-error-content'
-                            : remainingUses <= 3
-                                ? 'badge-warning text-warning-content'
-                                : 'badge-primary text-primary-content'
-                            }`}>
-                            <span className="material-symbols-outlined text-[14px] fill-icon">
-                                {isLimitReached ? 'block' : 'local_fire_department'}
-                            </span>
-                            {isLimitReached ? 'No uses left' : `${remainingUses}/${MAX_USES} uses remaining`}
+                        <div className="flex flex-col items-center gap-2 mt-3">
+                            <div className={`badge gap-1.5 py-3 px-4 font-bold text-xs ${isLimitReached
+                                ? 'badge-error text-error-content'
+                                : remainingUses <= 3
+                                    ? 'badge-warning text-warning-content'
+                                    : 'badge-primary text-primary-content'
+                                }`}>
+                                <span className="material-symbols-outlined text-[14px] fill-icon">
+                                    {isLimitReached ? 'block' : 'local_fire_department'}
+                                </span>
+                                {isLimitReached ? 'No uses left' : `${remainingUses}/${MAX_USES} uses remaining`}
+                            </div>
+
+                            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-base-content/40">
+                                <span className="material-symbols-outlined text-[12px]">schedule</span>
+                                <span>Refreshes in {timeToReset}</span>
+                            </div>
                         </div>
                     )}
                 </div>

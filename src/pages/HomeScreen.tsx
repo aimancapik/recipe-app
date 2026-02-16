@@ -4,6 +4,7 @@ import { Recipe } from '@/types';
 import { CATEGORIES } from '@/data/constants';
 import RecipeCard from '@/components/RecipeCard';
 import LoadingAnimation from '@/components/LoadingAnimation';
+import { getAvatarUrl } from '@/data/avatars';
 
 interface HomeScreenProps {
     recipes: Recipe[];
@@ -35,7 +36,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     loading
 }) => {
     const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Chef';
-    const avatarUrl = user?.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100';
+    const avatarId = user?.user_metadata?.avatar_id;
+    const avatarUrl = user?.user_metadata?.avatar_url || (avatarId ? getAvatarUrl(avatarId) : 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100');
     const [activeCategory, setActiveCategory] = useState('popular');
     const [searchValue, setSearchValue] = useState('');
     const [isFocused, setIsFocused] = useState(false);
@@ -52,6 +54,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
             r.category.toLowerCase().includes(searchQuery)
         );
     });
+
+    // Debug: Log filtering results
+    console.log('Active Category:', activeCategory);
+    console.log('Total Recipes:', recipes.length);
+    console.log('Filtered Recipes:', filteredRecipes.length);
+    console.log('Filtered Recipe Categories:', filteredRecipes.map(r => ({ title: r.title, category: r.category })));
 
     // Intersection Observer for Infinite Scroll
     const observerTarget = React.useRef(null);
@@ -117,15 +125,20 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 
             {/* Search Bar */}
             <div className="px-4 py-3">
-                <label className={`input w-full flex items-center gap-2 rounded-full transition-all ${
-                    isFocused
-                        ? 'ring-2 ring-primary ring-offset-2 ring-offset-base-100'
-                        : 'border border-base-300'
-                }`}>
-                    <span className="material-symbols-outlined text-base-content/40 text-xl">search</span>
+                <label
+                    className={`w-full flex items-center gap-3 rounded-full px-5 py-3 transition-all border-2 ${isFocused
+                        ? 'border-primary bg-base-100 shadow-lg shadow-primary/10'
+                        : 'border-transparent bg-base-200'
+                        }`}
+                >
+                    <span className={`material-symbols-outlined text-xl transition-colors ${isFocused ? 'text-primary' : 'text-base-content/40'}`}>
+                        search
+                    </span>
                     <input
                         ref={inputRef}
-                        className="grow text-sm"
+                        // Use inline styles to forcefully override global !important CSS
+                        style={{ boxShadow: 'none', border: 'none', outline: 'none' }}
+                        className="grow text-sm bg-transparent text-base-content placeholder:text-base-content/40 !border-none !outline-none !shadow-none p-0 h-auto"
                         placeholder="Search recipes, ingredients..."
                         type="text"
                         value={searchValue}
@@ -137,7 +150,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                         <button
                             type="button"
                             onClick={() => { setSearchValue(''); inputRef.current?.focus(); }}
-                            className="btn btn-ghost btn-circle btn-xs"
+                            className="btn btn-ghost btn-circle btn-xs min-h-0 h-6 w-6"
                         >
                             <span className="material-symbols-outlined text-base-content/40 text-lg">close</span>
                         </button>

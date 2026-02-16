@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { uploadImage } from '@/lib/storage';
 import { videoToGif } from '@/lib/videoToGif';
 import { Recipe } from '@/types';
+import { CATEGORIES } from '@/data/constants';
 
 interface Ingredient {
     id: string;
@@ -34,6 +35,7 @@ export interface RecipeFormData {
     prepTime: string;
     serves: string;
     difficulty: string;
+    category: string;
     ingredients: Ingredient[];
     instructions: InstructionStep[];
 }
@@ -55,6 +57,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
     const [prepTime, setPrepTime] = useState('');
     const [serves, setServes] = useState('');
     const [difficulty, setDifficulty] = useState('Easy');
+    const [category, setCategory] = useState('breakfast');
 
     const [ingredients, setIngredients] = useState<Ingredient[]>([]);
     const [newIngName, setNewIngName] = useState('');
@@ -74,6 +77,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
             setPrepTime(editingRecipe.prepTime?.replace(/[^0-9]/g, '') || '');
             setServes(editingRecipe.serves || '');
             setDifficulty(editingRecipe.level || 'Easy');
+            setCategory(editingRecipe.category || 'breakfast');
 
             // Parse ingredients back to form format
             const parsedIngredients: Ingredient[] = editingRecipe.ingredients.map((ing, idx) => {
@@ -188,7 +192,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
     };
 
     const handlePublish = () => {
-        const data = { title, description, coverImage, prepTime, serves, difficulty, ingredients, instructions };
+        const data = { title, description, coverImage, prepTime, serves, difficulty, category, ingredients, instructions };
         const isTempDraft = editingRecipe?.id.startsWith('temp-');
 
         if (isTempDraft && onSaveDraft) {
@@ -338,6 +342,28 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                         </select>
                         <p className="text-[10px] uppercase font-bold text-base-content/40">Level</p>
                     </div>
+                </div>
+            </div>
+
+            <div className="px-4 py-4">
+                <h3 className="text-base-content text-base font-semibold mb-3">Recipe Category</h3>
+                <div className="grid grid-cols-2 gap-3">
+                    {CATEGORIES.filter(cat => cat.id !== 'popular').map((cat) => (
+                        <button
+                            key={cat.id}
+                            onClick={() => setCategory(cat.id)}
+                            className={`flex items-center gap-3 rounded-xl p-4 transition-all ${
+                                category === cat.id
+                                    ? 'bg-primary text-primary-content shadow-lg shadow-primary/20 scale-105'
+                                    : 'bg-base-200 text-base-content hover:bg-base-300'
+                            }`}
+                        >
+                            <span className={`material-symbols-outlined text-2xl ${category === cat.id ? 'fill-1' : ''}`}>
+                                {cat.icon}
+                            </span>
+                            <span className="text-sm font-bold">{cat.name}</span>
+                        </button>
+                    ))}
                 </div>
             </div>
         </div>
