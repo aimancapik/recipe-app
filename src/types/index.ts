@@ -39,6 +39,7 @@ export interface Recipe {
     category: string;
     isFavorite?: boolean;
     userId?: string;
+    status?: 'published' | 'draft';
 }
 
 export interface Category {

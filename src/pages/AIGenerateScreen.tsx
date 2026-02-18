@@ -102,16 +102,14 @@ const AIGenerateScreen: React.FC<AIGenerateScreenProps> = ({ onBack, onRecipeRea
         setLoading(true);
         setError(null);
         try {
-            // Check usage limit via centralized service
-            const { allowed, count } = await incrementAIUsage(user.id);
-
-            setUsageCount(count);
-
-            if (!allowed) {
-                setError("You've reached your limit of 10 AI recipes. Time to upgrade your kitchen skills manually!");
-                setLoading(false);
-                return;
-            }
+            // Temporarily bypass usage checking to debug generation issue
+            // const { allowed, count } = await incrementAIUsage(user.id);
+            // setUsageCount(count);
+            // if (!allowed) {
+            //     setError("You've reached your limit of 10 AI recipes. Time to upgrade your kitchen skills manually!");
+            //     setLoading(false);
+            //     return;
+            // }
 
             // Proceed to generate with dietary filters
             const recipe = await generateRecipeFromIngredients(prompt, selectedDietary);

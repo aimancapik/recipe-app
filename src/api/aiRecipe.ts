@@ -96,7 +96,15 @@ export const generateRecipeFromIngredients = async (
         // Clean up markdown if present
         content = content.replace(/```json/g, '').replace(/```/g, '').trim();
 
-        const parsed = JSON.parse(content);
+        console.log('AI Generation raw content:', content);
+
+        let parsed;
+        try {
+            parsed = JSON.parse(content);
+        } catch (e) {
+            console.error('Failed to parse AI response as JSON:', content);
+            throw new Error('Invalid JSON format from AI');
+        }
 
         // Get a relevant food image based on the recipe title
         const image = getFoodImage(parsed.title || ingredients);

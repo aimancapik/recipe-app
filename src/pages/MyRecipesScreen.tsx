@@ -8,6 +8,7 @@ interface MyRecipesScreenProps {
     onEdit: (recipe: Recipe) => void;
     onDelete: (id: string) => Promise<void>;
     onRecipeClick: (recipe: Recipe) => void;
+    onUpdateStatus?: (recipe: Recipe, status: 'published' | 'draft') => Promise<void>;
 }
 
 const MyRecipesScreen: React.FC<MyRecipesScreenProps> = ({
@@ -16,6 +17,7 @@ const MyRecipesScreen: React.FC<MyRecipesScreenProps> = ({
     onEdit,
     onDelete,
     onRecipeClick,
+    onUpdateStatus
 }) => {
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [confirmDeleteRecipe, setConfirmDeleteRecipe] = useState<Recipe | null>(null);
@@ -136,11 +138,26 @@ const MyRecipesScreen: React.FC<MyRecipesScreenProps> = ({
                                     <p className="text-base-content/50 text-xs font-medium">
                                         {recipe.prepTime} • {recipe.category || recipe.level}
                                     </p>
+                                    <span className={`badge badge-xs border-none font-bold px-1.5 py-2 ${recipe.status === 'draft' ? 'badge-warning' : 'badge-success'}`}>
+                                        {recipe.status === 'draft' ? 'DRAFT' : 'PUBLISHED'}
+                                    </span>
                                 </div>
                             </div>
 
                             {/* Actions */}
                             <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onUpdateStatus?.(recipe, recipe.status === 'draft' ? 'published' : 'draft');
+                                    }}
+                                    className={`flex size-9 items-center justify-center rounded-full transition-all ${recipe.status === 'draft' ? 'text-success hover:bg-success/10' : 'text-warning hover:bg-warning/10'}`}
+                                    title={recipe.status === 'draft' ? 'Publish Recipe' : 'Move to Drafts'}
+                                >
+                                    <span className="material-symbols-outlined text-[20px]">
+                                        {recipe.status === 'draft' ? 'publish' : 'unpublished'}
+                                    </span>
+                                </button>
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();

@@ -28,7 +28,14 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
 }) => {
     const [search, setSearch] = useState(initialSearch);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategory || null);
-    const [history, setHistory] = useState(['Avocado Toast', 'Quick Pasta', 'Gluten-free pancakes', 'Chicken Curry']);
+    const [history, setHistory] = useState<string[]>(() => {
+        const saved = localStorage.getItem('recipe_search_history');
+        return saved ? JSON.parse(saved) : ['Avocado Toast', 'Quick Pasta', 'Gluten-free pancakes', 'Chicken Curry'];
+    });
+
+    useEffect(() => {
+        localStorage.setItem('recipe_search_history', JSON.stringify(history));
+    }, [history]);
 
     useEffect(() => {
         setSearch(initialSearch);
@@ -37,6 +44,11 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
     useEffect(() => {
         setSelectedCategory(initialCategory || null);
     }, [initialCategory]);
+
+    const parsePrepTime = (timeStr: string): number => {
+        const num = parseInt(timeStr.replace(/[^0-9]/g, ''));
+        return isNaN(num) ? 0 : num;
+    };
 
     const filteredRecipes = useMemo(() => {
         let result = recipes.filter(r => {
@@ -48,11 +60,29 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
                 r.category.toLowerCase().includes(query);
 
             const matchesCategory = !selectedCategory || r.category.toLowerCase() === selectedCategory.toLowerCase();
-            const matchesDifficulty = !filters.difficulty || r.level === filters.difficulty;
-            const matchesDietary = filters.dietary.length === 0 ||
-                filters.dietary.some(d => r.category.toLowerCase().includes(d.toLowerCase()));
 
-            return matchesSearch && matchesCategory && matchesDifficulty && matchesDietary;
+            const matchesDifficulty = !filters.difficulty || r.level === filters.difficulty;
+
+            // Improved dietary matching: Check category, title, AND ingredients
+            const matchesDietary = filters.dietary.length === 0 ||
+                filters.dietary.every(d => {
+                    const dietQuery = d.toLowerCase();
+                    return r.category.toLowerCase().includes(dietQuery) ||
+                        r.title.toLowerCase().includes(dietQuery) ||
+                        r.ingredients.some(ing => ing.toLowerCase().includes(dietQuery));
+                });
+
+            // Cooking time matching
+            let matchesTime = true;
+            if (filters.cookingTime) {
+                const mins = parsePrepTime(r.prepTime);
+                if (filters.cookingTime === 'under15') matchesTime = mins < 15;
+                else if (filters.cookingTime === '15to30') matchesTime = mins >= 15 && mins <= 30;
+                else if (filters.cookingTime === '30to60') matchesTime = mins > 30 && mins <= 60;
+                else if (filters.cookingTime === '60plus') matchesTime = mins > 60;
+            }
+
+            return matchesSearch && matchesCategory && matchesDifficulty && matchesDietary && matchesTime;
         });
 
         if (filters.sortBy === 'rating') {

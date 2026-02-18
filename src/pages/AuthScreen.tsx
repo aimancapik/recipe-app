@@ -26,6 +26,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [forgotMode, setForgotMode] = useState(false);
@@ -239,25 +240,36 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
                                 <label className="block text-white/90 text-sm font-medium mb-2 ml-1">
                                     Confirm Password
                                 </label>
-                                <input
-                                    type={showPassword ? 'text' : 'password'}
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    placeholder="••••••••"
-                                    className="w-full rounded-lg py-3.5 px-4 text-white text-base outline-none transition-all"
-                                    style={{
-                                        background: 'rgba(255, 255, 255, 0.1)',
-                                        border: '1px solid rgba(255, 255, 255, 0.2)',
-                                    }}
-                                    onFocus={(e) => {
-                                        e.target.style.boxShadow = '0 0 0 2px rgba(244, 226, 37, 0.5)';
-                                        e.target.style.borderColor = '#f4e225';
-                                    }}
-                                    onBlur={(e) => {
-                                        e.target.style.boxShadow = 'none';
-                                        e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-                                    }}
-                                />
+                                <div className="relative flex items-center">
+                                    <input
+                                        type={showConfirmPassword ? 'text' : 'password'}
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        placeholder="••••••••"
+                                        className="w-full rounded-lg py-3.5 px-4 pr-12 text-white text-base outline-none transition-all"
+                                        style={{
+                                            background: 'rgba(255, 255, 255, 0.1)',
+                                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                                        }}
+                                        onFocus={(e) => {
+                                            e.target.style.boxShadow = '0 0 0 2px rgba(244, 226, 37, 0.5)';
+                                            e.target.style.borderColor = '#f4e225';
+                                        }}
+                                        onBlur={(e) => {
+                                            e.target.style.boxShadow = 'none';
+                                            e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                                        }}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                        className="absolute right-4 text-white/50 hover:text-white"
+                                    >
+                                        <span className="material-symbols-outlined text-xl">
+                                            {showConfirmPassword ? 'visibility_off' : 'visibility'}
+                                        </span>
+                                    </button>
+                                </div>
                             </div>
                         )}
 

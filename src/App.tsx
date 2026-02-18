@@ -166,6 +166,7 @@ const App: React.FC = () => {
                 })),
             category: data.category || 'breakfast',
             isFavorite: false,
+            status: 'published'
         };
 
         try {
@@ -198,6 +199,7 @@ const App: React.FC = () => {
                     mediaType: s.mediaType || 'image' as const,
                     timer: s.timer,
                 })),
+            status: 'draft'
         };
 
         setSelectedRecipe(updatedDraft);
@@ -238,6 +240,7 @@ const App: React.FC = () => {
                 })),
             category: data.category || editingRecipe?.category || 'breakfast',
             isFavorite: false,
+            status: editingRecipe?.status || 'published'
         };
 
         try {
@@ -369,8 +372,11 @@ const App: React.FC = () => {
                         onUpdateProfile={updateProfile}
                         recipeCount={userRecipeCount}
                         favoriteCount={favoriteCount}
+                        groceryCount={groceryItems.length}
                         onModalToggle={setIsNavHidden}
                         onMyRecipes={() => setCurrentScreen(Screen.MY_RECIPES)}
+                        onFavorites={() => setCurrentScreen(Screen.SAVED)}
+                        onGroceryList={() => setCurrentScreen(Screen.GROCERY)}
                     />
                 );
             case Screen.FILTER:
@@ -416,6 +422,9 @@ const App: React.FC = () => {
                         }}
                         onDelete={deleteRecipe}
                         onRecipeClick={(r) => navigateTo(Screen.DETAIL, r)}
+                        onUpdateStatus={async (r, status) => {
+                            await updateRecipe(r.id, { ...r, status });
+                        }}
                     />
                 );
             default:

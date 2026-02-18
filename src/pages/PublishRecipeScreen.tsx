@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { uploadImage } from '@/lib/storage';
 import { videoToGif } from '@/lib/videoToGif';
+import LoadingAnimation from '@/components/LoadingAnimation';
 import { Recipe } from '@/types';
 import { CATEGORIES } from '@/data/constants';
 
@@ -103,6 +104,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
     }, [editingRecipe]);
 
     const [uploading, setUploading] = useState(false);
+    const [isPublishing, setIsPublishing] = useState(false);
 
     const handleCoverImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -137,13 +139,16 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
         } catch (err) {
             console.error('Upload failed:', err);
             // Fallback to base64
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setInstructions(prev => prev.map(s =>
-                    s.id === stepId ? { ...s, image: reader.result as string, mediaType: 'image' } : s
-                ));
-            };
-            reader.readAsDataURL(file);
+            await new Promise<void>((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setInstructions(prev => prev.map(s =>
+                        s.id === stepId ? { ...s, image: reader.result as string, mediaType: 'image' } : s
+                    ));
+                    resolve();
+                };
+                reader.readAsDataURL(file);
+            });
         } finally {
             setUploading(false);
         }
@@ -185,22 +190,42 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
         ));
     };
 
+    const moveInstructionStep = (id: string, dir: 'up' | 'down') => {
+        const index = instructions.findIndex(s => s.id === id);
+        if (index === -1) return;
+        if (dir === 'up' && index === 0) return;
+        if (dir === 'down' && index === instructions.length - 1) return;
+
+        const newIndex = dir === 'up' ? index - 1 : index + 1;
+        const newInstructions = [...instructions];
+        const [removed] = newInstructions.splice(index, 1);
+        newInstructions.splice(newIndex, 0, removed);
+        setInstructions(newInstructions);
+    };
+
     const removeStepImage = (stepId: string) => {
         setInstructions(prev => prev.map(s =>
             s.id === stepId ? { ...s, image: null } : s
         ));
     };
 
-    const handlePublish = () => {
+    const handlePublish = async () => {
         const data = { title, description, coverImage, prepTime, serves, difficulty, category, ingredients, instructions };
         const isTempDraft = editingRecipe?.id.startsWith('temp-');
 
-        if (isTempDraft && onSaveDraft) {
-            onSaveDraft(data);
-        } else if (isEditing && editingRecipe && !isTempDraft) {
-            onUpdate?.(editingRecipe.id, data);
-        } else {
-            onPublish?.(data);
+        setIsPublishing(true);
+        try {
+            if (isTempDraft && onSaveDraft) {
+                await onSaveDraft(data);
+            } else if (isEditing && editingRecipe && !isTempDraft) {
+                await onUpdate?.(editingRecipe.id, data);
+            } else {
+                await onPublish?.(data);
+            }
+        } catch (err) {
+            console.error('Publishing failed:', err);
+        } finally {
+            setIsPublishing(false);
         }
     };
 
@@ -352,11 +377,10 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                         <button
                             key={cat.id}
                             onClick={() => setCategory(cat.id)}
-                            className={`flex items-center gap-3 rounded-xl p-4 transition-all ${
-                                category === cat.id
-                                    ? 'bg-primary text-primary-content shadow-lg shadow-primary/20 scale-105'
-                                    : 'bg-base-200 text-base-content hover:bg-base-300'
-                            }`}
+                            className={`flex items-center gap-3 rounded-xl p-4 transition-all ${category === cat.id
+                                ? 'bg-primary text-primary-content shadow-lg shadow-primary/20 scale-105'
+                                : 'bg-base-200 text-base-content hover:bg-base-300'
+                                }`}
                         >
                             <span className={`material-symbols-outlined text-2xl ${category === cat.id ? 'fill-1' : ''}`}>
                                 {cat.icon}
@@ -486,8 +510,23 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                         <div key={inst.id} className="card bg-base-100 shadow-sm overflow-hidden">
                             <div className="flex items-center justify-between bg-primary/5 px-4 py-2 border-b border-base-200">
                                 <div className="flex items-center gap-2">
-                                    <span className="material-symbols-outlined text-base-content/40 cursor-grab">drag_indicator</span>
-                                    <span className="font-bold text-base-content">Step {index + 1}</span>
+                                    <div className="flex flex-col">
+                                        <button
+                                            onClick={(e) => { e.preventDefault(); moveInstructionStep(inst.id, 'up'); }}
+                                            disabled={index === 0}
+                                            className="btn btn-ghost btn-circle btn-xs h-4 min-h-4 disabled:opacity-20"
+                                        >
+                                            <span className="material-symbols-outlined text-[14px]">keyboard_arrow_up</span>
+                                        </button>
+                                        <button
+                                            onClick={(e) => { e.preventDefault(); moveInstructionStep(inst.id, 'down'); }}
+                                            disabled={index === instructions.length - 1}
+                                            className="btn btn-ghost btn-circle btn-xs h-4 min-h-4 disabled:opacity-20"
+                                        >
+                                            <span className="material-symbols-outlined text-[14px]">keyboard_arrow_down</span>
+                                        </button>
+                                    </div>
+                                    <span className="font-bold text-base-content whitespace-nowrap">Step {index + 1}</span>
                                 </div>
                                 <button onClick={() => removeInstructionStep(inst.id)} className="btn btn-ghost btn-circle btn-xs text-base-content/40 hover:text-error">
                                     <span className="material-symbols-outlined text-xl">delete</span>
@@ -825,11 +864,21 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                                 <span className="material-symbols-outlined text-lg">chevron_right</span>
                             </button>
                         ) : (
-                            <button onClick={handlePublish} className="btn btn-primary flex-[2] btn-lg gap-2 shadow-lg">
-                                <span className="material-symbols-outlined text-[20px]">
-                                    {editingRecipe?.id.startsWith('temp-') ? 'check_circle' : isEditing ? 'save' : 'publish'}
-                                </span>
-                                {editingRecipe?.id.startsWith('temp-') ? 'Save Changes' : isEditing ? 'Update Recipe' : 'Publish Recipe'}
+                            <button
+                                onClick={handlePublish}
+                                disabled={isPublishing}
+                                className="btn btn-primary flex-[2] btn-lg gap-2 shadow-lg disabled:opacity-70"
+                            >
+                                {isPublishing ? (
+                                    <LoadingAnimation size={24} />
+                                ) : (
+                                    <>
+                                        <span className="material-symbols-outlined text-[20px]">
+                                            {editingRecipe?.id.startsWith('temp-') ? 'check_circle' : isEditing ? 'save' : 'publish'}
+                                        </span>
+                                        {editingRecipe?.id.startsWith('temp-') ? 'Save Changes' : isEditing ? 'Update Recipe' : 'Publish Recipe'}
+                                    </>
+                                )}
                             </button>
                         )}
                     </div>

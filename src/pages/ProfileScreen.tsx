@@ -22,8 +22,11 @@ interface ProfileScreenProps {
     }) => Promise<void>;
     recipeCount: number;
     favoriteCount: number;
+    groceryCount: number;
     onModalToggle?: (hidden: boolean) => void;
     onMyRecipes?: () => void;
+    onFavorites?: () => void;
+    onGroceryList?: () => void;
 }
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({
@@ -35,8 +38,11 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
     onUpdateProfile,
     recipeCount,
     favoriteCount,
+    groceryCount,
     onModalToggle,
-    onMyRecipes
+    onMyRecipes,
+    onFavorites,
+    onGroceryList
 }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
@@ -241,16 +247,27 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
                 {/* Stats Bar */}
                 <div className="stats stats-horizontal shadow bg-base-100 w-full rounded-none">
-                    {[
-                        { label: 'Recipes', val: recipeCount },
-                        { label: 'Favorites', val: favoriteCount },
-                        { label: 'Lists', val: '0' }
-                    ].map(stat => (
-                        <div key={stat.label} className="stat place-items-center px-4 py-3">
-                            <div className="stat-value text-xl">{stat.val}</div>
-                            <div className="stat-desc text-xs font-medium uppercase tracking-wider">{stat.label}</div>
-                        </div>
-                    ))}
+                    <div
+                        className="stat place-items-center px-4 py-3 cursor-pointer hover:bg-base-200 transition-colors"
+                        onClick={onMyRecipes}
+                    >
+                        <div className="stat-value text-xl">{recipeCount || 0}</div>
+                        <div className="stat-desc text-xs font-medium uppercase tracking-wider">Recipes</div>
+                    </div>
+                    <div
+                        className="stat place-items-center px-4 py-3 cursor-pointer hover:bg-base-200 transition-colors"
+                        onClick={onFavorites}
+                    >
+                        <div className="stat-value text-xl">{favoriteCount || 0}</div>
+                        <div className="stat-desc text-xs font-medium uppercase tracking-wider">Favorites</div>
+                    </div>
+                    <div
+                        className="stat place-items-center px-4 py-3 cursor-pointer hover:bg-base-200 transition-colors"
+                        onClick={onGroceryList}
+                    >
+                        <div className="stat-value text-xl">{groceryCount || 0}</div>
+                        <div className="stat-desc text-xs font-medium uppercase tracking-wider">Lists</div>
+                    </div>
                 </div>
 
                 {/* Menu Section */}

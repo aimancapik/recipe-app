@@ -39,6 +39,7 @@ function transformRow(row: any): Recipe {
         category: row.category,
         userId: row.user_id,
         isFavorite: false,
+        status: row.status || 'published',
         ingredients: (row.ingredients || [])
             .sort((a: any, b: any) => a.sort_order - b.sort_order)
             .map((i: any) => i.name),
@@ -155,6 +156,7 @@ export function useRecipes() {
                     level: recipe.level,
                     category: recipe.category,
                     user_id: user?.id || null,
+                    status: recipe.status || 'published',
                 })
                 .select()
                 .single();
@@ -237,6 +239,7 @@ export function useRecipes() {
                     kcal: recipe.kcal,
                     level: recipe.level,
                     category: recipe.category,
+                    status: recipe.status || 'published',
                 })
                 .eq('id', id);
 
