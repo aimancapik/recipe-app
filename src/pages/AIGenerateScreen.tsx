@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { generateRecipeFromIngredients } from '@/api/aiRecipe';
 import { Recipe } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { getUserUsage, incrementAIUsage } from '@/api/userUsage';
 import LoadingAnimation from '@/components/LoadingAnimation';
+import { useAIGeneration } from '@/contexts/AIGenerationContext';
 
 interface AIGenerateScreenProps {
     onBack: () => void;
@@ -33,12 +33,27 @@ const MAX_USES = 10;
 
 const AIGenerateScreen: React.FC<AIGenerateScreenProps> = ({ onBack, onRecipeReady }) => {
     const { user } = useAuth();
+    const { startGeneration, moveToBackground, discardTask, getTask } = useAIGeneration();
+
     const [prompt, setPrompt] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [selectedDietary, setSelectedDietary] = useState<string[]>([]);
     const [usageCount, setUsageCount] = useState<number | null>(null);
     const [timeToReset, setTimeToReset] = useState<string>('');
+
+    const currentTask = currentTaskId ? getTask(currentTaskId) : null;
+    const loading = currentTask?.status === 'loading';
+
+    // Monitor task completion
+    useEffect(() => {
+        if (currentTask && currentTask.status === 'completed' && currentTask.result) {
+            onRecipeReady(currentTask.result);
+        } else if (currentTask && currentTask.status === 'failed') {
+            setError(currentTask.error || "Failed to generate recipe.");
+            setCurrentTaskId(null);
+        }
+    }, [currentTask, onRecipeReady]);
 
     // Calculate time until next midnight
     const calculateTimeToReset = () => {
@@ -99,30 +114,34 @@ const AIGenerateScreen: React.FC<AIGenerateScreenProps> = ({ onBack, onRecipeRea
             return;
         }
 
-        setLoading(true);
         setError(null);
         try {
-            // Temporarily bypass usage checking to debug generation issue
-            // const { allowed, count } = await incrementAIUsage(user.id);
-            // setUsageCount(count);
-            // if (!allowed) {
-            //     setError("You've reached your limit of 10 AI recipes. Time to upgrade your kitchen skills manually!");
-            //     setLoading(false);
-            //     return;
-            // }
-
-            // Proceed to generate with dietary filters
-            const recipe = await generateRecipeFromIngredients(prompt, selectedDietary);
-            if (recipe) {
-                onRecipeReady(recipe);
-            } else {
-                setError("I couldn't whip something up this time. Try different ingredients?");
+            const { allowed, count } = await incrementAIUsage(user.id);
+            setUsageCount(count);
+            if (!allowed) {
+                setError("You've reached your daily limit of 10 AI recipes. Time to upgrade your kitchen skills manually!");
+                return;
             }
+
+            const taskId = await startGeneration(prompt, selectedDietary);
+            setCurrentTaskId(taskId);
         } catch (e: any) {
             console.error(e);
             setError(e.message || "Something went wrong with the AI chef.");
-        } finally {
-            setLoading(false);
+        }
+    };
+
+    const handleBackground = () => {
+        if (currentTaskId) {
+            moveToBackground(currentTaskId);
+            onBack(); // Navigate away
+        }
+    };
+
+    const handleDiscard = () => {
+        if (currentTaskId) {
+            discardTask(currentTaskId);
+            setCurrentTaskId(null);
         }
     };
 
@@ -218,24 +237,49 @@ const AIGenerateScreen: React.FC<AIGenerateScreenProps> = ({ onBack, onRecipeRea
                     </div>
                 )}
 
-                {/* Generate Button */}
-                <button
-                    onClick={handleGenerate}
-                    disabled={loading || !prompt.trim() || isLimitReached}
-                    className="btn btn-primary w-full btn-lg gap-3 shadow-lg shadow-primary/20 group mb-8"
-                >
-                    {loading ? (
-                        <>
-                            <LoadingAnimation size={24} />
-                            <span>Stirring the pot...</span>
-                        </>
-                    ) : (
-                        <>
-                            <span className="material-symbols-outlined group-hover:scale-125 transition-transform fill-icon">restaurant</span>
-                            <span>Generate Recipe</span>
-                        </>
-                    )}
-                </button>
+                {/* Generate Button / Loading State */}
+                {loading ? (
+                    <div className="flex flex-col gap-3 animate-fade-in">
+                        <div className="card bg-base-100 shadow-md border border-primary/20">
+                            <div className="card-body items-center py-6">
+                                <LoadingAnimation size={48} />
+                                <h3 className="text-lg font-bold mt-4">Chef is cooking...</h3>
+                                <p className="text-sm text-base-content/50 text-center">
+                                    This might take up to a minute.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={handleBackground}
+                                className="btn btn-primary flex-1 gap-2 shadow-lg shadow-primary/20"
+                            >
+                                <span className="material-symbols-outlined text-[18px]">visibility_off</span>
+                                Background
+                            </button>
+                            <button
+                                onClick={handleDiscard}
+                                className="btn btn-ghost bg-base-100 border-base-300 flex-1 gap-2"
+                            >
+                                <span className="material-symbols-outlined text-[18px]">close</span>
+                                Discard
+                            </button>
+                        </div>
+                        <p className="text-[10px] text-center text-base-content/40 mt-1 uppercase tracking-widest font-bold">
+                            You can browse while I cook
+                        </p>
+                    </div>
+                ) : (
+                    <button
+                        onClick={handleGenerate}
+                        disabled={!prompt.trim() || isLimitReached}
+                        className="btn btn-primary w-full btn-lg gap-3 shadow-lg shadow-primary/20 group mb-8"
+                    >
+                        <span className="material-symbols-outlined group-hover:scale-125 transition-transform fill-icon">restaurant</span>
+                        <span>Generate Recipe</span>
+                    </button>
+                )}
 
                 {/* Suggestion Chips */}
                 <div>

@@ -14,6 +14,8 @@ import GroceryListScreen from '@/pages/GroceryListScreen';
 import PublishRecipeScreen from '@/pages/PublishRecipeScreen';
 import AuthScreen from '@/pages/AuthScreen';
 import MyRecipesScreen from '@/pages/MyRecipesScreen';
+import PublicProfileScreen from '@/pages/PublicProfileScreen';
+import ReviewRecipeScreen from '@/pages/ReviewRecipeScreen';
 import LoadingAnimation from '@/components/LoadingAnimation';
 import SplashScreen from '@/components/SplashScreen';
 import { useTheme } from '@/hooks/useTheme';
@@ -21,10 +23,11 @@ import { useRecipes } from '@/hooks/useRecipes';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useGrocery } from '@/hooks/useGrocery';
 import { useAuth } from '@/hooks/useAuth';
+import { AIGenerationProvider } from '@/contexts/AIGenerationContext';
 
 const App: React.FC = () => {
     const { isDark, toggleTheme } = useTheme();
-    const { recipes, loading, loadingMore, hasMore, loadMore, addRecipe, deleteRecipe, updateRecipe } = useRecipes();
+    const { recipes, loading, loadingMore, hasMore, fetchRecipes, fetchRecipesByIds, fetchRecipesByUserId, loadMore, addRecipe, deleteRecipe, updateRecipe } = useRecipes();
     const { favoriteIds, isFavorite, toggleFavorite } = useFavorites();
     const { items: groceryItems, toggleItem: toggleGroceryItem, clearChecked: clearCheckedGroceryItems, addFromRecipe } = useGrocery();
     const {
@@ -56,15 +59,60 @@ const App: React.FC = () => {
     // Stores a pending action to execute after successful login
     const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
     const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
+    const [currentChefId, setCurrentChefId] = useState<string | null>(null);
+    const [fullFavoriteRecipes, setFullFavoriteRecipes] = useState<Recipe[]>([]);
+    const [fullUserRecipes, setFullUserRecipes] = useState<Recipe[]>([]);
 
-    // Merge favorite status into recipes
-    const recipesWithFavorites = recipes.map(r => ({
+    const refreshFavorites = useCallback(async () => {
+        if (favoriteIds.size === 0) {
+            setFullFavoriteRecipes([]);
+            return;
+        }
+        const ids = Array.from(favoriteIds);
+        const fetched = await fetchRecipesByIds(ids);
+        setFullFavoriteRecipes(fetched);
+    }, [favoriteIds, fetchRecipesByIds]);
+
+    const refreshUserRecipes = useCallback(async () => {
+        if (!user) {
+            setFullUserRecipes([]);
+            return;
+        }
+        const fetched = await fetchRecipesByUserId(user.id);
+        setFullUserRecipes(fetched);
+    }, [user, fetchRecipesByUserId]);
+
+    // Fetch full recipe data for all favorite IDs to ensure Saved screen is always populated
+    React.useEffect(() => {
+        refreshFavorites();
+    }, [refreshFavorites]);
+
+    // Fetch all user-owned recipes to ensure My Recipes screen is always populated
+    React.useEffect(() => {
+        refreshUserRecipes();
+    }, [refreshUserRecipes]);
+
+    // Merge favorite status into recipes, and include all fullFavoriteRecipes
+    const recipesWithFavorites = [...recipes].map(r => ({
         ...r,
         isFavorite: isFavorite(r.id),
     }));
 
-    const navigateTo = (screen: Screen, recipe?: Recipe) => {
+    // For the Saved screen, we want to combine loaded recipes with specifically fetched favorites
+    const allSavedRecipes = Array.from(new Map([
+        ...recipesWithFavorites.filter(r => r.isFavorite),
+        ...fullFavoriteRecipes.map(r => ({ ...r, isFavorite: true }))
+    ].map(item => [item.id, item])).values());
+
+    // For My Recipes screen, we merge loaded recipes with specifically fetched user recipes
+    const allMyRecipes = Array.from(new Map([
+        ...recipesWithFavorites.filter(r => r.userId === user?.id),
+        ...fullUserRecipes.map(r => ({ ...r, isFavorite: isFavorite(r.id) }))
+    ].map(item => [item.id, item])).values());
+
+    const navigateTo = (screen: Screen, recipe?: Recipe, chefId?: string) => {
         if (recipe) setSelectedRecipe(recipe);
+        if (chefId) setCurrentChefId(chefId);
         if (screen !== Screen.EXPLORE) {
             setSearchQuery('');
             setInitialCategory(null);
@@ -136,7 +184,8 @@ const App: React.FC = () => {
     const handlePublishRecipe = async (data: {
         title: string;
         description: string;
-        coverImage: string | null;
+        image: string | null;
+        images: string[];
         prepTime: string;
         serves: string;
         difficulty: string;
@@ -146,7 +195,8 @@ const App: React.FC = () => {
     }) => {
         const newRecipe: Omit<Recipe, 'id'> = {
             title: data.title || 'Untitled Recipe',
-            image: data.coverImage || 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=600',
+            description: data.description,
+            image: data.image || 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=600',
             prepTime: data.prepTime ? `${data.prepTime}m` : '30m',
             rating: 0,
             reviews: 0,
@@ -166,11 +216,14 @@ const App: React.FC = () => {
                 })),
             category: data.category || 'breakfast',
             isFavorite: false,
-            status: 'published'
+            status: 'published',
+            images: data.images || []
         };
 
         try {
             await addRecipe(newRecipe);
+            await refreshUserRecipes();
+            await fetchRecipes(); // Refresh the main feed too
         } catch (err) {
             console.error('Failed to publish recipe:', err);
         }
@@ -183,7 +236,9 @@ const App: React.FC = () => {
         const updatedDraft: Recipe = {
             ...editingRecipe,
             title: data.title || 'Untitled Recipe',
-            image: data.coverImage || editingRecipe.image,
+            description: data.description || editingRecipe.description,
+            image: data.image || editingRecipe.image,
+            images: data.images || editingRecipe.images || [],
             prepTime: data.prepTime ? `${data.prepTime}m` : editingRecipe.prepTime,
             serves: data.serves || editingRecipe.serves,
             level: (data.difficulty as 'Easy' | 'Medium' | 'Hard') || editingRecipe.level,
@@ -210,7 +265,8 @@ const App: React.FC = () => {
     const handleUpdateRecipe = async (id: string, data: {
         title: string;
         description: string;
-        coverImage: string | null;
+        image: string | null;
+        images: string[];
         prepTime: string;
         serves: string;
         difficulty: string;
@@ -220,7 +276,8 @@ const App: React.FC = () => {
     }) => {
         const updatedRecipe: Omit<Recipe, 'id'> = {
             title: data.title || 'Untitled Recipe',
-            image: data.coverImage || 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=600',
+            description: data.description,
+            image: data.image || 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=600',
             prepTime: data.prepTime ? `${data.prepTime}m` : '30m',
             rating: editingRecipe?.rating || 0,
             reviews: editingRecipe?.reviews || 0,
@@ -240,11 +297,15 @@ const App: React.FC = () => {
                 })),
             category: data.category || editingRecipe?.category || 'breakfast',
             isFavorite: false,
-            status: editingRecipe?.status || 'published'
+            status: editingRecipe?.status || 'published',
+            images: data.images || []
         };
 
         try {
             await updateRecipe(id, updatedRecipe);
+            await refreshUserRecipes();
+            await refreshFavorites();
+            await fetchRecipes(); // Refresh the main feed
         } catch (err) {
             console.error('Failed to update recipe:', err);
         }
@@ -260,9 +321,22 @@ const App: React.FC = () => {
 
         try {
             await addRecipe(recipeData);
+            await refreshUserRecipes();
+            await fetchRecipes();
             setCurrentScreen(Screen.HOME);
         } catch (e) {
             console.error("Failed to publish AI recipe", e);
+        }
+    };
+
+    const handleDeleteRecipe = async (id: string) => {
+        try {
+            await deleteRecipe(id);
+            await refreshUserRecipes();
+            await refreshFavorites();
+            await fetchRecipes();
+        } catch (err) {
+            console.error('Failed to delete recipe:', err);
         }
     };
 
@@ -340,6 +414,8 @@ const App: React.FC = () => {
                             setEditingRecipe(recipe);
                             setCurrentScreen(Screen.PUBLISH);
                         } : undefined}
+                        onChefClick={(chefId) => navigateTo(Screen.PUBLIC_PROFILE, undefined, chefId)}
+                        onRate={() => setCurrentScreen(Screen.REVIEW)}
                     />
                 ) : null;
             case Screen.AI_GENERATE:
@@ -352,14 +428,13 @@ const App: React.FC = () => {
             case Screen.SAVED:
                 return (
                     <SavedRecipesScreen
-                        recipes={recipesWithFavorites}
+                        recipes={allSavedRecipes}
                         onRecipeClick={(r) => navigateTo(Screen.DETAIL, r)}
                         onToggleFavorite={handleToggleFavorite}
                         onBack={() => setCurrentScreen(Screen.HOME)}
                     />
                 );
             case Screen.PROFILE:
-                const userRecipeCount = recipes.filter(r => r.userId === user?.id).length;
                 const favoriteCount = favoriteIds.size;
 
                 return (
@@ -370,7 +445,7 @@ const App: React.FC = () => {
                         user={user}
                         onSignOut={signOut}
                         onUpdateProfile={updateProfile}
-                        recipeCount={userRecipeCount}
+                        recipeCount={allMyRecipes.length}
                         favoriteCount={favoriteCount}
                         groceryCount={groceryItems.length}
                         onModalToggle={setIsNavHidden}
@@ -411,57 +486,79 @@ const App: React.FC = () => {
                     />
                 );
             case Screen.MY_RECIPES:
-                const myRecipes = recipesWithFavorites.filter(r => r.userId === user?.id);
                 return (
                     <MyRecipesScreen
-                        recipes={myRecipes}
+                        recipes={allMyRecipes}
                         onBack={() => setCurrentScreen(Screen.PROFILE)}
                         onEdit={(recipe) => {
                             setEditingRecipe(recipe);
                             setCurrentScreen(Screen.PUBLISH);
                         }}
-                        onDelete={deleteRecipe}
+                        onDelete={handleDeleteRecipe}
                         onRecipeClick={(r) => navigateTo(Screen.DETAIL, r)}
                         onUpdateStatus={async (r, status) => {
                             await updateRecipe(r.id, { ...r, status });
                         }}
                     />
                 );
+            case Screen.PUBLIC_PROFILE:
+                return currentChefId ? (
+                    <PublicProfileScreen
+                        userId={currentChefId}
+                        onBack={() => setCurrentScreen(selectedRecipe ? Screen.DETAIL : Screen.HOME)}
+                        onRecipeClick={(r) => navigateTo(Screen.DETAIL, r)}
+                        toggleFavorite={handleToggleFavorite}
+                    />
+                ) : null;
+            case Screen.REVIEW:
+                return selectedRecipe ? (
+                    <ReviewRecipeScreen
+                        recipe={selectedRecipe}
+                        onBack={() => setCurrentScreen(Screen.DETAIL)}
+                        onSubmit={(review) => {
+                            console.log('Review submitted:', review);
+                            // In a real app, we'd save this to Supabase
+                            setCurrentScreen(Screen.DETAIL);
+                        }}
+                    />
+                ) : null;
             default:
                 return null;
         }
     };
 
-    const showBottomNav = !isNavHidden && ![Screen.DETAIL, Screen.AI_GENERATE, Screen.FILTER, Screen.GROCERY, Screen.PUBLISH, Screen.LOGIN, Screen.SIGNUP, Screen.MY_RECIPES].includes(currentScreen);
+    const showBottomNav = !isNavHidden && ![Screen.DETAIL, Screen.AI_GENERATE, Screen.FILTER, Screen.GROCERY, Screen.PUBLISH, Screen.LOGIN, Screen.SIGNUP, Screen.MY_RECIPES, Screen.PUBLIC_PROFILE, Screen.REVIEW].includes(currentScreen);
 
     if (showSplash) {
         return <SplashScreen />;
     }
 
     return (
-        <div className={`max-w-md mx-auto ${currentScreen === Screen.LOGIN || currentScreen === Screen.SIGNUP ? '' : (isDark ? 'bg-background-dark text-white' : 'bg-slate-50 text-base-content')} min-h-screen shadow-xl flex flex-col relative overflow-x-hidden ${showBottomNav ? 'pb-20' : ''}`}>
-            {renderScreen()}
-            {showBottomNav && (
-                <BottomNav
-                    currentScreen={currentScreen}
-                    onNavigate={(screen) => {
-                        if (screen === Screen.SAVED || screen === Screen.PROFILE) {
-                            requireAuth(() => setCurrentScreen(screen), currentScreen);
-                        } else {
-                            setCurrentScreen(screen);
-                        }
-                    }}
-                    onQuickAction={() => setQuickActionsOpen(true)}
+        <AIGenerationProvider>
+            <div className={`max-w-md mx-auto ${currentScreen === Screen.LOGIN || currentScreen === Screen.SIGNUP ? '' : 'bg-base-100 text-base-content'} min-h-screen shadow-xl flex flex-col relative overflow-x-hidden ${showBottomNav ? 'pb-20' : ''}`}>
+                {renderScreen()}
+                {showBottomNav && (
+                    <BottomNav
+                        currentScreen={currentScreen}
+                        onNavigate={(screen) => {
+                            if (screen === Screen.SAVED || screen === Screen.PROFILE) {
+                                requireAuth(() => setCurrentScreen(screen), currentScreen);
+                            } else {
+                                setCurrentScreen(screen);
+                            }
+                        }}
+                        onQuickAction={() => setQuickActionsOpen(true)}
+                    />
+                )}
+                <QuickActionsOverlay
+                    isOpen={quickActionsOpen}
+                    onClose={() => setQuickActionsOpen(false)}
+                    onCreateRecipe={() => requireAuth(() => navigateTo(Screen.PUBLISH), Screen.HOME)}
+                    onAddToShoppingList={() => requireAuth(() => navigateTo(Screen.GROCERY), Screen.HOME)}
+                    onModalToggle={setIsNavHidden}
                 />
-            )}
-            <QuickActionsOverlay
-                isOpen={quickActionsOpen}
-                onClose={() => setQuickActionsOpen(false)}
-                onCreateRecipe={() => requireAuth(() => navigateTo(Screen.PUBLISH), Screen.HOME)}
-                onAddToShoppingList={() => requireAuth(() => navigateTo(Screen.GROCERY), Screen.HOME)}
-                onModalToggle={setIsNavHidden}
-            />
-        </div>
+            </div>
+        </AIGenerationProvider>
     );
 };
 

@@ -4,6 +4,7 @@ import { CATEGORIES } from '@/data/constants';
 import { Recipe } from '@/types';
 import { FilterOptions } from './FilterScreen';
 import RecipeCard from '@/components/RecipeCard';
+import RecipeMasonryGrid from '@/components/RecipeMasonryGrid';
 
 interface ExploreScreenProps {
     recipes: Recipe[];
@@ -232,17 +233,12 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
                             )}
                         </div>
                         {filteredRecipes.length > 0 ? (
-                            <div className="grid grid-cols-2 gap-4">
-                                {filteredRecipes.map(recipe => (
-                                    <RecipeCard
-                                        key={recipe.id}
-                                        recipe={recipe}
-                                        onClick={onRecipeClick}
-                                        onToggleFavorite={onToggleFavorite}
-                                        showCategory={true}
-                                    />
-                                ))}
-                            </div>
+                            <RecipeMasonryGrid
+                                recipes={filteredRecipes}
+                                onRecipeClick={onRecipeClick}
+                                onToggleFavorite={onToggleFavorite}
+                                showCategory={true}
+                            />
                         ) : (
                             <div className="flex flex-col items-center justify-center py-20 text-base-content/40">
                                 <span className="material-symbols-outlined text-6xl mb-4">search_off</span>

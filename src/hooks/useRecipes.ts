@@ -40,6 +40,7 @@ function transformRow(row: any): Recipe {
         userId: row.user_id,
         isFavorite: false,
         status: row.status || 'published',
+        images: row.images || [],
         ingredients: (row.ingredients || [])
             .sort((a: any, b: any) => a.sort_order - b.sort_order)
             .map((i: any) => i.name),
@@ -68,6 +69,33 @@ export function useRecipes() {
     const isFetchingRef = useRef(false);
     const hasMoreRef = useRef(true);
 
+    const fetchRecipesByIds = useCallback(async (ids: string[]) => {
+        if (ids.length === 0) return [];
+        try {
+            const { data, error: fetchError } = await supabase
+                .rpc('get_recipes_by_ids', { p_ids: ids });
+
+            if (fetchError) throw fetchError;
+            return (data || []).map(transformRow);
+        } catch (err) {
+            console.error('useRecipes fetchByIds error:', err);
+            return [];
+        }
+    }, []);
+
+    const fetchRecipesByUserId = useCallback(async (userId: string) => {
+        try {
+            const { data, error: fetchError } = await supabase
+                .rpc('get_user_recipes', { p_user_id: userId });
+
+            if (fetchError) throw fetchError;
+            return (data || []).map(transformRow);
+        } catch (err) {
+            console.error('useRecipes fetchByUserId error:', err);
+            return [];
+        }
+    }, []);
+
     // Fetch recipes with pagination — stable callback (no state deps)
     const fetchRecipes = useCallback(async (isLoadMore = false) => {
         if (isFetchingRef.current) return;
@@ -80,16 +108,11 @@ export function useRecipes() {
             setError(null);
             const offset = isLoadMore ? loadedCountRef.current : 0;
 
-            // Supabase lets us fetch related tables in one query
             const { data, count, error: fetchError } = await supabase
-                .from('recipes')
-                .select(`
-                    *,
-                    ingredients ( name, sort_order ),
-                    directions ( step, title, description, image, media_type, timer, sort_order )
-                `, { count: 'exact' })
-                .order('created_at', { ascending: false })
-                .range(offset, offset + PAGE_SIZE - 1);
+                .rpc('get_paginated_recipes', {
+                    p_offset: offset,
+                    p_page_size: PAGE_SIZE
+                }, { count: 'exact' });
 
             if (fetchError) throw fetchError;
 
@@ -147,6 +170,7 @@ export function useRecipes() {
                 .from('recipes')
                 .insert({
                     title: recipe.title,
+                    description: recipe.description,
                     image: recipe.image,
                     prep_time: recipe.prepTime,
                     rating: recipe.rating,
@@ -157,6 +181,7 @@ export function useRecipes() {
                     category: recipe.category,
                     user_id: user?.id || null,
                     status: recipe.status || 'published',
+                    images: recipe.images || [],
                 })
                 .select()
                 .single();
@@ -231,6 +256,7 @@ export function useRecipes() {
                 .from('recipes')
                 .update({
                     title: recipe.title,
+                    description: recipe.description,
                     image: recipe.image,
                     prep_time: recipe.prepTime,
                     rating: recipe.rating,
@@ -240,6 +266,7 @@ export function useRecipes() {
                     level: recipe.level,
                     category: recipe.category,
                     status: recipe.status || 'published',
+                    images: recipe.images || [],
                 })
                 .eq('id', id);
 
@@ -294,5 +321,5 @@ export function useRecipes() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    return { recipes, loading, loadingMore, hasMore, error, fetchRecipes, loadMore, addRecipe, deleteRecipe, updateRecipe, setRecipes };
+    return { recipes, loading, loadingMore, hasMore, error, fetchRecipes, fetchRecipesByIds, fetchRecipesByUserId, loadMore, addRecipe, deleteRecipe, updateRecipe, setRecipes };
 }

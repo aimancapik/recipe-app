@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import LoadingAnimation from '@/components/LoadingAnimation';
 import { Recipe } from '@/types';
+import RecipeMasonryGrid from '@/components/RecipeMasonryGrid';
 
 interface MyRecipesScreenProps {
     recipes: Recipe[];
@@ -114,76 +115,16 @@ const MyRecipesScreen: React.FC<MyRecipesScreenProps> = ({
                 )}
 
                 {/* Recipe List */}
-                <div className="flex flex-col gap-1 px-2 py-2">
-                    {filteredRecipes.map((recipe, index) => (
-                        <div
-                            key={recipe.id}
-                            className="flex items-center gap-4 bg-base-100 px-3 py-3 rounded-xl hover:bg-primary/5 transition-all cursor-pointer animate-fade-in"
-                            style={{ animationDelay: `${index * 60}ms` }}
-                            onClick={() => onRecipeClick(recipe)}
-                        >
-                            {/* Thumbnail */}
-                            <div
-                                className="bg-center bg-no-repeat aspect-square bg-cover rounded-lg size-16 shadow-sm border border-base-200 shrink-0"
-                                style={{ backgroundImage: `url('${recipe.image}')` }}
-                            />
-
-                            {/* Info */}
-                            <div className="flex flex-col flex-1 justify-center min-w-0">
-                                <p className="text-base-content text-base font-bold leading-tight truncate">
-                                    {recipe.title}
-                                </p>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <span className="material-symbols-outlined text-[14px] text-primary">schedule</span>
-                                    <p className="text-base-content/50 text-xs font-medium">
-                                        {recipe.prepTime} • {recipe.category || recipe.level}
-                                    </p>
-                                    <span className={`badge badge-xs border-none font-bold px-1.5 py-2 ${recipe.status === 'draft' ? 'badge-warning' : 'badge-success'}`}>
-                                        {recipe.status === 'draft' ? 'DRAFT' : 'PUBLISHED'}
-                                    </span>
-                                </div>
-                            </div>
-
-                            {/* Actions */}
-                            <div className="flex items-center gap-1 shrink-0">
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onUpdateStatus?.(recipe, recipe.status === 'draft' ? 'published' : 'draft');
-                                    }}
-                                    className={`flex size-9 items-center justify-center rounded-full transition-all ${recipe.status === 'draft' ? 'text-success hover:bg-success/10' : 'text-warning hover:bg-warning/10'}`}
-                                    title={recipe.status === 'draft' ? 'Publish Recipe' : 'Move to Drafts'}
-                                >
-                                    <span className="material-symbols-outlined text-[20px]">
-                                        {recipe.status === 'draft' ? 'publish' : 'unpublished'}
-                                    </span>
-                                </button>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onEdit(recipe);
-                                    }}
-                                    className="flex size-9 items-center justify-center rounded-full text-primary hover:bg-primary/10 transition-all"
-                                >
-                                    <span className="material-symbols-outlined text-[20px]">edit</span>
-                                </button>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setConfirmDeleteRecipe(recipe);
-                                    }}
-                                    disabled={deletingId === recipe.id}
-                                    className="flex size-9 items-center justify-center rounded-full text-error/60 hover:bg-error/10 hover:text-error transition-all"
-                                >
-                                    {deletingId === recipe.id ? (
-                                        <LoadingAnimation size={20} />
-                                    ) : (
-                                        <span className="material-symbols-outlined text-[20px]">delete</span>
-                                    )}
-                                </button>
-                            </div>
-                        </div>
-                    ))}
+                <div className="px-4 py-4">
+                    {filteredRecipes.length > 0 && (
+                        <RecipeMasonryGrid
+                            recipes={filteredRecipes}
+                            onRecipeClick={onRecipeClick}
+                            onEdit={onEdit}
+                            onDelete={(r) => setConfirmDeleteRecipe(r)}
+                            onUpdateStatus={onUpdateStatus}
+                        />
+                    )}
                 </div>
             </main>
 

@@ -17,6 +17,7 @@ create table if not exists recipes (
     level text not null default 'Easy' check (level in ('Easy', 'Medium', 'Hard')),
     category text not null default 'popular',
     user_id uuid references auth.users(id) on delete set null,
+    status text not null default 'published' check (status in ('published', 'draft')),
     created_at timestamptz default now(),
     updated_at timestamptz default now()
 );
@@ -69,8 +70,8 @@ create table if not exists grocery_items (
 -- ============================================================
 -- INDEXES for performance
 -- ============================================================
-create index if not exists idx_recipes_category on recipes(category);
 create index if not exists idx_recipes_user on recipes(user_id);
+create index if not exists idx_recipes_status on recipes(status);
 create index if not exists idx_ingredients_recipe on ingredients(recipe_id);
 create index if not exists idx_directions_recipe on directions(recipe_id);
 create index if not exists idx_favorites_user on favorites(user_id);
@@ -88,9 +89,8 @@ alter table directions enable row level security;
 alter table favorites enable row level security;
 alter table grocery_items enable row level security;
 
--- RECIPES: Anyone can read, only the creator can insert/update/delete
 create policy "Recipes are viewable by everyone"
-    on recipes for select using (true);
+    on recipes for select using (status = 'published' or auth.uid() = user_id);
 
 create policy "Users can create recipes"
     on recipes for insert with check (auth.uid() = user_id);

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import LoadingAnimation from '@/components/LoadingAnimation';
 import { Recipe } from '@/types';
 import StepTimer from '@/components/StepTimer';
@@ -12,10 +12,48 @@ interface RecipeDetailScreenProps {
     onOpenGrocery: () => void;
     onPublish?: () => Promise<void> | void;
     onEdit?: (recipe: Recipe) => void;
+    onChefClick?: (userId: string) => void;
+    onRate?: () => void;
 }
 
-const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack, onToggleFavorite, onAddToGrocery, onOpenGrocery, onPublish, onEdit }) => {
+interface ChefProfile {
+    full_name: string;
+    avatar_url: string;
+}
+
+const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack, onToggleFavorite, onAddToGrocery, onOpenGrocery, onPublish, onEdit, onChefClick, onRate }) => {
     const [publishing, setPublishing] = useState(false);
+    const [chef, setChef] = useState<ChefProfile | null>(null);
+    const [viewMediaIndex, setViewMediaIndex] = useState<number | null>(null);
+    const carouselRef = useRef<HTMLDivElement>(null);
+
+    // Handle initial scroll when gallery opens
+    useEffect(() => {
+        if (viewMediaIndex !== null && carouselRef.current) {
+            carouselRef.current.scrollTo({
+                left: viewMediaIndex * carouselRef.current.clientWidth,
+                behavior: 'auto'
+            });
+        }
+    }, [viewMediaIndex === null]); // Only run when it transition from null to non-null
+    const galleryItems = (recipe.images && recipe.images.length > 0) ? recipe.images : (recipe.image ? [recipe.image] : []);
+
+    const isVideo = (url: string) => {
+        return url.toLowerCase().match(/\.(mp4|webm|ogg|mov)$/) || url.includes('video');
+    };
+
+    React.useEffect(() => {
+        if (recipe.userId) {
+            import('@/lib/supabase').then(({ supabase }) => {
+                supabase
+                    .from('profiles')
+                    .select('full_name, avatar_url')
+                    .eq('id', recipe.userId)
+                    .single()
+                    .then(({ data }) => setChef(data));
+            });
+        }
+    }, [recipe.userId]);
 
     const handlePublish = async () => {
         if (!onPublish || publishing) return;
@@ -32,13 +70,57 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
     return (
         <div className={`relative flex min-h-screen w-full flex-col bg-base-100 ${onPublish ? 'pb-24' : ''}`}>
             {/* Header Image & Overlay Nav */}
-            <div className="relative w-full h-80">
-                <div
-                    className="absolute inset-0 bg-cover bg-center"
-                    style={{ backgroundImage: `url('${recipe.image}')` }}
-                >
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20"></div>
+            <div className="relative w-full h-80 bg-base-200">
+                <div className="absolute inset-0 flex overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth">
+                    {recipe.images && recipe.images.length > 0 ? (
+                        recipe.images.map((src, idx) => (
+                            <div
+                                key={idx}
+                                className="w-full h-full flex-none snap-center relative cursor-zoom-in"
+                                onClick={() => setViewMediaIndex(idx)}
+                            >
+                                {isVideo(src) ? (
+                                    <video
+                                        src={src}
+                                        autoPlay={idx === 0}
+                                        muted
+                                        loop
+                                        playsInline
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <img
+                                        src={src}
+                                        alt={`${recipe.title} - ${idx + 1}`}
+                                        className="w-full h-full object-cover"
+                                    />
+                                )}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20" />
+                            </div>
+                        ))
+                    ) : (
+                        <div
+                            className="w-full h-full flex-none snap-center relative cursor-zoom-in"
+                            onClick={() => recipe.image && setViewMediaIndex(0)}
+                        >
+                            <img
+                                src={recipe.image || ''}
+                                alt={recipe.title}
+                                className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20" />
+                        </div>
+                    )}
                 </div>
+
+                {/* Image Indicators */}
+                {recipe.images && recipe.images.length > 1 && (
+                    <div className="absolute bottom-12 left-0 right-0 flex justify-center gap-1.5 z-10 pointer-events-none">
+                        {recipe.images.map((_, idx) => (
+                            <div key={idx} className="size-1.5 rounded-full bg-white/40 ring-1 ring-black/10" />
+                        ))}
+                    </div>
+                )}
                 {/* Navigation */}
                 <div className="absolute top-0 left-0 right-0 flex justify-between items-center p-4">
                     <button onClick={onBack} className="btn btn-circle btn-sm glass text-white">
@@ -73,6 +155,36 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                     </div>
                 </div>
 
+                {recipe.description && (
+                    <p className="text-sm text-base-content/60 leading-relaxed mb-6 italic">
+                        {recipe.description}
+                    </p>
+                )}
+
+                {/* Chef Profile Link */}
+                {recipe.userId && (
+                    <div
+                        onClick={() => onChefClick?.(recipe.userId!)}
+                        className="flex items-center gap-3 mb-8 p-3 rounded-2xl bg-base-200 border border-base-300 cursor-pointer hover:bg-base-300/50 transition-all active:scale-[0.98] group"
+                    >
+                        <div className="relative">
+                            {chef?.avatar_url ? (
+                                <img src={chef.avatar_url} alt={chef.full_name} className="size-11 rounded-full object-cover border-2 border-primary" />
+                            ) : (
+                                <div className="size-11 rounded-full bg-primary/10 flex items-center justify-center text-primary border-2 border-primary/20">
+                                    <span className="material-symbols-outlined text-xl">person</span>
+                                </div>
+                            )}
+                            <div className="absolute -bottom-0.5 -right-0.5 size-3.5 bg-green-500 border-2 border-base-100 rounded-full"></div>
+                        </div>
+                        <div className="flex flex-col flex-1">
+                            <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Recipe By</span>
+                            <span className="text-sm font-bold text-base-content group-hover:text-primary transition-colors">{chef?.full_name || 'Loading Chef...'}</span>
+                        </div>
+                        <span className="material-symbols-outlined text-base-content/20 group-hover:text-primary transition-all group-hover:translate-x-1">chevron_right</span>
+                    </div>
+                )}
+
                 {/* Stats Bar */}
                 <div className="grid grid-cols-4 gap-2 mb-8 p-1 rounded-2xl bg-base-200/50 border border-base-200">
                     {[
@@ -88,6 +200,23 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                         </div>
                     ))}
                 </div>
+
+                {/* Rate Action Section */}
+                {!onPublish && (
+                    <div className="mb-10 p-5 rounded-3xl bg-primary/5 border border-primary/10 flex items-center justify-between group overflow-hidden relative">
+                        <div className="absolute -right-4 -top-4 size-24 bg-primary/10 rounded-full blur-2xl group-hover:bg-primary/20 transition-all duration-500"></div>
+                        <div className="flex flex-col gap-1 relative z-10">
+                            <span className="text-base font-bold text-base-content">Enjoyed this recipe?</span>
+                            <span className="text-[12px] font-medium text-base-content/50 leading-tight pr-4">Rate it and let the chef know! 🧑‍🍳</span>
+                        </div>
+                        <button
+                            onClick={onRate}
+                            className="btn btn-primary h-12 px-6 rounded-2xl normal-case font-bold shadow-lg shadow-primary/20 relative z-10 hover:scale-105 active:scale-95 transition-all"
+                        >
+                            Rate Now
+                        </button>
+                    </div>
+                )}
 
                 {/* Ingredients */}
                 <div className="mb-10">
@@ -134,7 +263,14 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                                     <h3 className="font-bold text-base mb-2 text-base-content">{dir.title}</h3>
 
                                     {dir.image && (
-                                        <div className="w-full aspect-video rounded-2xl overflow-hidden mb-3 border border-base-200 shadow-sm relative group">
+                                        <div
+                                            className="w-full aspect-video rounded-2xl overflow-hidden mb-3 border border-base-200 shadow-sm relative group cursor-zoom-in"
+                                            onClick={() => {
+                                                const stepImageIdx = galleryItems.indexOf(dir.image!);
+                                                if (stepImageIdx !== -1) setViewMediaIndex(stepImageIdx);
+                                                else setViewMediaIndex(0); // Fallback to start if not in gallery
+                                            }}
+                                        >
                                             {dir.mediaType === 'video' ? (
                                                 <video
                                                     src={dir.image}
@@ -205,6 +341,83 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                                 </div>
                             )}
                         </button>
+                    </div>
+                </div>
+            )}
+            {/* Full-Screen Premium Media Viewer */}
+            {viewMediaIndex !== null && (
+                <div
+                    className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-2xl flex flex-col animate-in fade-in duration-300"
+                    onClick={() => setViewMediaIndex(null)}
+                >
+                    {/* Viewer Header */}
+                    <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-50 bg-gradient-to-b from-black/60 to-transparent">
+                        <div className="flex flex-col">
+                            <span className="text-white/60 text-[10px] font-bold uppercase tracking-[0.2em] mb-1">Gallery</span>
+                            <span className="text-white font-bold text-sm">
+                                {viewMediaIndex + 1} <span className="text-white/40 font-medium mx-1">/</span> {galleryItems.length}
+                            </span>
+                        </div>
+                        <button
+                            className="btn btn-circle btn-sm glass text-white border-none hover:bg-white/20"
+                            onClick={() => setViewMediaIndex(null)}
+                        >
+                            <span className="material-symbols-outlined">close</span>
+                        </button>
+                    </div>
+
+                    {/* Main Gallery Carousel */}
+                    <div className="flex-1 flex items-center justify-center relative overflow-hidden">
+                        <div
+                            ref={carouselRef}
+                            className="w-full h-full flex overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth"
+                            onScroll={(e) => {
+                                const target = e.currentTarget;
+                                const index = Math.round(target.scrollLeft / target.clientWidth);
+                                if (index !== viewMediaIndex) setViewMediaIndex(index);
+                            }}>
+                            {galleryItems.map((src, idx) => (
+                                <div key={idx} className="w-screen h-full flex-none snap-center flex items-center justify-center p-4" onClick={e => e.stopPropagation()}>
+                                    <div className="w-full max-w-5xl h-full flex items-center justify-center">
+                                        {isVideo(src) ? (
+                                            <video
+                                                src={src}
+                                                controls
+                                                autoPlay
+                                                className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
+                                            />
+                                        ) : (
+                                            <img
+                                                src={src}
+                                                alt={`View ${idx + 1}`}
+                                                className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
+                                            />
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Pagination Overlay dots */}
+                        {galleryItems.length > 1 && (
+                            <div className="absolute bottom-24 left-0 right-0 flex justify-center gap-2 z-50">
+                                {galleryItems.map((_, idx) => (
+                                    <div
+                                        key={idx}
+                                        className={`size-1.5 rounded-full transition-all duration-300 ${idx === viewMediaIndex ? 'bg-white w-4' : 'bg-white/20'}`}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Viewer Footer */}
+                    <div className="absolute bottom-0 left-0 right-0 p-8 flex flex-col items-center z-50 bg-gradient-to-t from-black/80 to-transparent">
+                        <h3 className="text-white font-bold text-xl mb-1 text-center">{recipe.title}</h3>
+                        <p className="text-white/40 text-[10px] font-medium uppercase tracking-widest flex items-center gap-2">
+                            <span className="material-symbols-outlined text-[14px]">swipe</span>
+                            Swipe to explore
+                        </p>
                     </div>
                 </div>
             )}

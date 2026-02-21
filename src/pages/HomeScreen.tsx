@@ -3,6 +3,7 @@ import { User } from '@supabase/supabase-js';
 import { Recipe } from '@/types';
 import { CATEGORIES } from '@/data/constants';
 import RecipeCard from '@/components/RecipeCard';
+import RecipeMasonryGrid from '@/components/RecipeMasonryGrid';
 import LoadingAnimation from '@/components/LoadingAnimation';
 import { getAvatarUrl } from '@/data/avatars';
 
@@ -202,17 +203,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                 </div>
 
                 {filteredRecipes.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-4">
-                        {filteredRecipes.map((recipe) => (
-                            <RecipeCard
-                                key={recipe.id}
-                                recipe={recipe}
-                                onClick={() => onRecipeClick(recipe)}
-                                onToggleFavorite={onToggleFavorite}
-                                showCategory={activeCategory === 'popular'}
-                            />
-                        ))}
-                    </div>
+                    <RecipeMasonryGrid
+                        recipes={filteredRecipes}
+                        onRecipeClick={onRecipeClick}
+                        onToggleFavorite={onToggleFavorite}
+                        showCategory={activeCategory === 'popular'}
+                    />
                 ) : isSearching && !loading ? (
                     <div className="flex flex-col items-center justify-center py-16 text-base-content/40">
                         <span className="material-symbols-outlined text-5xl mb-3">search_off</span>

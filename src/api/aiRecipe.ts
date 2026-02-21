@@ -20,6 +20,7 @@ RULES:
 You MUST return ONLY a valid JSON object with this structure:
 {
   "title": "Spicy Garlic Soy Ramen",
+  "description": "A quick and flavorful ramen dish that combines savory soy with a kick of garlic and chili for the perfect weeknight meal.",
   "prepTime": "25 mins",
   "serves": "2 people",
   "kcal": "480 kcal",
@@ -137,7 +138,9 @@ export const generateRecipeFromIngredients = async (
         const recipe: Recipe = {
             id: `temp-${Date.now()}`,
             title: parsed.title || 'AI Generated Recipe',
+            description: parsed.description || '',
             image,
+            images: [image],
             prepTime: parsed.prepTime || '30m',
             rating: 0,
             reviews: 0,

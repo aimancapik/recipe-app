@@ -5,39 +5,99 @@ import { supabase } from '@/lib/supabase';
 
 const BUCKET = 'recipe-images';
 
+// File size limits (in bytes)
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB (Supabase free tier limit)
+
+// Allowed file types
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'];
+
+export interface UploadProgress {
+    loaded: number;
+    total: number;
+    percentage: number;
+}
+
 /**
- * Upload a file to Supabase Storage.
+ * Upload a file (image or video) to Supabase Storage.
  * Returns the public URL on success.
  *
  * Usage:
  *   const url = await uploadImage(file, 'covers');
  *   const url = await uploadImage(file, 'steps');
- *   const url = await uploadImage(file, 'avatars');
+ *   const url = await uploadImage(file, 'avatars', (progress) => console.log(progress));
  */
 export async function uploadImage(
     file: File,
-    folder: string = 'general'
+    folder: string = 'general',
+    onProgress?: (progress: UploadProgress) => void
 ): Promise<string> {
+    // Validate file type
+    const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
+    const isVideo = ALLOWED_VIDEO_TYPES.includes(file.type);
+
+    if (!isImage && !isVideo) {
+        throw new Error(`File type ${file.type} not supported. Please upload an image or video file.`);
+    }
+
+    // Validate file size
+    const maxSize = isVideo ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
+    if (file.size > maxSize) {
+        const maxSizeMB = Math.round(maxSize / 1024 / 1024);
+        const fileSizeMB = Math.round(file.size / 1024 / 1024);
+        throw new Error(`File too large (${fileSizeMB}MB). Max size for ${isVideo ? 'videos' : 'images'} is ${maxSizeMB}MB.`);
+    }
+
     // Create a unique filename
     const ext = file.name.split('.').pop() || 'jpg';
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 8);
     const path = `${folder}/${timestamp}-${random}.${ext}`;
 
-    const { error } = await supabase.storage
-        .from(BUCKET)
-        .upload(path, file, {
-            cacheControl: '3600',
-            upsert: false,
-        });
+    // Simulate progress for user feedback (Supabase SDK doesn't provide native progress)
+    let progressInterval: NodeJS.Timeout | null = null;
+    if (onProgress) {
+        let simulatedProgress = 0;
+        progressInterval = setInterval(() => {
+            simulatedProgress = Math.min(simulatedProgress + 10, 90);
+            onProgress({
+                loaded: (file.size * simulatedProgress) / 100,
+                total: file.size,
+                percentage: simulatedProgress,
+            });
+        }, 200);
+    }
 
-    if (error) throw error;
+    try {
+        const { error } = await supabase.storage
+            .from(BUCKET)
+            .upload(path, file, {
+                cacheControl: '3600',
+                upsert: false,
+            });
 
-    const { data } = supabase.storage
-        .from(BUCKET)
-        .getPublicUrl(path);
+        if (error) throw error;
 
-    return data.publicUrl;
+        // Complete progress
+        if (onProgress) {
+            onProgress({
+                loaded: file.size,
+                total: file.size,
+                percentage: 100,
+            });
+        }
+
+        const { data } = supabase.storage
+            .from(BUCKET)
+            .getPublicUrl(path);
+
+        return data.publicUrl;
+    } finally {
+        if (progressInterval) {
+            clearInterval(progressInterval);
+        }
+    }
 }
 
 /**

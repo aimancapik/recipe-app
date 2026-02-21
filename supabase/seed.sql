@@ -19,8 +19,8 @@ DECLARE
 BEGIN
 
 -- Recipe 1: Avocado & Egg Toast
-INSERT INTO recipes (id, title, image, prep_time, rating, reviews, serves, kcal, level, category)
-VALUES (r1, 'Avocado & Egg Toast', 'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=600', '15m', 4.8, 156, '01', '320', 'Easy', 'breakfast');
+INSERT INTO recipes (id, title, image, prep_time, rating, reviews, serves, kcal, level, category, status)
+VALUES (r1, 'Avocado & Egg Toast', 'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=600', '15m', 4.8, 156, '01', '320', 'Easy', 'breakfast', 'published');
 
 INSERT INTO ingredients (recipe_id, name, sort_order) VALUES
 (r1, '1 Ripe avocado', 0),
@@ -78,8 +78,8 @@ INSERT INTO directions (recipe_id, step, title, description, image, timer, sort_
 (r4, 3, 'Add lemon and asparagus', 'Flip the salmon, add lemon slices and asparagus. Cook for another 3 minutes.', NULL, NULL, 2);
 
 -- Recipe 5: Crepes with Orange and Honey
-INSERT INTO recipes (id, title, image, prep_time, rating, reviews, serves, kcal, level, category)
-VALUES (r5, 'Crepes with Orange and Honey', 'https://lh3.googleusercontent.com/aida-public/AB6AXuB4bDORqJU5HbmYgi-2yZGNFoHdinjtjPSXHa1_HNGMKsAbiV2XxkjSGposR-8nTaEFxUaTg_oGZI0o_po4eJpMrfsVsi7GEinelDgBEJY8YbKPumMSL9H3u_cP5PdaFxjO_IozYoIefJqMIhPmeteTtKDKGNY-l98EVlh2tR4MeK6E0ICk5--U9GTAKoeeABM5H69k30CeuT8_cTOGc9CxlpTd1dA8cEjU8tkFBrgtJ4XCIc2I5MXI3KlYQVc51ru7gKiU1QShA9k', '35m', 4.8, 120, '03', '103', 'Easy', 'breakfast');
+INSERT INTO recipes (id, title, image, prep_time, rating, reviews, serves, kcal, level, category, status)
+VALUES (r5, 'Crepes with Orange and Honey', 'https://lh3.googleusercontent.com/aida-public/AB6AXuB4bDORqJU5HbmYgi-2yZGNFoHdinjtjPSXHa1_HNGMKsAbiV2XxkjSGposR-8nTaEFxUaTg_oGZI0o_po4eJpMrfsVsi7GEinelDgBEJY8YbKPumMSL9H3u_cP5PdaFxjO_IozYoIefJqMIhPmeteTtKDKGNY-l98EVlh2tR4MeK6E0ICk5--U9GTAKoeeABM5H69k30CeuT8_cTOGc9CxlpTd1dA8cEjU8tkFBrgtJ4XCIc2I5MXI3KlYQVc51ru7gKiU1QShA9k', '35m', 4.8, 120, '03', '103', 'Easy', 'breakfast', 'published');
 
 INSERT INTO ingredients (recipe_id, name, sort_order) VALUES
 (r5, '2 Large organic eggs', 0),
@@ -96,8 +96,8 @@ INSERT INTO directions (recipe_id, step, title, description, image, sort_order) 
 (r5, 4, 'Serve and enjoy', 'Cook until golden brown on both sides. Serve warm with a drizzle of honey and orange slices.', 'https://images.unsplash.com/photo-1519676867240-f03562e64548?w=400', 3);
 
 -- Recipe 6: Chicken Tikka Masala
-INSERT INTO recipes (id, title, image, prep_time, rating, reviews, serves, kcal, level, category)
-VALUES (r6, 'Chicken Tikka Masala', 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=600', '45m', 4.9, 312, '04', '520', 'Medium', 'dinner');
+INSERT INTO recipes (id, title, image, prep_time, rating, reviews, serves, kcal, level, category, status)
+VALUES (r6, 'Chicken Tikka Masala', 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=600', '45m', 4.9, 312, '04', '520', 'Medium', 'dinner', 'published');
 
 INSERT INTO ingredients (recipe_id, name, sort_order) VALUES
 (r6, '500g Chicken breast, cubed', 0),

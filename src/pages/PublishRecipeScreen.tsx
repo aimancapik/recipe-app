@@ -1,7 +1,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { uploadImage } from '@/lib/storage';
+import { uploadImage, UploadProgress } from '@/lib/storage';
 import { videoToGif } from '@/lib/videoToGif';
+import { compressVideo, shouldCompressVideo, formatFileSize } from '@/lib/videoCompression';
 import LoadingAnimation from '@/components/LoadingAnimation';
 import { Recipe } from '@/types';
 import { CATEGORIES } from '@/data/constants';
@@ -32,7 +33,7 @@ interface PublishRecipeScreenProps {
 export interface RecipeFormData {
     title: string;
     description: string;
-    coverImage: string | null;
+    coverImages: string[];
     prepTime: string;
     serves: string;
     difficulty: string;
@@ -54,7 +55,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
 
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
-    const [coverImage, setCoverImage] = useState<string | null>(null);
+    const [coverImages, setCoverImages] = useState<string[]>([]);
     const [prepTime, setPrepTime] = useState('');
     const [serves, setServes] = useState('');
     const [difficulty, setDifficulty] = useState('Easy');
@@ -73,8 +74,8 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
     useEffect(() => {
         if (editingRecipe) {
             setTitle(editingRecipe.title || '');
-            setDescription('');
-            setCoverImage(editingRecipe.image || null);
+            setDescription(editingRecipe.description || '');
+            setCoverImages(editingRecipe.images && editingRecipe.images.length > 0 ? editingRecipe.images : (editingRecipe.image ? [editingRecipe.image] : []));
             setPrepTime(editingRecipe.prepTime?.replace(/[^0-9]/g, '') || '');
             setServes(editingRecipe.serves || '');
             setDifficulty(editingRecipe.level || 'Easy');
@@ -105,23 +106,129 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
 
     const [uploading, setUploading] = useState(false);
     const [isPublishing, setIsPublishing] = useState(false);
+    const [mediaErrors, setMediaErrors] = useState<{ [key: number]: boolean }>({});
+    const [uploadProgress, setUploadProgress] = useState<number>(0);
+    const [compressionStatus, setCompressionStatus] = useState<string>('');
+
+    // Helper function to detect if URL is likely a video
+    const isVideoUrl = (url: string): boolean => {
+        const videoExtensions = /\.(mp4|webm|ogg|mov|m4v|avi|wmv|flv|mkv)(\?|$)/i;
+        const videoIndicators = ['video', 'stream', 'youtube', 'vimeo', 'dailymotion'];
+
+        return videoExtensions.test(url) || videoIndicators.some(indicator => url.toLowerCase().includes(indicator));
+    };
+
+    const handleMediaError = (index: number) => {
+        setMediaErrors(prev => ({ ...prev, [index]: true }));
+    };
 
     const handleCoverImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) return;
+
+        const remainingSlots = 10 - coverImages.length;
+        if (remainingSlots <= 0) {
+            alert('Maximum 10 media files allowed');
+            return;
+        }
+
+        const filesToUpload = files.slice(0, remainingSlots);
         setUploading(true);
+        setUploadProgress(0);
+
         try {
-            const url = await uploadImage(file, 'covers');
-            setCoverImage(url);
+            const urls: string[] = [];
+
+            for (let i = 0; i < filesToUpload.length; i++) {
+                let file = filesToUpload[i];
+                const isVideo = file.type.startsWith('video/');
+
+                // Compress video if needed
+                if (isVideo && shouldCompressVideo(file)) {
+                    const originalSize = formatFileSize(file.size);
+                    setCompressionStatus(`Compressing video (${originalSize})...`);
+
+                    try {
+                        const compressedFile = await compressVideo(file, {
+                            maxWidthOrHeight: 1280,
+                            quality: 0.8,
+                        });
+
+                        const newSize = formatFileSize(compressedFile.size);
+                        const saved = formatFileSize(file.size - compressedFile.size);
+                        setCompressionStatus(`Compressed! Saved ${saved} (${originalSize} → ${newSize})`);
+
+                        file = compressedFile;
+
+                        // Show compression result briefly
+                        await new Promise(resolve => setTimeout(resolve, 1500));
+                    } catch (compressionErr) {
+                        console.warn('Compression failed, uploading original:', compressionErr);
+                        setCompressionStatus('Using original video...');
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                }
+
+                setCompressionStatus('');
+
+                // Upload with progress
+                const url = await uploadImage(file as File, 'covers', (progress) => {
+                    const totalProgress = ((i + progress.percentage / 100) / filesToUpload.length) * 100;
+                    setUploadProgress(Math.round(totalProgress));
+                });
+
+                urls.push(url);
+            }
+
+            setCoverImages(prev => [...prev, ...urls]);
+            setUploadProgress(100);
         } catch (err) {
             console.error('Upload failed:', err);
-            // Fallback to base64 if storage isn't set up
-            const reader = new FileReader();
-            reader.onloadend = () => setCoverImage(reader.result as string);
-            reader.readAsDataURL(file);
+            const errorMessage = err instanceof Error ? err.message : 'Upload failed';
+            alert(`Upload Error: ${errorMessage}`);
+
+            // Only fallback to base64 for images under 5MB
+            const file = filesToUpload[0];
+            if (file && file.size < 5 * 1024 * 1024 && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onloadend = () => setCoverImages(prev => [...prev, reader.result as string]);
+                reader.readAsDataURL(file as File);
+            }
         } finally {
             setUploading(false);
+            setUploadProgress(0);
+            setCompressionStatus('');
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            if (cameraInputRef.current) cameraInputRef.current.value = '';
         }
+    };
+
+    const removeCoverImage = (index: number) => {
+        setCoverImages(prev => prev.filter((_, i) => i !== index));
+        // Clean up error state
+        setMediaErrors(prev => {
+            const newErrors = { ...prev };
+            delete newErrors[index];
+            // Reindex remaining errors
+            const reindexed: { [key: number]: boolean } = {};
+            Object.keys(newErrors).forEach(key => {
+                const idx = parseInt(key);
+                if (idx > index) {
+                    reindexed[idx - 1] = newErrors[idx];
+                } else {
+                    reindexed[idx] = newErrors[idx];
+                }
+            });
+            return reindexed;
+        });
+    };
+
+    const setAsMain = (index: number) => {
+        setCoverImages(prev => {
+            const newImages = [...prev];
+            const [selected] = newImages.splice(index, 1);
+            return [selected, ...newImages];
+        });
     };
 
     const handleStepImageUpload = async (stepId: string, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -129,12 +236,40 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
         if (!file) return;
         const isVideo = file.type.startsWith('video/');
         setUploading(true);
+        setUploadProgress(0);
+
         try {
-            // Convert video to GIF before uploading
-            const fileToUpload = isVideo ? await videoToGif(file) : file;
-            const url = await uploadImage(fileToUpload, 'steps');
+            let fileToUpload = file;
+
+            // Compress video if needed
+            if (isVideo && shouldCompressVideo(file)) {
+                setCompressionStatus('Compressing video...');
+                try {
+                    const compressedFile = await compressVideo(file, {
+                        maxWidthOrHeight: 1280,
+                        quality: 0.8,
+                    });
+                    fileToUpload = compressedFile;
+                    setCompressionStatus('Compression complete!');
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                } catch (compressionErr) {
+                    console.warn('Compression failed, uploading original:', compressionErr);
+                    setCompressionStatus('Using original video...');
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                }
+            } else if (isVideo) {
+                // Convert smaller videos to GIF
+                fileToUpload = await videoToGif(file);
+            }
+
+            setCompressionStatus('');
+
+            const url = await uploadImage(fileToUpload, 'steps', (progress) => {
+                setUploadProgress(progress.percentage);
+            });
+
             setInstructions(prev => prev.map(s =>
-                s.id === stepId ? { ...s, image: url, mediaType: 'image' } : s
+                s.id === stepId ? { ...s, image: url, mediaType: isVideo ? 'video' : 'image' } : s
             ));
         } catch (err) {
             console.error('Upload failed:', err);
@@ -151,6 +286,8 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
             });
         } finally {
             setUploading(false);
+            setUploadProgress(0);
+            setCompressionStatus('');
         }
     };
 
@@ -190,6 +327,12 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
         ));
     };
 
+    const handleStepVideoUrl = (stepId: string, url: string) => {
+        setInstructions(prev => prev.map(s =>
+            s.id === stepId ? { ...s, image: url, mediaType: 'video' } : s
+        ));
+    };
+
     const moveInstructionStep = (id: string, dir: 'up' | 'down') => {
         const index = instructions.findIndex(s => s.id === id);
         if (index === -1) return;
@@ -210,17 +353,37 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
     };
 
     const handlePublish = async () => {
-        const data = { title, description, coverImage, prepTime, serves, difficulty, category, ingredients, instructions };
+        const data = {
+            title,
+            description,
+            coverImages,
+            prepTime,
+            serves,
+            difficulty,
+            category,
+            ingredients,
+            instructions
+        };
+
+        // Prepare data for API (mapping coverImages array to image string for compatibility)
+        const finalData = {
+            ...data,
+            image: coverImages[0] || '',
+            images: coverImages,
+            rating: editingRecipe?.rating || 0,
+            reviews: editingRecipe?.reviews || 0,
+        } as any;
+
         const isTempDraft = editingRecipe?.id.startsWith('temp-');
 
         setIsPublishing(true);
         try {
             if (isTempDraft && onSaveDraft) {
-                await onSaveDraft(data);
+                await onSaveDraft(finalData);
             } else if (isEditing && editingRecipe && !isTempDraft) {
-                await onUpdate?.(editingRecipe.id, data);
+                await onUpdate?.(editingRecipe.id, finalData);
             } else {
-                await onPublish?.(data);
+                await onPublish?.(finalData);
             }
         } catch (err) {
             console.error('Publishing failed:', err);
@@ -239,60 +402,192 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
     const renderStep1 = () => (
         <div className="flex-1 overflow-y-auto pb-24">
             <div className="p-4">
-                <div
-                    className="flex flex-col items-center gap-4 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 px-6 py-10 transition-colors hover:bg-primary/10 cursor-pointer"
-                    onClick={() => fileInputRef.current?.click()}
-                >
-                    {coverImage ? (
-                        <div className="w-full aspect-video rounded-lg overflow-hidden relative">
-                            <img src={coverImage} alt="Cover" className="w-full h-full object-cover" />
-                            <button
-                                onClick={(e) => { e.stopPropagation(); setCoverImage(null); }}
-                                className="btn btn-circle btn-xs btn-neutral absolute top-2 right-2"
+                <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between mb-2 px-1">
+                        <h3 className="text-sm font-medium text-base-content/70">Cover Media</h3>
+                        <p className="text-[11px] text-base-content/40">{coverImages.length}/10</p>
+                    </div>
+
+                    {/* Horizontal Gallery */}
+                    <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar scroll-smooth">
+                        {coverImages.map((src, idx) => {
+                            const isVideo = isVideoUrl(src);
+                            const hasError = mediaErrors[idx];
+
+                            return (
+                                <div key={idx} className="relative flex-none w-48 aspect-video rounded-2xl overflow-hidden shadow-md group border border-base-200">
+                                    {hasError ? (
+                                        // Error state - show placeholder
+                                        <div className="w-full h-full bg-gradient-to-br from-base-200 to-base-300 flex flex-col items-center justify-center gap-2">
+                                            <div className="size-12 rounded-full bg-base-content/10 flex items-center justify-center">
+                                                <span className="material-symbols-outlined text-2xl text-base-content/40">
+                                                    {isVideo ? 'videocam_off' : 'broken_image'}
+                                                </span>
+                                            </div>
+                                            <p className="text-[10px] text-base-content/40 font-semibold px-4 text-center">
+                                                {isVideo ? 'Video unavailable' : 'Image failed to load'}
+                                            </p>
+                                        </div>
+                                    ) : isVideo ? (
+                                        <div className="w-full h-full bg-base-300 flex items-center justify-center relative">
+                                            <video
+                                                src={src}
+                                                className="w-full h-full object-cover"
+                                                muted
+                                                playsInline
+                                                onError={() => handleMediaError(idx)}
+                                            />
+                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                <div className="size-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center">
+                                                    <span className="material-symbols-outlined text-white text-xl">play_arrow</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <img
+                                            src={src}
+                                            alt={`Cover ${idx + 1}`}
+                                            className="w-full h-full object-cover transition-transform group-hover:scale-110"
+                                            onError={() => handleMediaError(idx)}
+                                        />
+                                    )}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                                    {/* Minimalist remove button */}
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); removeCoverImage(idx); }}
+                                        className="absolute top-2 right-2 size-7 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center hover:bg-black/80 transition-all opacity-0 group-hover:opacity-100"
+                                    >
+                                        <span className="material-symbols-outlined text-white text-[16px]">close</span>
+                                    </button>
+
+                                    {/* Minimalist set as main button */}
+                                    {idx !== 0 && (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setAsMain(idx); }}
+                                            className="absolute bottom-2 left-2 size-7 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-all shadow-sm opacity-0 group-hover:opacity-100"
+                                        >
+                                            <span className="material-symbols-outlined text-base-content text-[16px]">star_border</span>
+                                        </button>
+                                    )}
+
+                                    {/* Main cover indicator */}
+                                    {idx === 0 && (
+                                        <div className="absolute bottom-2 left-2 size-7 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-sm">
+                                            <span className="material-symbols-outlined text-amber-500 text-[16px] fill-1">star</span>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+
+                        {coverImages.length < 10 && !uploading && (
+                            <div
+                                className="flex-none w-48 aspect-video rounded-2xl border border-dashed border-base-300 bg-base-100 flex flex-col items-center justify-center gap-2 hover:border-base-content/30 hover:bg-base-200/50 transition-all cursor-pointer group"
+                                onClick={() => fileInputRef.current?.click()}
                             >
-                                <span className="material-symbols-outlined text-sm">close</span>
-                            </button>
+                                <span className="material-symbols-outlined text-3xl text-base-content/30 group-hover:text-base-content/50 transition-colors">add_circle</span>
+                                <span className="text-[11px] font-medium text-base-content/40">Add media</span>
+                            </div>
+                        )}
+
+                        {uploading && (
+                            <div className="flex-none w-48 aspect-video rounded-2xl border border-base-300 bg-base-100 flex flex-col items-center justify-center gap-3 p-4">
+                                <div className="relative size-12">
+                                    <svg className="size-12 -rotate-90">
+                                        <circle
+                                            cx="24"
+                                            cy="24"
+                                            r="20"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            fill="none"
+                                            className="text-base-300"
+                                        />
+                                        <circle
+                                            cx="24"
+                                            cy="24"
+                                            r="20"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            fill="none"
+                                            strokeDasharray={`${2 * Math.PI * 20}`}
+                                            strokeDashoffset={`${2 * Math.PI * 20 * (1 - uploadProgress / 100)}`}
+                                            className="text-base-content/60 transition-all duration-300"
+                                            strokeLinecap="round"
+                                        />
+                                    </svg>
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <span className="text-[10px] font-medium text-base-content/60">{uploadProgress}%</span>
+                                    </div>
+                                </div>
+                                <span className="text-[11px] text-base-content/40">
+                                    {compressionStatus || 'Uploading...'}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center gap-2">
+                            <div className="flex-1 relative">
+                                <input
+                                    type="text"
+                                    placeholder="Paste video URL..."
+                                    className="input input-sm border-base-300 w-full rounded-lg pl-3 pr-16 bg-base-100 text-sm focus:border-base-content/30"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                                            setCoverImages(prev => [...prev, e.currentTarget.value.trim()]);
+                                            e.currentTarget.value = '';
+                                        }
+                                    }}
+                                />
+                                <button
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 text-[11px] font-medium text-base-content/60 hover:text-base-content transition-colors"
+                                    onClick={(e) => {
+                                        const input = (e.currentTarget.previousElementSibling as HTMLInputElement);
+                                        if (input.value.trim()) {
+                                            setCoverImages(prev => [...prev, input.value.trim()]);
+                                            input.value = '';
+                                        }
+                                    }}
+                                >
+                                    Add
+                                </button>
+                            </div>
                         </div>
-                    ) : (
-                        <>
-                            <div className="flex size-16 items-center justify-center rounded-full bg-primary text-primary-content">
-                                <span className="material-symbols-outlined text-3xl">{uploading ? 'hourglass_empty' : 'add_a_photo'}</span>
+                        <p className="text-[10px] text-base-content/40 px-1">
+                            Video will autoplay if set as main cover
+                        </p>
+                    </div>
+
+                    {coverImages.length === 0 && (
+                        <div
+                            className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-base-300 bg-base-100 px-6 py-12 transition-all hover:border-base-content/30 hover:bg-base-200/30 cursor-pointer"
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            <div className="flex size-16 items-center justify-center rounded-full bg-base-200">
+                                <span className="material-symbols-outlined text-3xl text-base-content/40">{uploading ? 'hourglass_empty' : 'image'}</span>
                             </div>
-                            <div className="flex flex-col items-center gap-1">
-                                <p className="text-base-content text-lg font-bold">{uploading ? 'Uploading...' : 'Add Cover Photo'}</p>
-                                <p className="text-base-content/50 text-sm text-center">Great photos get 5x more views!</p>
+                            <div className="flex flex-col items-center gap-1.5">
+                                <p className="text-base-content/70 text-base font-medium">{uploading ? 'Uploading...' : 'Add cover media'}</p>
+                                <p className="text-base-content/40 text-xs text-center">Tap to choose from gallery or camera</p>
                             </div>
-                            <div className="flex gap-2">
-                                <button
-                                    className="btn btn-outline btn-sm gap-2"
-                                    onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
-                                    disabled={uploading}
-                                >
-                                    <span className="material-symbols-outlined text-sm">photo_library</span>
-                                    Gallery
-                                </button>
-                                <button
-                                    className="btn btn-primary btn-sm gap-2"
-                                    onClick={(e) => { e.stopPropagation(); cameraInputRef.current?.click(); }}
-                                    disabled={uploading}
-                                >
-                                    <span className="material-symbols-outlined text-sm">photo_camera</span>
-                                    Camera
-                                </button>
-                            </div>
-                        </>
+                        </div>
                     )}
+
                     <input
                         ref={fileInputRef}
                         type="file"
-                        accept="image/*"
+                        accept="image/*,video/mp4,video/webm,video/quicktime"
+                        multiple
                         className="hidden"
                         onChange={handleCoverImageUpload}
                     />
                     <input
                         ref={cameraInputRef}
                         type="file"
-                        accept="image/*"
+                        accept="image/*,video/mp4,video/webm,video/quicktime"
                         capture="environment"
                         className="hidden"
                         onChange={handleCoverImageUpload}
@@ -558,28 +853,37 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                                             <span className="text-xs font-semibold mb-3">{uploading ? 'Processing...' : 'Add Step Media'}</span>
 
                                             {!uploading && (
-                                                <div className="flex flex-wrap justify-center gap-2">
-                                                    <button
-                                                        className="btn btn-xs btn-outline gap-1"
-                                                        onClick={(e) => { e.stopPropagation(); stepImageRefs.current[inst.id]?.click(); }}
-                                                    >
-                                                        <span className="material-symbols-outlined text-[14px]">photo_library</span>
-                                                        Gallery
-                                                    </button>
-                                                    <button
-                                                        className="btn btn-xs btn-primary gap-1"
-                                                        onClick={(e) => { e.stopPropagation(); stepCameraRefs.current[inst.id]?.click(); }}
-                                                    >
-                                                        <span className="material-symbols-outlined text-[14px]">photo_camera</span>
-                                                        Photo
-                                                    </button>
-                                                    <button
-                                                        className="btn btn-xs btn-secondary gap-1"
-                                                        onClick={(e) => { e.stopPropagation(); stepVideoRefs.current[inst.id]?.click(); }}
-                                                    >
-                                                        <span className="material-symbols-outlined text-[14px]">videocam</span>
-                                                        Video
-                                                    </button>
+                                                <div className="flex flex-col w-full gap-3 px-4">
+                                                    <div className="flex justify-center gap-2">
+                                                        <button
+                                                            className="btn btn-xs btn-outline gap-1"
+                                                            onClick={(e) => { e.stopPropagation(); stepImageRefs.current[inst.id]?.click(); }}
+                                                        >
+                                                            <span className="material-symbols-outlined text-[14px]">photo_library</span>
+                                                            Gallery
+                                                        </button>
+                                                        <button
+                                                            className="btn btn-xs btn-primary gap-1"
+                                                            onClick={(e) => { e.stopPropagation(); stepCameraRefs.current[inst.id]?.click(); }}
+                                                        >
+                                                            <span className="material-symbols-outlined text-[14px]">photo_camera</span>
+                                                            Photo
+                                                        </button>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 bg-base-200/50 rounded-lg px-3 py-1.5 ring-1 ring-base-content/10">
+                                                        <span className="material-symbols-outlined text-sm text-base-content/40">link</span>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Video URL (mp4, mov...)"
+                                                            className="bg-transparent text-[10px] w-full focus:outline-none"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    handleStepVideoUrl(inst.id, e.currentTarget.value);
+                                                                }
+                                                            }}
+                                                        />
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
@@ -587,7 +891,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                                     <input
                                         ref={el => { stepImageRefs.current[inst.id] = el; }}
                                         type="file"
-                                        accept="image/*,video/*"
+                                        accept="image/*"
                                         className="hidden"
                                         onChange={(e) => handleStepImageUpload(inst.id, e)}
                                     />
@@ -595,14 +899,6 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                                         ref={el => { stepCameraRefs.current[inst.id] = el; }}
                                         type="file"
                                         accept="image/*"
-                                        capture="environment"
-                                        className="hidden"
-                                        onChange={(e) => handleStepImageUpload(inst.id, e)}
-                                    />
-                                    <input
-                                        ref={el => { stepVideoRefs.current[inst.id] = el; }}
-                                        type="file"
-                                        accept="video/*"
                                         capture="environment"
                                         className="hidden"
                                         onChange={(e) => handleStepImageUpload(inst.id, e)}
@@ -660,13 +956,67 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
             <div className="p-4 space-y-6">
                 {/* Hero Section */}
                 <div
-                    className="bg-cover bg-center flex flex-col justify-end overflow-hidden rounded-3xl min-h-[380px] relative shadow-2xl ring-1 ring-base-content/5"
-                    style={{
-                        backgroundImage: coverImage
-                            ? `linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0.4) 100%), url('${coverImage}')`
-                            : 'linear-gradient(135deg, #f4e225 0%, #e6d31a 100%)'
-                    }}
+                    className="flex flex-col justify-end overflow-hidden rounded-3xl min-h-[380px] relative shadow-2xl ring-1 ring-base-content/5"
+                    style={{ backgroundColor: '#f4e225' }}
                 >
+                    {/* Background Gallery Scroll */}
+                    <div className="absolute inset-0 flex overflow-x-auto snap-x snap-mandatory no-scrollbar">
+                        {coverImages.length > 0 ? (
+                            coverImages.map((src, idx) => {
+                                const isVideo = isVideoUrl(src);
+                                const hasError = mediaErrors[idx];
+
+                                if (hasError) {
+                                    return (
+                                        <div key={idx} className="w-full h-full flex-none snap-center bg-gradient-to-br from-base-200 to-base-300 flex flex-col items-center justify-center gap-3">
+                                            <div className="size-16 rounded-full bg-base-content/10 flex items-center justify-center">
+                                                <span className="material-symbols-outlined text-4xl text-base-content/40">
+                                                    {isVideo ? 'videocam_off' : 'broken_image'}
+                                                </span>
+                                            </div>
+                                            <p className="text-sm text-base-content/40 font-semibold">
+                                                {isVideo ? 'Video unavailable' : 'Image failed to load'}
+                                            </p>
+                                        </div>
+                                    );
+                                }
+
+                                return isVideo ? (
+                                    <video
+                                        key={idx}
+                                        src={src}
+                                        autoPlay={idx === 0}
+                                        muted
+                                        loop
+                                        playsInline
+                                        className="w-full h-full object-cover flex-none snap-center"
+                                        onError={() => handleMediaError(idx)}
+                                    />
+                                ) : (
+                                    <img
+                                        key={idx}
+                                        src={src}
+                                        alt={`Preview ${idx + 1}`}
+                                        className="w-full h-full object-cover flex-none snap-center"
+                                        onError={() => handleMediaError(idx)}
+                                    />
+                                );
+                            })
+                        ) : (
+                            <div className="w-full h-full flex-none bg-gradient-to-br from-primary to-primary-focus" />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40 pointer-events-none" />
+                    </div>
+
+                    {/* Image Indicators */}
+                    {coverImages.length > 1 && (
+                        <div className="absolute top-4 right-4 flex gap-1">
+                            {coverImages.map((_, idx) => (
+                                <div key={idx} className="size-1.5 rounded-full bg-white/50" />
+                            ))}
+                        </div>
+                    )}
+
                     <div className="absolute top-4 left-4">
                         <div className="badge badge-success gap-1.5 py-3 px-4 shadow-lg border-0 backdrop-blur-md bg-success/80 text-success-content font-bold animate-pulse">
                             <span className="material-symbols-outlined text-[14px] fill-1">check_circle</span>
@@ -788,6 +1138,55 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
 
     return (
         <div className="flex flex-col min-h-screen bg-base-200">
+            {/* Upload Progress Indicator */}
+            {uploading && (
+                <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-sm w-full px-4">
+                    <div className="bg-base-100 rounded-xl shadow-lg border border-base-200/50 p-3">
+                        <div className="flex items-center gap-3">
+                            <div className="relative size-9 flex-shrink-0">
+                                <svg className="size-9 -rotate-90">
+                                    <circle
+                                        cx="18"
+                                        cy="18"
+                                        r="16"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        fill="none"
+                                        className="text-base-300"
+                                    />
+                                    <circle
+                                        cx="18"
+                                        cy="18"
+                                        r="16"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        fill="none"
+                                        strokeDasharray={`${2 * Math.PI * 16}`}
+                                        strokeDashoffset={`${2 * Math.PI * 16 * (1 - uploadProgress / 100)}`}
+                                        className="text-base-content transition-all duration-300"
+                                        strokeLinecap="round"
+                                    />
+                                </svg>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <span className="text-[10px] font-medium text-base-content/70">{uploadProgress}%</span>
+                                </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-base-content/70 mb-1.5 truncate">
+                                    {compressionStatus || 'Uploading media...'}
+                                </p>
+                                <div className="w-full h-1 bg-base-200 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-base-content/60 transition-all duration-300 ease-out"
+                                        style={{ width: `${uploadProgress}%` }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Premium Header */}
             <div className={`sticky top-0 z-20 transition-all duration-300 ${step === 4 ? 'bg-success/5 shadow-lg' : 'bg-base-100/95 backdrop-blur-md'} border-b border-base-200`}>
                 <div className="max-w-md mx-auto p-4 pt-2">

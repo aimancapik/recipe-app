@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Recipe } from '@/types';
 import RecipeCard from '@/components/RecipeCard';
+import RecipeMasonryGrid from '@/components/RecipeMasonryGrid';
 
 interface SavedRecipesScreenProps {
     recipes: Recipe[];
@@ -80,17 +81,12 @@ const SavedRecipesScreen: React.FC<SavedRecipesScreenProps> = ({ recipes, onReci
             {/* Main Grid */}
             <main className="flex-1 px-4 py-4 pb-32">
                 {filtered.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-4">
-                        {filtered.map(recipe => (
-                            <RecipeCard
-                                key={recipe.id}
-                                recipe={recipe}
-                                onClick={onRecipeClick}
-                                onToggleFavorite={onToggleFavorite}
-                                showCategory={true}
-                            />
-                        ))}
-                    </div>
+                    <RecipeMasonryGrid
+                        recipes={filtered}
+                        onRecipeClick={onRecipeClick}
+                        onToggleFavorite={onToggleFavorite}
+                        showCategory={true}
+                    />
                 ) : (
                     <div className="flex flex-col items-center justify-center py-20 text-base-content/40 text-center">
                         <span className="material-symbols-outlined text-6xl mb-4">search_off</span>

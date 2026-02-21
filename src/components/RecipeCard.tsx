@@ -7,19 +7,38 @@ interface RecipeCardProps {
     onClick: (recipe: Recipe) => void;
     onToggleFavorite?: (id: string) => void;
     showCategory?: boolean;
+    index?: number;
+    onEdit?: (recipe: Recipe) => void;
+    onDelete?: (recipe: Recipe) => void;
+    onUpdateStatus?: (recipe: Recipe, status: 'published' | 'draft') => void;
 }
-const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onClick, onToggleFavorite, showCategory }) => {
+const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onClick, onToggleFavorite, showCategory, index = 0, onEdit, onDelete, onUpdateStatus }) => {
+    // Deterministic random aspect ratio for masonry effect
+    const aspectRatios = ['aspect-[3/4]', 'aspect-[4/5]', 'aspect-[1/1]', 'aspect-[4/3]'];
+    const aspectClass = aspectRatios[index % aspectRatios.length];
+
     return (
         <div
-            className="card card-compact bg-base-100 shadow-sm border border-base-200 cursor-pointer active:scale-95 transition-transform overflow-hidden"
+            className="card card-compact bg-base-100 shadow-sm border border-base-200 cursor-pointer active:scale-95 transition-transform overflow-hidden break-inside-avoid mb-4"
             onClick={() => onClick(recipe)}
         >
-            <figure className="relative h-40">
-                <img
-                    src={recipe.image}
-                    alt={recipe.title}
-                    className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
-                />
+            <figure className={`relative w-full ${aspectClass}`}>
+                {recipe.image?.toLowerCase().match(/\.(mp4|webm|ogg|mov)$/) || recipe.image?.includes('video') ? (
+                    <video
+                        src={recipe.image}
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+                    />
+                ) : (
+                    <img
+                        src={recipe.image}
+                        alt={recipe.title}
+                        className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+                    />
+                )}
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
@@ -52,6 +71,52 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onClick, onToggleFavori
                     </div>
                 </div>
             </div>
+
+            {/* Management Actions */}
+            {(onEdit || onDelete || onUpdateStatus) && (
+                <div className="flex items-center justify-between p-3 pt-1 border-t border-base-200">
+                    <div className="flex gap-2">
+                        {onUpdateStatus && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onUpdateStatus(recipe, recipe.status === 'draft' ? 'published' : 'draft');
+                                }}
+                                className={`btn btn-sm btn-square rounded-xl transition-all border-none bg-base-200/50 text-base-content/70 hover:bg-warning hover:text-white shadow-sm`}
+                                title={recipe.status === 'draft' ? 'Publish Recipe' : 'Set to Draft'}
+                            >
+                                <span className="material-symbols-outlined text-[18px]">
+                                    {recipe.status === 'draft' ? 'visibility' : 'visibility_off'}
+                                </span>
+                            </button>
+                        )}
+                        {onEdit && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onEdit(recipe);
+                                }}
+                                className="btn btn-sm btn-square rounded-xl bg-base-200/50 text-base-content/70 hover:bg-primary hover:text-white transition-all border-none shadow-sm"
+                                title="Edit Recipe"
+                            >
+                                <span className="material-symbols-outlined text-[18px]">edit</span>
+                            </button>
+                        )}
+                    </div>
+                    {onDelete && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onDelete(recipe);
+                            }}
+                            className="btn btn-sm btn-square rounded-xl bg-base-200/50 text-base-content/70 hover:bg-error hover:text-white transition-all border-none shadow-sm"
+                            title="Delete Recipe"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                        </button>
+                    )}
+                </div>
+            )}
         </div>
     );
 };

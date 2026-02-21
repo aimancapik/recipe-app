@@ -12,7 +12,9 @@ export enum Screen {
     PUBLISH = 'publish',
     LOGIN = 'login',
     SIGNUP = 'signup',
-    MY_RECIPES = 'my_recipes'
+    MY_RECIPES = 'my_recipes',
+    PUBLIC_PROFILE = 'public_profile',
+    REVIEW = 'review'
 }
 
 export interface Direction {
@@ -27,6 +29,7 @@ export interface Direction {
 export interface Recipe {
     id: string;
     title: string;
+    description?: string;
     image: string;
     prepTime: string;
     rating: number;
@@ -40,6 +43,7 @@ export interface Recipe {
     isFavorite?: boolean;
     userId?: string;
     status?: 'published' | 'draft';
+    images?: string[];
 }
 
 export interface Category {
