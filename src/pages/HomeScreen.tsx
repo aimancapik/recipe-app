@@ -21,6 +21,7 @@ interface HomeScreenProps {
     hasMore: boolean;
     loadingMore: boolean;
     loading: boolean;
+    followingIds?: Set<string>;
 }
 
 const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -35,7 +36,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     onLoadMore,
     hasMore,
     loadingMore,
-    loading
+    loading,
+    followingIds = new Set()
 }) => {
     const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Chef';
     const avatarId = user?.user_metadata?.avatar_id;
@@ -43,12 +45,24 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     const [activeCategory, setActiveCategory] = useState('all');
     const [searchValue, setSearchValue] = useState('');
     const [isFocused, setIsFocused] = useState(false);
+    const [feedType, setFeedType] = useState<'forYou' | 'following'>('forYou');
 
     const searchQuery = searchValue.trim().toLowerCase();
     const isSearching = searchQuery.length >= 2;
 
     const filteredRecipes = recipes.filter(r => {
+        // Filter by feed type (For You vs Following)
+        if (feedType === 'following') {
+            // Only show recipes from chefs the user follows
+            if (!r.userId || !followingIds.has(r.userId)) {
+                return false;
+            }
+        }
+
+        // Filter by category
         const matchesCategory = activeCategory === 'all' || r.category === activeCategory;
+
+        // Filter by search query
         if (!isSearching) return matchesCategory;
         return matchesCategory && (
             r.title.toLowerCase().includes(searchQuery) ||
@@ -56,12 +70,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
             r.category.toLowerCase().includes(searchQuery)
         );
     });
-
-    // Debug: Log filtering results
-    console.log('Active Category:', activeCategory);
-    console.log('Total Recipes:', recipes.length);
-    console.log('Filtered Recipes:', filteredRecipes.length);
-    console.log('Filtered Recipe Categories:', filteredRecipes.map(r => ({ title: r.title, category: r.category })));
 
     // Intersection Observer for Infinite Scroll
     const observerTarget = React.useRef(null);
@@ -96,41 +104,53 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 
     const inputRef = React.useRef<HTMLInputElement>(null);
 
+    // Greeting based on time
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return 'Good Morning';
+        if (hour < 17) return 'Good Afternoon';
+        return 'Good Evening';
+    };
+
     return (
         <div className="flex flex-col pb-20">
-            <header className="flex items-center justify-between p-4 pt-6">
-                <div className="flex items-center gap-3">
-                    <div className="avatar">
-                        <div className="w-12 aspect-square rounded-full ring ring-primary ring-offset-base-100 ring-offset-2 overflow-hidden">
-                            <img src={avatarUrl} alt="Profile" />
+            {/* Premium Header */}
+            <header className="relative px-5 pt-8 pb-4">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3.5">
+                        <div className="relative">
+                            <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-primary/30 ring-offset-2 ring-offset-base-100">
+                                <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                            </div>
+                            <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-success border-2 border-base-100" />
+                        </div>
+                        <div>
+                            <p className="text-xs font-medium text-base-content/50 tracking-wide">{getGreeting()} 👋</p>
+                            <h2 className="text-lg font-bold leading-tight text-base-content">{displayName}</h2>
                         </div>
                     </div>
-                    <div>
-                        <h2 className="text-xl font-bold leading-tight tracking-tight text-base-content">Hello, {displayName}!</h2>
-                        <p className="text-base-content/50 text-sm">What are you cooking today?</p>
+                    <div className="flex items-center gap-1.5">
+                        <button
+                            onClick={onToggleTheme}
+                            className="btn btn-ghost btn-circle btn-sm hover:bg-base-200"
+                            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+                        >
+                            <span className="material-symbols-outlined text-xl">{isDark ? 'light_mode' : 'dark_mode'}</span>
+                        </button>
+                        <button onClick={onOpenGrocery} className="btn btn-ghost btn-circle btn-sm indicator hover:bg-base-200">
+                            <span className="indicator-item badge badge-error badge-xs"></span>
+                            <span className="material-symbols-outlined text-xl">shopping_bag</span>
+                        </button>
                     </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={onToggleTheme}
-                        className="btn btn-ghost btn-circle btn-sm"
-                        title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-                    >
-                        <span className="material-symbols-outlined">{isDark ? 'light_mode' : 'dark_mode'}</span>
-                    </button>
-                    <button onClick={onOpenGrocery} className="btn btn-ghost btn-circle btn-sm indicator">
-                        <span className="indicator-item badge badge-error badge-xs"></span>
-                        <span className="material-symbols-outlined">shopping_bag</span>
-                    </button>
                 </div>
             </header>
 
             {/* Search Bar */}
-            <div className="px-4 py-3">
+            <div className="px-5 pb-3">
                 <label
-                    className={`w-full flex items-center gap-3 rounded-full px-5 py-3 transition-all border-2 ${isFocused
-                        ? 'border-primary bg-base-100 shadow-lg shadow-primary/10'
-                        : 'border-transparent bg-base-200'
+                    className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 transition-all duration-300 ${isFocused
+                        ? 'bg-base-100 shadow-lg shadow-primary/10 ring-2 ring-primary/30'
+                        : 'bg-base-200/70'
                         }`}
                 >
                     <span className={`material-symbols-outlined text-xl transition-colors ${isFocused ? 'text-primary' : 'text-base-content/40'}`}>
@@ -138,7 +158,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                     </span>
                     <input
                         ref={inputRef}
-                        // Use inline styles to forcefully override global !important CSS
                         style={{ boxShadow: 'none', border: 'none', outline: 'none' }}
                         className="grow text-sm bg-transparent text-base-content placeholder:text-base-content/40 !border-none !outline-none !shadow-none p-0 h-auto"
                         placeholder="Search recipes, ingredients..."
@@ -160,29 +179,46 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                 </label>
             </div>
 
-            {/* Categories */}
-            <div className="py-2">
-                <div className="flex items-center justify-between px-4 mb-3">
-                    <h3 className="text-lg font-bold text-base-content">Categories</h3>
-                    <button onClick={() => onSeeAll()} className="btn btn-ghost btn-sm text-primary">See All</button>
+            {/* For You / Following Toggle */}
+            <div className="px-5 pb-4">
+                <div className="flex gap-1 p-1 bg-base-200/60 rounded-2xl w-full">
+                    <button
+                        onClick={() => setFeedType('forYou')}
+                        className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${feedType === 'forYou'
+                            ? 'bg-primary text-primary-content shadow-md shadow-primary/25'
+                            : 'text-base-content/50 hover:text-base-content'
+                            }`}
+                    >
+                        For You
+                    </button>
+                    <button
+                        onClick={() => setFeedType('following')}
+                        className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${feedType === 'following'
+                            ? 'bg-primary text-primary-content shadow-md shadow-primary/25'
+                            : 'text-base-content/50 hover:text-base-content'
+                            }`}
+                    >
+                        Following
+                    </button>
                 </div>
-                <div className="flex gap-4 overflow-x-auto px-4 no-scrollbar pb-2">
+            </div>
+
+            {/* Categories */}
+            <div className="pb-2">
+                <div className="flex gap-3 overflow-x-auto px-5 no-scrollbar pb-3">
                     {CATEGORIES.map((cat) => (
                         <button
                             key={cat.id}
                             onClick={() => setActiveCategory(cat.id)}
-                            className="flex flex-col items-center gap-2 shrink-0 group"
+                            className={`flex items-center gap-2 shrink-0 px-4 py-2.5 rounded-2xl transition-all duration-300 border ${activeCategory === cat.id
+                                ? 'bg-primary text-primary-content border-primary shadow-md shadow-primary/20 scale-[1.02]'
+                                : 'bg-base-100 text-base-content/70 border-base-200 hover:border-primary/30 hover:bg-base-200/50'
+                                }`}
                         >
-                            <div className={`size-14 rounded-2xl flex items-center justify-center transition-all ${activeCategory === cat.id
-                                ? 'bg-primary shadow-lg shadow-primary/20 scale-105'
-                                : 'bg-base-200'
-                                }`}>
-                                <span className={`material-symbols-outlined text-2xl ${activeCategory === cat.id ? 'text-primary-content fill-1' : 'text-base-content/60'
-                                    }`}>
-                                    {cat.icon}
-                                </span>
-                            </div>
-                            <span className={`text-xs ${activeCategory === cat.id ? 'font-bold text-base-content' : 'font-medium text-base-content/60'}`}>
+                            <span className={`material-symbols-outlined text-lg ${activeCategory === cat.id ? 'fill-1' : ''}`}>
+                                {cat.icon}
+                            </span>
+                            <span className="text-sm font-semibold whitespace-nowrap">
                                 {cat.name}
                             </span>
                         </button>
@@ -191,15 +227,26 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
             </div>
 
             {/* Recipes Section */}
-            <div className="flex-1 px-4 py-4 min-h-[400px]">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-bold text-base-content">
-                        {isSearching
-                            ? `Results (${filteredRecipes.length})`
-                            : activeCategory === 'all' ? 'All Recipes' : `${activeCategory} Recipes`}
-                    </h3>
+            <div className="flex-1 px-4 py-2 min-h-[400px]">
+                <div className="flex items-center justify-between mb-4 px-1">
+                    <div>
+                        <h3 className="text-lg font-bold text-base-content">
+                            {isSearching
+                                ? `Results`
+                                : activeCategory === 'all' ? 'All Recipes' : `${CATEGORIES.find(c => c.id === activeCategory)?.name || activeCategory}`}
+                        </h3>
+                        <p className="text-xs text-base-content/40 mt-0.5">
+                            {filteredRecipes.length} recipe{filteredRecipes.length !== 1 ? 's' : ''} found
+                        </p>
+                    </div>
                     {!isSearching && (
-                        <button onClick={() => onSeeAll(activeCategory === 'all' ? undefined : activeCategory)} className="btn btn-ghost btn-sm text-primary">See All</button>
+                        <button
+                            onClick={() => onSeeAll(activeCategory === 'all' ? undefined : activeCategory)}
+                            className="text-sm font-semibold text-primary flex items-center gap-1 hover:gap-2 transition-all"
+                        >
+                            See All
+                            <span className="material-symbols-outlined text-sm">chevron_right</span>
+                        </button>
                     )}
                 </div>
 
@@ -215,10 +262,29 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                         showCategory={activeCategory === 'all'}
                     />
                 ) : isSearching && !loading ? (
-                    <div className="flex flex-col items-center justify-center py-16 text-base-content/40">
-                        <span className="material-symbols-outlined text-5xl mb-3">search_off</span>
-                        <p className="text-base font-medium">No recipes found</p>
-                        <p className="text-sm mt-1">Try a different keyword or category</p>
+                    <div className="flex flex-col items-center justify-center py-20 text-base-content/40">
+                        <div className="w-20 h-20 rounded-full bg-base-200 flex items-center justify-center mb-4">
+                            <span className="material-symbols-outlined text-4xl">search_off</span>
+                        </div>
+                        <p className="text-base font-semibold text-base-content/60">No recipes found</p>
+                        <p className="text-sm mt-1 text-base-content/40">Try a different keyword or category</p>
+                    </div>
+                ) : feedType === 'following' && !loading ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-base-content/40">
+                        <div className="w-20 h-20 rounded-full bg-base-200 flex items-center justify-center mb-4">
+                            <span className="material-symbols-outlined text-4xl">group</span>
+                        </div>
+                        <p className="text-lg font-semibold text-base-content/60 mb-2">No recipes yet</p>
+                        <p className="text-sm text-center mb-5 px-8 text-base-content/40">
+                            Follow chefs to see their recipes here
+                        </p>
+                        <button
+                            onClick={() => setFeedType('forYou')}
+                            className="btn btn-primary btn-sm rounded-xl gap-2 shadow-md shadow-primary/20"
+                        >
+                            <span className="material-symbols-outlined text-lg">explore</span>
+                            Browse All Recipes
+                        </button>
                     </div>
                 ) : null}
 

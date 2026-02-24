@@ -19,7 +19,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentScreen, onNavigate, onQuic
 
     return (
         <nav className="fixed bottom-0 left-0 right-0 z-50 max-w-[480px] mx-auto">
-            <div className="bg-base-100/95 backdrop-blur-md border-t border-base-200 px-2 pb-[env(safe-area-inset-bottom)]">
+            <div className="bg-base-100/95 backdrop-blur-xl border-t border-base-200/80 px-2 pb-[env(safe-area-inset-bottom)]">
                 <div className="flex items-end justify-around h-16">
                     {navItems.map((item, idx) => {
                         if (!item) {
@@ -30,10 +30,10 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentScreen, onNavigate, onQuic
                                     onClick={() => onQuickAction?.()}
                                     className="flex flex-col items-center -mt-5 group"
                                 >
-                                    <span className="w-12 h-12 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/30 border-4 border-base-100 group-active:scale-90 transition-transform">
+                                    <span className="w-13 h-13 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/30 border-4 border-base-100 group-active:scale-90 transition-all duration-200 hover:shadow-xl hover:shadow-primary/40">
                                         <span className="material-symbols-outlined text-primary-content text-2xl font-bold">add</span>
                                     </span>
-                                    <span className="text-[10px] font-medium text-base-content/50 mt-0.5">Create</span>
+                                    <span className="text-[10px] font-semibold text-primary mt-0.5">Create</span>
                                 </button>
                             );
                         }
@@ -43,13 +43,17 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentScreen, onNavigate, onQuic
                             <button
                                 key={item.screen}
                                 onClick={() => onNavigate(item.screen)}
-                                className={`flex flex-col items-center justify-center gap-0.5 py-2 px-3 transition-colors ${isActive ? 'text-primary' : 'text-base-content/40'
+                                className={`flex flex-col items-center justify-center gap-0.5 py-2 px-3 transition-all duration-200 relative ${isActive ? 'text-primary' : 'text-base-content/40 hover:text-base-content/60'
                                     }`}
                             >
-                                <span className={`material-symbols-outlined text-xl ${isActive ? 'fill-icon' : ''}`}>
+                                {/* Active indicator dot */}
+                                {isActive && (
+                                    <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-primary" />
+                                )}
+                                <span className={`material-symbols-outlined text-xl transition-all ${isActive ? 'fill-icon scale-110' : ''}`}>
                                     {item.icon}
                                 </span>
-                                <span className="text-[10px] font-medium">{item.label}</span>
+                                <span className={`text-[10px] ${isActive ? 'font-bold' : 'font-medium'}`}>{item.label}</span>
                             </button>
                         );
                     })}

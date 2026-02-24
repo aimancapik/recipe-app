@@ -22,7 +22,8 @@
       "Bash(git -C \"c:\\\\Users\\\\AimanSyafiq\\\\Documents\\\\recipe-app\" add -A)",
       "Bash(git -C \"c:\\\\Users\\\\AimanSyafiq\\\\Documents\\\\recipe-app\" restore --staged .claude/settings.local.json)",
       "Bash(git -C \"c:\\\\Users\\\\AimanSyafiq\\\\Documents\\\\recipe-app\" commit -m \"$\\(cat <<''EOF''\nfeat: Add FilterScreen with sort, cooking time, dietary, and difficulty filters\n\n- Created FilterScreen component with full filter UI\n- Added FILTER screen to navigation\n- Integrated filters with ExploreScreen\n- Filter button shows indicator when filters are active\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(find:*)"
     ]
   }
 }

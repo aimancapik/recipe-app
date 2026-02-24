@@ -12,6 +12,7 @@ import { useRecipes } from '@/hooks/useRecipes';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useGrocery } from '@/hooks/useGrocery';
 import { useAuth } from '@/hooks/useAuth';
+import { useFollows } from '@/hooks/useFollows';
 import { AIGenerationProvider } from '@/contexts/AIGenerationContext';
 
 // Lazy load screens for better performance
@@ -46,6 +47,7 @@ const App: React.FC = () => {
         signOut,
         updateProfile
     } = useAuth();
+    const { followingIds } = useFollows(user?.id);
 
     const [currentScreen, setCurrentScreen] = useState<Screen>(Screen.HOME);
     const [showSplash, setShowSplash] = useState(true);
@@ -369,6 +371,7 @@ const App: React.FC = () => {
                         hasMore={hasMore}
                         loadingMore={loadingMore}
                         loading={loading}
+                        followingIds={followingIds}
                     />
                 );
             case Screen.REELS:
