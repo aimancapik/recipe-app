@@ -14,7 +14,8 @@ export enum Screen {
     SIGNUP = 'signup',
     MY_RECIPES = 'my_recipes',
     PUBLIC_PROFILE = 'public_profile',
-    REVIEW = 'review'
+    REVIEW = 'review',
+    COOKING_MODE = 'cooking_mode'
 }
 
 export interface Direction {

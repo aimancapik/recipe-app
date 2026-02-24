@@ -1,5 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
+import ReactPlayer from 'react-player';
 import { uploadImage, UploadProgress } from '@/lib/storage';
 import { videoToGif } from '@/lib/videoToGif';
 import { compressVideo, shouldCompressVideo, formatFileSize } from '@/lib/videoCompression';
@@ -109,6 +110,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
     const [mediaErrors, setMediaErrors] = useState<{ [key: number]: boolean }>({});
     const [uploadProgress, setUploadProgress] = useState<number>(0);
     const [compressionStatus, setCompressionStatus] = useState<string>('');
+    const [showExitModal, setShowExitModal] = useState(false);
 
     // Helper function to detect if URL is likely a video
     const isVideoUrl = (url: string): boolean => {
@@ -352,6 +354,62 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
         ));
     };
 
+    const handleSaveDraftAndExit = async () => {
+        const data = {
+            title,
+            description,
+            coverImages,
+            prepTime,
+            serves,
+            difficulty,
+            category,
+            ingredients,
+            instructions
+        };
+
+        const finalData = {
+            ...data,
+            image: coverImages[0] || '',
+            images: coverImages,
+            rating: editingRecipe?.rating || 0,
+            reviews: editingRecipe?.reviews || 0,
+        } as any;
+
+        setIsPublishing(true);
+        try {
+            if (onSaveDraft) {
+                await onSaveDraft(finalData);
+            }
+            onBack();
+        } catch (err) {
+            console.error('Saving draft failed:', err);
+        } finally {
+            setIsPublishing(false);
+            setShowExitModal(false);
+        }
+    };
+
+    const isFormDirty = () => {
+        if (isEditing && editingRecipe) {
+            // Check for changes relative to editingRecipe
+            // Simplified check for now: just see if anything is filled
+            return true; // If we're editing, we usually want confirmation if they click back
+        }
+        return title.trim().length > 0 ||
+            description.trim().length > 0 ||
+            coverImages.length > 0 ||
+            ingredients.length > 0 ||
+            (instructions.length > 1 || (instructions.length === 1 && instructions[0].description.trim().length > 0));
+    };
+
+    const handleBackWithSafety = () => {
+        if (isFormDirty()) {
+            setShowExitModal(true);
+        } else {
+            onBack();
+        }
+    };
+
     const handlePublish = async () => {
         const data = {
             title,
@@ -430,13 +488,18 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                                         </div>
                                     ) : isVideo ? (
                                         <div className="w-full h-full bg-base-300 flex items-center justify-center relative">
-                                            <video
-                                                src={src}
-                                                className="w-full h-full object-cover"
-                                                muted
-                                                playsInline
-                                                onError={() => handleMediaError(idx)}
-                                            />
+                                            <div className="w-full h-full pointer-events-none">
+                                                <ReactPlayer
+                                                    src={src}
+                                                    playing={false}
+                                                    muted
+                                                    playsInline
+                                                    width="100%"
+                                                    height="100%"
+                                                    className="absolute top-0 left-0 object-cover"
+                                                    onError={() => handleMediaError(idx)}
+                                                />
+                                            </div>
                                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                                 <div className="size-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center">
                                                     <span className="material-symbols-outlined text-white text-xl">play_arrow</span>
@@ -451,12 +514,12 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                                             onError={() => handleMediaError(idx)}
                                         />
                                     )}
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-60 md:opacity-0 md:group-hover:opacity-100 transition-opacity" />
 
                                     {/* Minimalist remove button */}
                                     <button
                                         onClick={(e) => { e.stopPropagation(); removeCoverImage(idx); }}
-                                        className="absolute top-2 right-2 size-7 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center hover:bg-black/80 transition-all opacity-0 group-hover:opacity-100"
+                                        className="absolute top-2 right-2 size-7 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center hover:bg-black/80 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100"
                                     >
                                         <span className="material-symbols-outlined text-white text-[16px]">close</span>
                                     </button>
@@ -465,7 +528,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                                     {idx !== 0 && (
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setAsMain(idx); }}
-                                            className="absolute bottom-2 left-2 size-7 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-all shadow-sm opacity-0 group-hover:opacity-100"
+                                            className="absolute bottom-2 left-2 size-7 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-all shadow-sm opacity-100 md:opacity-0 md:group-hover:opacity-100"
                                         >
                                             <span className="material-symbols-outlined text-base-content text-[16px]">star_border</span>
                                         </button>
@@ -758,7 +821,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                                         <p className="text-xs text-base-content/50">{ing.qty}{ing.unit}</p>
                                     </div>
                                 </div>
-                                <button onClick={() => removeIngredient(ing.id)} className="btn btn-ghost btn-circle btn-xs text-base-content/40 hover:text-error">
+                                <button onClick={() => removeIngredient(ing.id)} className="btn btn-ghost btn-circle btn-xs text-base-content/70 md:text-base-content/40 hover:text-error">
                                     <span className="material-symbols-outlined">delete</span>
                                 </button>
                             </div>
@@ -823,7 +886,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                                     </div>
                                     <span className="font-bold text-base-content whitespace-nowrap">Step {index + 1}</span>
                                 </div>
-                                <button onClick={() => removeInstructionStep(inst.id)} className="btn btn-ghost btn-circle btn-xs text-base-content/40 hover:text-error">
+                                <button onClick={() => removeInstructionStep(inst.id)} className="btn btn-ghost btn-circle btn-xs text-base-content/70 md:text-base-content/40 hover:text-error">
                                     <span className="material-symbols-outlined text-xl">delete</span>
                                 </button>
                             </div>
@@ -1081,7 +1144,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                 )}
 
                 {/* Instructions Section */}
-                {instructions.filter(s => s.description.trim()).length > 0 && (
+                {instructions.length > 0 && (
                     <div className="space-y-6 pb-12">
                         <div className="flex items-center gap-2 px-2">
                             <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
@@ -1090,7 +1153,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                             <h2 className="text-lg font-bold tracking-tight">Instructions</h2>
                         </div>
                         <div className="space-y-8 relative before:absolute before:left-[17px] before:top-4 before:bottom-4 before:w-0.5 before:bg-gradient-to-b before:from-primary before:to-base-300">
-                            {instructions.filter(s => s.description.trim()).map((inst, idx) => (
+                            {instructions.map((inst, idx) => (
                                 <div key={inst.id} className="relative pl-12 flex flex-col gap-4">
                                     {/* Number Circle */}
                                     <div className="absolute left-0 top-0 size-9 rounded-full bg-primary text-primary-content flex items-center justify-center font-black text-sm shadow-xl ring-4 ring-base-200 z-10 transition-transform hover:scale-110">
@@ -1196,7 +1259,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                     </div>
                     <div className="flex items-center justify-between mb-4">
                         <button
-                            onClick={step === 1 ? onBack : prevStep}
+                            onClick={step === 1 ? handleBackWithSafety : prevStep}
                             className="btn btn-ghost btn-circle btn-sm -ml-2"
                         >
                             <span className="material-symbols-outlined">arrow_back</span>
@@ -1283,6 +1346,50 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                     </div>
                 )}
             </div>
+
+            {/* Exit Confirmation Modal */}
+            {showExitModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-base-100 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-scale-up">
+                        <div className="p-8 pb-6 text-center">
+                            <div className="size-16 rounded-2xl bg-warning/20 text-warning flex items-center justify-center mx-auto mb-4">
+                                <span className="material-symbols-outlined text-4xl fill-icon">warning</span>
+                            </div>
+                            <h3 className="text-xl font-bold mb-2">Save your draft?</h3>
+                            <p className="text-sm text-base-content/60 leading-relaxed">
+                                You have unsaved changes. Would you like to save this recipe to your drafts before leaving?
+                            </p>
+                        </div>
+                        <div className="p-6 pt-0 flex flex-col gap-3">
+                            <button
+                                onClick={handleSaveDraftAndExit}
+                                disabled={isPublishing}
+                                className="btn btn-primary btn-lg w-full gap-2 rounded-2xl shadow-lg shadow-primary/20"
+                            >
+                                {isPublishing ? <LoadingAnimation size={20} /> : (
+                                    <>
+                                        <span className="material-symbols-outlined text-[20px]">inventory_2</span>
+                                        Save as Draft
+                                    </>
+                                )}
+                            </button>
+                            <button
+                                onClick={onBack}
+                                className="btn btn-ghost btn-lg w-full gap-2 rounded-2xl text-error hover:bg-error/10"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">delete_forever</span>
+                                Discard Changes
+                            </button>
+                            <button
+                                onClick={() => setShowExitModal(false)}
+                                className="btn btn-ghost w-full font-bold text-xs uppercase tracking-widest opacity-40 hover:opacity-100"
+                            >
+                                Continue Editing
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

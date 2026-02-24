@@ -87,6 +87,21 @@ const SavedRecipesScreen: React.FC<SavedRecipesScreenProps> = ({ recipes, onReci
                         onToggleFavorite={onToggleFavorite}
                         showCategory={true}
                     />
+                ) : savedRecipes.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                        <div className="text-8xl mb-6">📌</div>
+                        <h3 className="text-xl font-bold text-base-content mb-2">No saved recipes yet</h3>
+                        <p className="text-sm text-base-content/60 mb-8 max-w-xs">
+                            Start building your personal cookbook by saving recipes you love!
+                        </p>
+                        <button
+                            onClick={onBack}
+                            className="btn btn-primary gap-2"
+                        >
+                            <span className="material-symbols-outlined">explore</span>
+                            Explore Recipes
+                        </button>
+                    </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center py-20 text-base-content/40 text-center">
                         <span className="material-symbols-outlined text-6xl mb-4">search_off</span>

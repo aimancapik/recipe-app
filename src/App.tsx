@@ -11,11 +11,12 @@ import SavedRecipesScreen from '@/pages/SavedRecipesScreen';
 import ProfileScreen from '@/pages/ProfileScreen';
 import FilterScreen, { FilterOptions } from '@/pages/FilterScreen';
 import GroceryListScreen from '@/pages/GroceryListScreen';
-import PublishRecipeScreen from '@/pages/PublishRecipeScreen';
+import PublishRecipeScreen, { RecipeFormData } from '@/pages/PublishRecipeScreen';
 import AuthScreen from '@/pages/AuthScreen';
 import MyRecipesScreen from '@/pages/MyRecipesScreen';
 import PublicProfileScreen from '@/pages/PublicProfileScreen';
 import ReviewRecipeScreen from '@/pages/ReviewRecipeScreen';
+import CookingModeScreen from '@/pages/CookingModeScreen';
 import LoadingAnimation from '@/components/LoadingAnimation';
 import SplashScreen from '@/components/SplashScreen';
 import { useTheme } from '@/hooks/useTheme';
@@ -181,22 +182,11 @@ const App: React.FC = () => {
         }, Screen.DETAIL);
     };
 
-    const handlePublishRecipe = async (data: {
-        title: string;
-        description: string;
-        image: string | null;
-        images: string[];
-        prepTime: string;
-        serves: string;
-        difficulty: string;
-        category: string;
-        ingredients: { id: string; name: string; qty: string; unit: string }[];
-        instructions: { id: string; description: string; image: string | null; mediaType?: 'image' | 'video'; timer?: number }[];
-    }) => {
+    const handlePublishRecipe = async (data: RecipeFormData) => {
         const newRecipe: Omit<Recipe, 'id'> = {
             title: data.title || 'Untitled Recipe',
             description: data.description,
-            image: data.image || 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=600',
+            image: data.coverImages[0] || 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=600',
             prepTime: data.prepTime ? `${data.prepTime}m` : '30m',
             rating: 0,
             reviews: 0,
@@ -205,7 +195,7 @@ const App: React.FC = () => {
             level: (data.difficulty as 'Easy' | 'Medium' | 'Hard') || 'Easy',
             ingredients: data.ingredients.map(i => `${i.qty}${i.unit} ${i.name}`),
             directions: data.instructions
-                .filter(s => s.description.trim())
+                .filter(s => s.description.trim() || s.image)
                 .map((s, idx) => ({
                     step: idx + 1,
                     title: `Step ${idx + 1}`,
@@ -217,7 +207,7 @@ const App: React.FC = () => {
             category: data.category || 'breakfast',
             isFavorite: false,
             status: 'published',
-            images: data.images || []
+            images: data.coverImages || []
         };
 
         try {
@@ -230,22 +220,22 @@ const App: React.FC = () => {
         navigateTo(Screen.HOME);
     };
 
-    const handleSaveDraftRecipe = (data: any) => {
+    const handleSaveDraftRecipe = (data: RecipeFormData) => {
         if (!editingRecipe) return;
 
         const updatedDraft: Recipe = {
             ...editingRecipe,
             title: data.title || 'Untitled Recipe',
             description: data.description || editingRecipe.description,
-            image: data.image || editingRecipe.image,
-            images: data.images || editingRecipe.images || [],
+            image: data.coverImages[0] || editingRecipe.image,
+            images: data.coverImages || editingRecipe.images || [],
             prepTime: data.prepTime ? `${data.prepTime}m` : editingRecipe.prepTime,
             serves: data.serves || editingRecipe.serves,
             level: (data.difficulty as 'Easy' | 'Medium' | 'Hard') || editingRecipe.level,
             category: data.category || editingRecipe.category,
             ingredients: data.ingredients.map((i: any) => `${i.qty}${i.unit} ${i.name}`),
             directions: data.instructions
-                .filter((s: any) => s.description.trim())
+                .filter((s: any) => s.description.trim() || s.image)
                 .map((s: any, idx: number) => ({
                     step: idx + 1,
                     title: `Step ${idx + 1}`,
@@ -262,22 +252,11 @@ const App: React.FC = () => {
         setCurrentScreen(Screen.DETAIL);
     };
 
-    const handleUpdateRecipe = async (id: string, data: {
-        title: string;
-        description: string;
-        image: string | null;
-        images: string[];
-        prepTime: string;
-        serves: string;
-        difficulty: string;
-        category: string;
-        ingredients: { id: string; name: string; qty: string; unit: string }[];
-        instructions: { id: string; description: string; image: string | null; mediaType?: 'image' | 'video'; timer?: number }[];
-    }) => {
+    const handleUpdateRecipe = async (id: string, data: RecipeFormData) => {
         const updatedRecipe: Omit<Recipe, 'id'> = {
             title: data.title || 'Untitled Recipe',
             description: data.description,
-            image: data.image || 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=600',
+            image: data.coverImages[0] || 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=600',
             prepTime: data.prepTime ? `${data.prepTime}m` : '30m',
             rating: editingRecipe?.rating || 0,
             reviews: editingRecipe?.reviews || 0,
@@ -286,7 +265,7 @@ const App: React.FC = () => {
             level: (data.difficulty as 'Easy' | 'Medium' | 'Hard') || 'Easy',
             ingredients: data.ingredients.map(i => `${i.qty}${i.unit} ${i.name}`),
             directions: data.instructions
-                .filter(s => s.description.trim())
+                .filter(s => s.description.trim() || s.image)
                 .map((s, idx) => ({
                     step: idx + 1,
                     title: `Step ${idx + 1}`,
@@ -298,7 +277,7 @@ const App: React.FC = () => {
             category: data.category || editingRecipe?.category || 'breakfast',
             isFavorite: false,
             status: editingRecipe?.status || 'published',
-            images: data.images || []
+            images: data.coverImages || []
         };
 
         try {
@@ -416,6 +395,14 @@ const App: React.FC = () => {
                         } : undefined}
                         onChefClick={(chefId) => navigateTo(Screen.PUBLIC_PROFILE, undefined, chefId)}
                         onRate={() => setCurrentScreen(Screen.REVIEW)}
+                        onStartCooking={() => setCurrentScreen(Screen.COOKING_MODE)}
+                    />
+                ) : null;
+            case Screen.COOKING_MODE:
+                return selectedRecipe ? (
+                    <CookingModeScreen
+                        recipe={selectedRecipe}
+                        onExit={() => setCurrentScreen(Screen.DETAIL)}
                     />
                 ) : null;
             case Screen.AI_GENERATE:

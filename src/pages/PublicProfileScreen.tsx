@@ -182,6 +182,17 @@ const PublicProfileScreen: React.FC<PublicProfileScreenProps> = ({ userId, onBac
                                 src={profile.avatar_url}
                                 alt={profile.full_name}
                                 className="size-28 rounded-full border-4 border-primary object-cover shadow-xl"
+                                onError={(e) => {
+                                    // Replace broken image with default avatar
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                    const parent = (e.target as HTMLImageElement).parentElement;
+                                    if (parent && !parent.querySelector('.default-avatar-profile')) {
+                                        const fallback = document.createElement('div');
+                                        fallback.className = 'size-28 rounded-full border-4 border-primary bg-base-200 flex items-center justify-center shadow-xl default-avatar-profile';
+                                        fallback.innerHTML = '<span class="material-symbols-outlined text-5xl text-base-content/40">person</span>';
+                                        parent.insertBefore(fallback, parent.lastElementChild);
+                                    }
+                                }}
                             />
                         ) : (
                             <div className="size-28 rounded-full border-4 border-primary bg-base-200 flex items-center justify-center shadow-xl">

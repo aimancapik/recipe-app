@@ -38,6 +38,8 @@ const AIGenerateScreen: React.FC<AIGenerateScreenProps> = ({ onBack, onRecipeRea
     const [prompt, setPrompt] = useState('');
     const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [showExitModal, setShowExitModal] = useState(false);
+    const [usage, setUsage] = useState<any>(null);
     const [selectedDietary, setSelectedDietary] = useState<string[]>([]);
     const [usageCount, setUsageCount] = useState<number | null>(null);
     const [timeToReset, setTimeToReset] = useState<string>('');
@@ -134,8 +136,23 @@ const AIGenerateScreen: React.FC<AIGenerateScreenProps> = ({ onBack, onRecipeRea
     const handleBackground = () => {
         if (currentTaskId) {
             moveToBackground(currentTaskId);
-            onBack(); // Navigate away
+            onBack();
         }
+    };
+
+    const handleBackWithSafety = () => {
+        if (currentTaskId) {
+            setShowExitModal(true);
+        } else {
+            onBack();
+        }
+    };
+
+    const handleDiscardAndExit = () => {
+        if (currentTaskId) {
+            discardTask(currentTaskId);
+        }
+        onBack();
     };
 
     const handleDiscard = () => {
@@ -150,7 +167,7 @@ const AIGenerateScreen: React.FC<AIGenerateScreenProps> = ({ onBack, onRecipeRea
             {/* Header */}
             <div className="sticky top-0 z-30 bg-base-200/80 backdrop-blur-xl px-4 pt-4 pb-2">
                 <div className="flex items-center gap-3">
-                    <button onClick={onBack} className="btn btn-ghost btn-sm btn-circle">
+                    <button onClick={handleBackWithSafety} className="btn btn-ghost btn-sm btn-circle">
                         <span className="material-symbols-outlined">arrow_back</span>
                     </button>
                     <h1 className="text-lg font-bold flex-1">AI Magic Chef</h1>
@@ -299,6 +316,45 @@ const AIGenerateScreen: React.FC<AIGenerateScreenProps> = ({ onBack, onRecipeRea
                     </div>
                 </div>
             </div>
+
+            {/* Exit Confirmation Modal */}
+            {showExitModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-base-100 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-scale-up">
+                        <div className="p-8 pb-6 text-center">
+                            <div className="size-16 rounded-2xl bg-warning/20 text-warning flex items-center justify-center mx-auto mb-4">
+                                <span className="material-symbols-outlined text-4xl fill-icon">warning</span>
+                            </div>
+                            <h3 className="text-xl font-bold mb-2">Wait, Chef!</h3>
+                            <p className="text-sm text-base-content/60 leading-relaxed">
+                                You're in the middle of a magical recipe. What should I do with it?
+                            </p>
+                        </div>
+                        <div className="p-6 pt-0 flex flex-col gap-3">
+                            <button
+                                onClick={handleBackground}
+                                className="btn btn-primary btn-lg w-full gap-2 rounded-2xl shadow-lg shadow-primary/20"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">inventory_2</span>
+                                Save as Draft
+                            </button>
+                            <button
+                                onClick={handleDiscardAndExit}
+                                className="btn btn-ghost btn-lg w-full gap-2 rounded-2xl text-error hover:bg-error/10"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">delete_forever</span>
+                                Discard
+                            </button>
+                            <button
+                                onClick={() => setShowExitModal(false)}
+                                className="btn btn-ghost w-full font-bold text-xs uppercase tracking-widest opacity-40 hover:opacity-100"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

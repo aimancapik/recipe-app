@@ -1,5 +1,5 @@
-
 import React, { useState, useRef, useEffect } from 'react';
+import ReactPlayer from 'react-player';
 import LoadingAnimation from '@/components/LoadingAnimation';
 import { Recipe } from '@/types';
 import StepTimer from '@/components/StepTimer';
@@ -14,6 +14,7 @@ interface RecipeDetailScreenProps {
     onEdit?: (recipe: Recipe) => void;
     onChefClick?: (userId: string) => void;
     onRate?: () => void;
+    onStartCooking?: () => void;
 }
 
 interface ChefProfile {
@@ -21,7 +22,7 @@ interface ChefProfile {
     avatar_url: string;
 }
 
-const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack, onToggleFavorite, onAddToGrocery, onOpenGrocery, onPublish, onEdit, onChefClick, onRate }) => {
+const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack, onToggleFavorite, onAddToGrocery, onOpenGrocery, onPublish, onEdit, onChefClick, onRate, onStartCooking }) => {
     const [publishing, setPublishing] = useState(false);
     const [chef, setChef] = useState<ChefProfile | null>(null);
     const [viewMediaIndex, setViewMediaIndex] = useState<number | null>(null);
@@ -39,7 +40,12 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
     const galleryItems = (recipe.images && recipe.images.length > 0) ? recipe.images : (recipe.image ? [recipe.image] : []);
 
     const isVideo = (url: string) => {
-        return url.toLowerCase().match(/\.(mp4|webm|ogg|mov)$/) || url.includes('video');
+        const lowerUrl = url.toLowerCase();
+        return lowerUrl.match(/\.(mp4|webm|ogg|mov)$/) ||
+            lowerUrl.includes('video') ||
+            lowerUrl.includes('youtube.com') ||
+            lowerUrl.includes('youtu.be') ||
+            lowerUrl.includes('vimeo.com');
     };
 
     React.useEffect(() => {
@@ -80,14 +86,18 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                                 onClick={() => setViewMediaIndex(idx)}
                             >
                                 {isVideo(src) ? (
-                                    <video
-                                        src={src}
-                                        autoPlay={idx === 0}
-                                        muted
-                                        loop
-                                        playsInline
-                                        className="w-full h-full object-cover"
-                                    />
+                                    <div className="w-full h-full pointer-events-none">
+                                        <ReactPlayer
+                                            src={src}
+                                            playing={idx === 0}
+                                            muted
+                                            loop
+                                            playsInline
+                                            width="100%"
+                                            height="100%"
+                                            className="absolute top-0 left-0 object-cover"
+                                        />
+                                    </div>
                                 ) : (
                                     <img
                                         src={src}
@@ -169,7 +179,22 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                     >
                         <div className="relative">
                             {chef?.avatar_url ? (
-                                <img src={chef.avatar_url} alt={chef.full_name} className="size-11 rounded-full object-cover border-2 border-primary" />
+                                <img
+                                    src={chef.avatar_url}
+                                    alt={chef.full_name}
+                                    className="size-11 rounded-full object-cover border-2 border-primary"
+                                    onError={(e) => {
+                                        // Replace broken image with default avatar
+                                        (e.target as HTMLImageElement).style.display = 'none';
+                                        const parent = (e.target as HTMLImageElement).parentElement;
+                                        if (parent && !parent.querySelector('.default-avatar-large')) {
+                                            const fallback = document.createElement('div');
+                                            fallback.className = 'size-11 rounded-full bg-primary/10 flex items-center justify-center text-primary border-2 border-primary/20 default-avatar-large';
+                                            fallback.innerHTML = '<span class="material-symbols-outlined text-xl">person</span>';
+                                            parent.insertBefore(fallback, parent.lastElementChild);
+                                        }
+                                    }}
+                                />
                             ) : (
                                 <div className="size-11 rounded-full bg-primary/10 flex items-center justify-center text-primary border-2 border-primary/20">
                                     <span className="material-symbols-outlined text-xl">person</span>
@@ -248,6 +273,22 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                     </button>
                 </div>
 
+                {/* Start Cooking Button */}
+                {onStartCooking && recipe.directions.length > 0 && (
+                    <div className="mb-10">
+                        <button
+                            onClick={onStartCooking}
+                            className="btn btn-primary w-full h-14 rounded-2xl gap-3 text-lg shadow-lg hover:shadow-xl transition-all"
+                        >
+                            <span className="material-symbols-outlined text-2xl">restaurant</span>
+                            Start Cooking
+                        </button>
+                        <p className="text-center text-sm text-base-content/60 mt-3">
+                            Follow step-by-step with hands-free navigation
+                        </p>
+                    </div>
+                )}
+
                 {/* Directions */}
                 <div className="mb-8">
                     <h2 className="text-xl font-bold mb-6 px-1">Directions</h2>
@@ -272,14 +313,18 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                                             }}
                                         >
                                             {dir.mediaType === 'video' ? (
-                                                <video
-                                                    src={dir.image}
-                                                    autoPlay
-                                                    loop
-                                                    muted
-                                                    playsInline
-                                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                                                />
+                                                <div className="w-full h-full pointer-events-none">
+                                                    <ReactPlayer
+                                                        src={dir.image}
+                                                        playing
+                                                        loop
+                                                        muted
+                                                        playsInline
+                                                        width="100%"
+                                                        height="100%"
+                                                        className="absolute top-0 left-0 object-cover transition-transform duration-700 group-hover:scale-105"
+                                                    />
+                                                </div>
                                             ) : (
                                                 <img
                                                     src={dir.image}
@@ -380,12 +425,16 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                                 <div key={idx} className="w-screen h-full flex-none snap-center flex items-center justify-center p-4" onClick={e => e.stopPropagation()}>
                                     <div className="w-full max-w-5xl h-full flex items-center justify-center">
                                         {isVideo(src) ? (
-                                            <video
-                                                src={src}
-                                                controls
-                                                autoPlay
-                                                className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
-                                            />
+                                            <div className="w-full max-w-full aspect-video rounded-2xl overflow-hidden shadow-2xl">
+                                                <ReactPlayer
+                                                    src={src}
+                                                    controls
+                                                    playing
+                                                    width="100%"
+                                                    height="100%"
+                                                    className="object-contain"
+                                                />
+                                            </div>
                                         ) : (
                                             <img
                                                 src={src}

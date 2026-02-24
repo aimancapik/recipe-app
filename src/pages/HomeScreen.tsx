@@ -5,6 +5,7 @@ import { CATEGORIES } from '@/data/constants';
 import RecipeCard from '@/components/RecipeCard';
 import RecipeMasonryGrid from '@/components/RecipeMasonryGrid';
 import LoadingAnimation from '@/components/LoadingAnimation';
+import { SkeletonGrid } from '@/components/SkeletonCard';
 import { getAvatarUrl } from '@/data/avatars';
 
 interface HomeScreenProps {
@@ -202,7 +203,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                     )}
                 </div>
 
-                {filteredRecipes.length > 0 ? (
+                {loading && recipes.length === 0 ? (
+                    <div className="columns-1 sm:columns-2 gap-4 space-y-0">
+                        <SkeletonGrid count={8} />
+                    </div>
+                ) : filteredRecipes.length > 0 ? (
                     <RecipeMasonryGrid
                         recipes={filteredRecipes}
                         onRecipeClick={onRecipeClick}
