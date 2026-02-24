@@ -6,6 +6,7 @@ import RecipeCard from '@/components/RecipeCard';
 import { useRecipes } from '@/hooks/useRecipes';
 import RecipeMasonryGrid from '@/components/RecipeMasonryGrid';
 import { useAuth } from '@/hooks/useAuth';
+import FollowersModal from '@/components/FollowersModal';
 
 interface PublicProfileScreenProps {
     userId: string;
@@ -37,6 +38,7 @@ const PublicProfileScreen: React.FC<PublicProfileScreenProps> = ({ userId, onBac
     const [socialStats, setSocialStats] = useState<SocialStats>({ followers: 0, following: 0, recipes: 0 });
     const { fetchRecipesByUserId } = useRecipes();
     const [activeTab, setActiveTab] = useState<'recipes' | 'collections' | 'about'>('recipes');
+    const [followersModal, setFollowersModal] = useState<{ isOpen: boolean; type: 'followers' | 'following' }>({ isOpen: false, type: 'followers' });
 
     useEffect(() => {
         const loadProfileData = async () => {
@@ -236,11 +238,15 @@ const PublicProfileScreen: React.FC<PublicProfileScreenProps> = ({ userId, onBac
                 {/* Stats Section */}
                 <section className="flex px-4 -mt-6 gap-3 z-10 relative">
                     {[
-                        { label: 'Recipes', val: socialStats.recipes },
-                        { label: 'Followers', val: socialStats.followers > 999 ? (socialStats.followers / 1000).toFixed(1) + 'k' : socialStats.followers },
-                        { label: 'Following', val: socialStats.following > 999 ? (socialStats.following / 1000).toFixed(1) + 'k' : socialStats.following }
+                        { label: 'Recipes', val: socialStats.recipes, onClick: null },
+                        { label: 'Followers', val: socialStats.followers > 999 ? (socialStats.followers / 1000).toFixed(1) + 'k' : socialStats.followers, onClick: () => setFollowersModal({ isOpen: true, type: 'followers' }) },
+                        { label: 'Following', val: socialStats.following > 999 ? (socialStats.following / 1000).toFixed(1) + 'k' : socialStats.following, onClick: () => setFollowersModal({ isOpen: true, type: 'following' }) }
                     ].map(stat => (
-                        <div key={stat.label} className="flex flex-1 flex-col gap-1 rounded-[24px] bg-base-100 border border-base-200 p-4 items-center shadow-lg shadow-black/5">
+                        <div
+                            key={stat.label}
+                            onClick={stat.onClick || undefined}
+                            className={`flex flex-1 flex-col gap-1 rounded-[24px] bg-base-100 border border-base-200 p-4 items-center shadow-lg shadow-black/5 ${stat.onClick ? 'cursor-pointer hover:bg-base-200 transition-colors active:scale-95' : ''}`}
+                        >
                             <p className="text-base-content text-xl font-black">{stat.val}</p>
                             <p className="text-base-content/40 text-[10px] uppercase tracking-widest font-bold">{stat.label}</p>
                         </div>
@@ -290,6 +296,19 @@ const PublicProfileScreen: React.FC<PublicProfileScreenProps> = ({ userId, onBac
                     )}
                 </div>
             </main>
+
+            {/* Followers/Following Modal */}
+            <FollowersModal
+                userId={userId}
+                type={followersModal.type}
+                isOpen={followersModal.isOpen}
+                onClose={() => setFollowersModal({ ...followersModal, isOpen: false })}
+                onUserClick={(clickedUserId) => {
+                    // Navigate to that user's profile
+                    // Note: This would need to be passed as a prop or handled by parent component
+                    console.log('Navigate to user:', clickedUserId);
+                }}
+            />
         </div>
     );
 };

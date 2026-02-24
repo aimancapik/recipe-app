@@ -40,7 +40,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Chef';
     const avatarId = user?.user_metadata?.avatar_id;
     const avatarUrl = user?.user_metadata?.avatar_url || (avatarId ? getAvatarUrl(avatarId) : 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100');
-    const [activeCategory, setActiveCategory] = useState('popular');
+    const [activeCategory, setActiveCategory] = useState('all');
     const [searchValue, setSearchValue] = useState('');
     const [isFocused, setIsFocused] = useState(false);
 
@@ -48,7 +48,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     const isSearching = searchQuery.length >= 2;
 
     const filteredRecipes = recipes.filter(r => {
-        const matchesCategory = activeCategory === 'popular' || r.category === activeCategory;
+        const matchesCategory = activeCategory === 'all' || r.category === activeCategory;
         if (!isSearching) return matchesCategory;
         return matchesCategory && (
             r.title.toLowerCase().includes(searchQuery) ||
@@ -196,10 +196,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                     <h3 className="text-lg font-bold text-base-content">
                         {isSearching
                             ? `Results (${filteredRecipes.length})`
-                            : activeCategory === 'popular' ? 'Popular Recipes' : `${activeCategory} Recipes`}
+                            : activeCategory === 'all' ? 'All Recipes' : `${activeCategory} Recipes`}
                     </h3>
                     {!isSearching && (
-                        <button onClick={() => onSeeAll(activeCategory === 'popular' ? undefined : activeCategory)} className="btn btn-ghost btn-sm text-primary">See All</button>
+                        <button onClick={() => onSeeAll(activeCategory === 'all' ? undefined : activeCategory)} className="btn btn-ghost btn-sm text-primary">See All</button>
                     )}
                 </div>
 
@@ -212,7 +212,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                         recipes={filteredRecipes}
                         onRecipeClick={onRecipeClick}
                         onToggleFavorite={onToggleFavorite}
-                        showCategory={activeCategory === 'popular'}
+                        showCategory={activeCategory === 'all'}
                     />
                 ) : isSearching && !loading ? (
                     <div className="flex flex-col items-center justify-center py-16 text-base-content/40">

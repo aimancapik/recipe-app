@@ -1,7 +1,5 @@
 import { supabase } from '@/lib/supabase';
-
-
-
+import { autoCompressIfNeeded, formatBytes } from '@/lib/imageOptimization';
 
 const BUCKET = 'recipe-images';
 
@@ -115,4 +113,58 @@ export async function deleteImage(publicUrl: string): Promise<void> {
         .remove([path]);
 
     if (error) throw error;
+}
+
+/**
+ * Upload an image with automatic optimization (compression, resizing, format conversion).
+ * Automatically compresses images over 2MB before upload.
+ * Returns the public URL and compression info.
+ */
+export async function uploadOptimizedImage(
+    file: File,
+    folder: string = 'general',
+    onProgress?: (progress: UploadProgress & { message?: string }) => void
+): Promise<{ url: string; wasCompressed: boolean; originalSize: number; finalSize: number }> {
+    // Validate file type
+    const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
+    if (!isImage) {
+        throw new Error(`File type ${file.type} not supported. Please upload an image file.`);
+    }
+
+    // Auto-compress if needed (>2MB threshold)
+    if (onProgress) {
+        onProgress({
+            loaded: 0,
+            total: file.size,
+            percentage: 0,
+            message: 'Optimizing image...'
+        });
+    }
+
+    const { file: optimizedFile, wasCompressed, originalSize, newSize } = await autoCompressIfNeeded(file, 2);
+
+    if (wasCompressed && onProgress) {
+        const savings = formatBytes(originalSize - newSize);
+        onProgress({
+            loaded: 0,
+            total: newSize,
+            percentage: 10,
+            message: `Compressed! Saved ${savings}`
+        });
+    }
+
+    // Convert Blob to File if needed
+    const fileToUpload = optimizedFile instanceof Blob && !(optimizedFile instanceof File)
+        ? new File([optimizedFile], file.name, { type: 'image/webp' })
+        : optimizedFile as File;
+
+    // Upload the optimized image
+    const url = await uploadImage(fileToUpload, folder, onProgress);
+
+    return {
+        url,
+        wasCompressed,
+        originalSize,
+        finalSize: newSize
+    };
 }

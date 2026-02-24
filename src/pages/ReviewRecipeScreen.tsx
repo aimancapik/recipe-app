@@ -1,23 +1,63 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Recipe } from '@/types';
+import { useReviews } from '@/hooks/useReviews';
+import LoadingAnimation from '@/components/LoadingAnimation';
 
 interface ReviewRecipeScreenProps {
     recipe: Recipe;
     onBack: () => void;
-    onSubmit: (review: { rating: number; comment: string; photos: string[] }) => void;
+    onSubmit?: (review: { rating: number; comment: string; photos: string[] }) => void;
 }
 
 const ReviewRecipeScreen: React.FC<ReviewRecipeScreenProps> = ({ recipe, onBack, onSubmit }) => {
     const [rating, setRating] = useState(4);
     const [comment, setComment] = useState('');
     const [photos, setPhotos] = useState<string[]>([]);
+    const [submitting, setSubmitting] = useState(false);
+    const [existingReviewId, setExistingReviewId] = useState<string | null>(null);
+
+    const { getUserReview, addReview, updateReview, error } = useReviews();
+
+    // Check if user has already reviewed this recipe
+    useEffect(() => {
+        const loadUserReview = async () => {
+            const userReview = await getUserReview(recipe.id);
+            if (userReview) {
+                setRating(userReview.rating);
+                setComment(userReview.comment || '');
+                setPhotos(userReview.photos || []);
+                setExistingReviewId(userReview.id);
+            }
+        };
+        loadUserReview();
+    }, [recipe.id]);
 
     const handleRating = (value: number) => {
         setRating(value);
     };
 
-    const handleSubmit = () => {
-        onSubmit({ rating, comment, photos });
+    const handleSubmit = async () => {
+        setSubmitting(true);
+
+        try {
+            if (existingReviewId) {
+                // Update existing review
+                await updateReview(existingReviewId, { rating, comment, photos });
+            } else {
+                // Add new review
+                await addReview(recipe.id, { rating, comment, photos });
+            }
+
+            // Call optional onSubmit callback
+            onSubmit?.({ rating, comment, photos });
+
+            // Go back on success
+            onBack();
+        } catch (err) {
+            console.error('Error submitting review:', err);
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -119,12 +159,28 @@ const ReviewRecipeScreen: React.FC<ReviewRecipeScreenProps> = ({ recipe, onBack,
             </main>
 
             <div className="fixed bottom-0 left-0 right-0 bg-base-100/80 backdrop-blur-lg border-t border-base-200 p-4 max-w-md mx-auto">
+                {error && (
+                    <div className="alert alert-error mb-3 text-sm">
+                        <span className="material-symbols-outlined">error</span>
+                        <span>{error}</span>
+                    </div>
+                )}
                 <button
                     onClick={handleSubmit}
+                    disabled={submitting}
                     className="btn btn-primary w-full h-14 rounded-2xl shadow-lg shadow-primary/20 normal-case text-lg font-bold"
                 >
-                    Post Review
-                    <span className="material-symbols-outlined font-bold">send</span>
+                    {submitting ? (
+                        <>
+                            <LoadingAnimation size={24} />
+                            {existingReviewId ? 'Updating...' : 'Posting...'}
+                        </>
+                    ) : (
+                        <>
+                            {existingReviewId ? 'Update Review' : 'Post Review'}
+                            <span className="material-symbols-outlined font-bold">send</span>
+                        </>
+                    )}
                 </button>
             </div>
         </div>

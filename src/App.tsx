@@ -1,22 +1,10 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, lazy, Suspense } from 'react';
 import { Screen, Recipe } from '@/types';
 import BottomNav from '@/components/BottomNav';
 import QuickActionsOverlay from '@/components/QuickActionsOverlay';
-import HomeScreen from '@/pages/HomeScreen';
-import ExploreScreen from '@/pages/ExploreScreen';
-import RecipeDetailScreen from '@/pages/RecipeDetailScreen';
-import AIGenerateScreen from '@/pages/AIGenerateScreen';
-import SavedRecipesScreen from '@/pages/SavedRecipesScreen';
-import ProfileScreen from '@/pages/ProfileScreen';
-import FilterScreen, { FilterOptions } from '@/pages/FilterScreen';
-import GroceryListScreen from '@/pages/GroceryListScreen';
-import PublishRecipeScreen, { RecipeFormData } from '@/pages/PublishRecipeScreen';
-import AuthScreen from '@/pages/AuthScreen';
-import MyRecipesScreen from '@/pages/MyRecipesScreen';
-import PublicProfileScreen from '@/pages/PublicProfileScreen';
-import ReviewRecipeScreen from '@/pages/ReviewRecipeScreen';
-import CookingModeScreen from '@/pages/CookingModeScreen';
+import type { FilterOptions } from '@/pages/FilterScreen';
+import type { RecipeFormData } from '@/pages/PublishRecipeScreen';
 import LoadingAnimation from '@/components/LoadingAnimation';
 import SplashScreen from '@/components/SplashScreen';
 import { useTheme } from '@/hooks/useTheme';
@@ -25,6 +13,23 @@ import { useFavorites } from '@/hooks/useFavorites';
 import { useGrocery } from '@/hooks/useGrocery';
 import { useAuth } from '@/hooks/useAuth';
 import { AIGenerationProvider } from '@/contexts/AIGenerationContext';
+
+// Lazy load screens for better performance
+const HomeScreen = lazy(() => import('@/pages/HomeScreen'));
+const ExploreScreen = lazy(() => import('@/pages/ExploreScreen'));
+const RecipeDetailScreen = lazy(() => import('@/pages/RecipeDetailScreen'));
+const AIGenerateScreen = lazy(() => import('@/pages/AIGenerateScreen'));
+const SavedRecipesScreen = lazy(() => import('@/pages/SavedRecipesScreen'));
+const ProfileScreen = lazy(() => import('@/pages/ProfileScreen'));
+const FilterScreen = lazy(() => import('@/pages/FilterScreen'));
+const GroceryListScreen = lazy(() => import('@/pages/GroceryListScreen'));
+const PublishRecipeScreen = lazy(() => import('@/pages/PublishRecipeScreen'));
+const AuthScreen = lazy(() => import('@/pages/AuthScreen'));
+const MyRecipesScreen = lazy(() => import('@/pages/MyRecipesScreen'));
+const PublicProfileScreen = lazy(() => import('@/pages/PublicProfileScreen'));
+const ReviewRecipeScreen = lazy(() => import('@/pages/ReviewRecipeScreen'));
+const CookingModeScreen = lazy(() => import('@/pages/CookingModeScreen'));
+const ReelsScreen = lazy(() => import('@/pages/ReelsScreen'));
 
 const App: React.FC = () => {
     const { isDark, toggleTheme } = useTheme();
@@ -366,6 +371,16 @@ const App: React.FC = () => {
                         loading={loading}
                     />
                 );
+            case Screen.REELS:
+                return (
+                    <ReelsScreen
+                        recipes={recipesWithFavorites}
+                        onRecipeClick={(r) => navigateTo(Screen.DETAIL, r)}
+                        onToggleFavorite={handleToggleFavorite}
+                        onBack={() => setCurrentScreen(Screen.HOME)}
+                        onProfileClick={(chefId) => navigateTo(Screen.PUBLIC_PROFILE, undefined, chefId)}
+                    />
+                );
             case Screen.EXPLORE:
                 return (
                     <ExploreScreen
@@ -383,6 +398,7 @@ const App: React.FC = () => {
                 const isTempRecipe = selectedRecipe?.id.startsWith('temp-');
                 return selectedRecipe ? (
                     <RecipeDetailScreen
+                        key={`${selectedRecipe.id}-${selectedRecipe.rating}-${selectedRecipe.reviews}`}
                         recipe={{ ...selectedRecipe, isFavorite: isFavorite(selectedRecipe.id) }}
                         onBack={() => setCurrentScreen(Screen.HOME)}
                         onToggleFavorite={handleToggleFavorite}
@@ -502,9 +518,32 @@ const App: React.FC = () => {
                     <ReviewRecipeScreen
                         recipe={selectedRecipe}
                         onBack={() => setCurrentScreen(Screen.DETAIL)}
-                        onSubmit={(review) => {
+                        onSubmit={async (review) => {
                             console.log('Review submitted:', review);
-                            // In a real app, we'd save this to Supabase
+                            // Refresh the recipe to get updated rating and review count
+                            if (selectedRecipe) {
+                                try {
+                                    const { supabase } = await import('@/lib/supabase');
+                                    const { data, error } = await supabase
+                                        .from('recipes')
+                                        .select('rating, reviews')
+                                        .eq('id', selectedRecipe.id)
+                                        .single();
+
+                                    if (!error && data) {
+                                        const updatedRecipe = {
+                                            ...selectedRecipe,
+                                            rating: data.rating,
+                                            reviews: data.reviews
+                                        };
+                                        setSelectedRecipe(updatedRecipe);
+                                        // Small delay to ensure state update propagates
+                                        await new Promise(resolve => setTimeout(resolve, 100));
+                                    }
+                                } catch (err) {
+                                    console.error('Error refreshing recipe:', err);
+                                }
+                            }
                             setCurrentScreen(Screen.DETAIL);
                         }}
                     />
@@ -523,7 +562,13 @@ const App: React.FC = () => {
     return (
         <AIGenerationProvider>
             <div className={`max-w-md mx-auto ${currentScreen === Screen.LOGIN || currentScreen === Screen.SIGNUP ? '' : 'bg-base-100 text-base-content'} min-h-screen shadow-xl flex flex-col relative overflow-x-hidden ${showBottomNav ? 'pb-20' : ''}`}>
-                {renderScreen()}
+                <Suspense fallback={
+                    <div className="flex items-center justify-center min-h-screen">
+                        <LoadingAnimation size={48} />
+                    </div>
+                }>
+                    {renderScreen()}
+                </Suspense>
                 {showBottomNav && (
                     <BottomNav
                         currentScreen={currentScreen}

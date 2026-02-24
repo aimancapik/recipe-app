@@ -2,7 +2,7 @@
 import { Category, Recipe } from '@/types';
 
 export const CATEGORIES: Category[] = [
-    { id: 'popular', name: 'Popular', icon: 'local_fire_department', image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400' },
+    { id: 'all', name: 'All', icon: 'grid_view', image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400' },
     { id: 'breakfast', name: 'Breakfast', icon: 'sunny', image: 'https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=400' },
     { id: 'dinner', name: 'Dinner', icon: 'restaurant', image: 'https://images.unsplash.com/photo-1559847844-5315695dadae?w=400' },
     { id: 'seafood', name: 'Seafood', icon: 'set_meal', image: 'https://images.unsplash.com/photo-1615141982883-c7ad0e69fd62?w=400' },

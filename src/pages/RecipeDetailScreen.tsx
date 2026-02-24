@@ -3,6 +3,8 @@ import ReactPlayer from 'react-player';
 import LoadingAnimation from '@/components/LoadingAnimation';
 import { Recipe } from '@/types';
 import StepTimer from '@/components/StepTimer';
+import ReviewsSection from '@/components/ReviewsSection';
+import { shareRecipe } from '@/lib/shareHelpers';
 
 interface RecipeDetailScreenProps {
     recipe: Recipe;
@@ -26,6 +28,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
     const [publishing, setPublishing] = useState(false);
     const [chef, setChef] = useState<ChefProfile | null>(null);
     const [viewMediaIndex, setViewMediaIndex] = useState<number | null>(null);
+    const [shareToast, setShareToast] = useState<{ show: boolean; message: string }>({ show: false, message: '' });
     const carouselRef = useRef<HTMLDivElement>(null);
 
     // Handle initial scroll when gallery opens
@@ -70,6 +73,20 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
             console.error('Publish failed', e);
         } finally {
             setPublishing(false);
+        }
+    };
+
+    const handleShare = async () => {
+        const result = await shareRecipe(recipe);
+
+        if (result.success) {
+            if (result.method === 'clipboard') {
+                setShareToast({ show: true, message: 'Link copied to clipboard!' });
+                setTimeout(() => setShareToast({ show: false, message: '' }), 3000);
+            }
+        } else {
+            setShareToast({ show: true, message: 'Failed to share recipe' });
+            setTimeout(() => setShareToast({ show: false, message: '' }), 3000);
         }
     };
 
@@ -137,14 +154,22 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                         <span className="material-symbols-outlined">arrow_back</span>
                     </button>
                     {!onPublish && (
-                        <button
-                            onClick={() => onToggleFavorite(recipe.id)}
-                            className={`btn btn-circle btn-sm glass border-none transition-all active:scale-90 ${recipe.isFavorite ? 'text-red-500' : 'text-white'}`}
-                        >
-                            <span className={`material-symbols-outlined ${recipe.isFavorite ? 'fill-icon scale-110' : ''}`}>
-                                {recipe.isFavorite ? 'heart_check' : 'favorite'}
-                            </span>
-                        </button>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={handleShare}
+                                className="btn btn-circle btn-sm glass text-white border-none transition-all active:scale-90"
+                            >
+                                <span className="material-symbols-outlined">share</span>
+                            </button>
+                            <button
+                                onClick={() => onToggleFavorite(recipe.id)}
+                                className={`btn btn-circle btn-sm glass border-none transition-all active:scale-90 ${recipe.isFavorite ? 'text-red-500' : 'text-white'}`}
+                            >
+                                <span className={`material-symbols-outlined ${recipe.isFavorite ? 'fill-icon scale-110' : ''}`}>
+                                    {recipe.isFavorite ? 'heart_check' : 'favorite'}
+                                </span>
+                            </button>
+                        </div>
                     )}
                 </div>
             </div>
@@ -356,6 +381,13 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                         ))}
                     </div>
                 </div>
+
+                {/* Reviews Section */}
+                {!onPublish && (
+                    <div className="mb-8">
+                        <ReviewsSection recipeId={recipe.id} />
+                    </div>
+                )}
             </div>
 
             {/* Publish Button (Fixed Bottom) */}
@@ -467,6 +499,16 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                             <span className="material-symbols-outlined text-[14px]">swipe</span>
                             Swipe to explore
                         </p>
+                    </div>
+                </div>
+            )}
+
+            {/* Share Toast Notification */}
+            {shareToast.show && (
+                <div className="toast toast-top toast-center z-[200]">
+                    <div className="alert alert-success shadow-lg">
+                        <span className="material-symbols-outlined">check_circle</span>
+                        <span>{shareToast.message}</span>
                     </div>
                 </div>
             )}
