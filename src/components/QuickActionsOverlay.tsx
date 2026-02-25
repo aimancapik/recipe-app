@@ -5,6 +5,7 @@ interface QuickActionsOverlayProps {
     isOpen: boolean;
     onClose: () => void;
     onCreateRecipe: () => void;
+    onAIGenerate: () => void;
     onAddToShoppingList: () => void;
     onPlanMeal?: () => void;
     onModalToggle?: (hidden: boolean) => void;
@@ -14,6 +15,7 @@ const QuickActionsOverlay: React.FC<QuickActionsOverlayProps> = ({
     isOpen,
     onClose,
     onCreateRecipe,
+    onAIGenerate,
     onAddToShoppingList,
     onPlanMeal,
     onModalToggle,
@@ -62,6 +64,21 @@ const QuickActionsOverlay: React.FC<QuickActionsOverlayProps> = ({
                             <p className="text-[#181711]/60 text-xs">Share your chef's secret</p>
                         </div>
                         <span className="material-symbols-outlined text-primary/50 group-hover:text-primary transition-colors">chevron_right</span>
+                    </button>
+
+                    {/* AI Generate Action */}
+                    <button
+                        onClick={() => { onClose(); onAIGenerate(); }}
+                        className="w-full bg-gradient-to-r from-violet-500/10 to-primary/10 hover:from-violet-500/20 hover:to-primary/20 active:scale-[0.98] transition-all p-4 rounded-xl flex items-center gap-4 group border border-violet-500/20"
+                    >
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-primary text-white flex items-center justify-center shadow-lg shadow-violet-500/20 group-hover:scale-110 transition-transform">
+                            <span className="material-symbols-outlined text-2xl">auto_awesome</span>
+                        </div>
+                        <div className="flex-1 text-left">
+                            <h3 className="text-[#181711] font-bold text-lg">AI Magic Chef</h3>
+                            <p className="text-[#181711]/60 text-xs">Generate a recipe with AI</p>
+                        </div>
+                        <span className="material-symbols-outlined text-violet-500/50 group-hover:text-violet-500 transition-colors">chevron_right</span>
                     </button>
 
                     {/* Secondary Actions Grid */}

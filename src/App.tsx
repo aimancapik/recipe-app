@@ -685,6 +685,7 @@ const App: React.FC = () => {
                     isOpen={quickActionsOpen}
                     onClose={() => setQuickActionsOpen(false)}
                     onCreateRecipe={() => requireAuth(() => navigateTo(Screen.PUBLISH), Screen.HOME)}
+                    onAIGenerate={() => navigateTo(Screen.AI_GENERATE)}
                     onAddToShoppingList={() => requireAuth(() => navigateTo(Screen.GROCERY), Screen.HOME)}
                     onModalToggle={setIsNavHidden}
                 />
