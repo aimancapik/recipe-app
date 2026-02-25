@@ -91,19 +91,27 @@ const App: React.FC = () => {
     }, [user, fetchRecipesByUserId]);
 
     // Stable callback for HomeScreen/ExploreScreen refresh — avoids infinite effect loops
-    const handleRefresh = useCallback((search: string, category: string) => {
-        fetchRecipes(false, search, category);
+    const handleRefresh = useCallback((search: string, category: string, feed?: 'forYou' | 'following', followerId?: string) => {
+        fetchRecipes(false, search, category, feed, followerId);
     }, [fetchRecipes]);
 
-    // Fetch full recipe data for all favorite IDs to ensure Saved screen is always populated
-    React.useEffect(() => {
-        refreshFavorites();
-    }, [refreshFavorites]);
+    // Lazily fetch favorites/user-recipes only when navigating to those screens
+    const hasFetchedFavoritesRef = React.useRef(false);
+    const hasFetchedUserRecipesRef = React.useRef(false);
 
-    // Fetch all user-owned recipes to ensure My Recipes screen is always populated
+    // Re-fetch when favoriteIds change (user toggled a favorite)
     React.useEffect(() => {
-        refreshUserRecipes();
-    }, [refreshUserRecipes]);
+        if (hasFetchedFavoritesRef.current) {
+            refreshFavorites();
+        }
+    }, [favoriteIds, refreshFavorites]);
+
+    // Re-fetch when user changes (login/logout)
+    React.useEffect(() => {
+        if (hasFetchedUserRecipesRef.current) {
+            refreshUserRecipes();
+        }
+    }, [user, refreshUserRecipes]);
 
     // Merge favorite status into recipes, and include all fullFavoriteRecipes
     const recipesWithFavorites = [...recipes].map(r => ({
@@ -152,6 +160,16 @@ const App: React.FC = () => {
             setSearchQuery('');
             setInitialCategory(null);
         }
+        // Lazy-load data for screens that need it
+        if ((screen === Screen.SAVED || screen === Screen.PROFILE) && !hasFetchedFavoritesRef.current) {
+            hasFetchedFavoritesRef.current = true;
+            refreshFavorites();
+        }
+        if ((screen === Screen.MY_RECIPES || screen === Screen.PROFILE) && !hasFetchedUserRecipesRef.current) {
+            hasFetchedUserRecipesRef.current = true;
+            refreshUserRecipes();
+        }
+
         setCurrentScreen(screen);
         window.scrollTo(0, 0);
     };
@@ -270,8 +288,7 @@ const App: React.FC = () => {
 
         try {
             await addRecipe(newRecipe);
-            await refreshUserRecipes();
-            await fetchRecipes(); // Refresh the main feed too
+            await Promise.all([refreshUserRecipes(), fetchRecipes()]);
         } catch (err) {
             console.error('Failed to publish recipe:', err);
             throw err; // Re-throw so the UI can handle it
@@ -346,9 +363,7 @@ const App: React.FC = () => {
 
         try {
             await updateRecipe(id, updatedRecipe);
-            await refreshUserRecipes();
-            await refreshFavorites();
-            await fetchRecipes(); // Refresh the main feed
+            await Promise.all([refreshUserRecipes(), refreshFavorites(), fetchRecipes()]);
             setEditingRecipe(null);
         } catch (err) {
             console.error('Failed to update recipe:', err);
@@ -364,8 +379,7 @@ const App: React.FC = () => {
 
         try {
             await addRecipe(recipeData);
-            await refreshUserRecipes();
-            await fetchRecipes();
+            await Promise.all([refreshUserRecipes(), fetchRecipes()]);
             setCurrentScreen(Screen.HOME);
         } catch (e) {
             console.error("Failed to publish AI recipe", e);
@@ -375,9 +389,7 @@ const App: React.FC = () => {
     const handleDeleteRecipe = async (id: string) => {
         try {
             await deleteRecipe(id);
-            await refreshUserRecipes();
-            await refreshFavorites();
-            await fetchRecipes();
+            await Promise.all([refreshUserRecipes(), refreshFavorites(), fetchRecipes()]);
         } catch (err) {
             console.error('Failed to delete recipe:', err);
         }
@@ -428,7 +440,6 @@ const App: React.FC = () => {
                         hasMore={hasMore}
                         loadingMore={loadingMore}
                         loading={loading}
-                        followingIds={followingIds}
                         onLoginClick={() => setCurrentScreen(Screen.LOGIN)}
                         onRefresh={handleRefresh}
                         onPullRefresh={async () => {
@@ -518,8 +529,14 @@ const App: React.FC = () => {
                         favoriteCount={favoriteCount}
                         groceryCount={groceryItems.length}
                         onModalToggle={setIsNavHidden}
-                        onMyRecipes={() => setCurrentScreen(Screen.MY_RECIPES)}
-                        onFavorites={() => setCurrentScreen(Screen.SAVED)}
+                        onMyRecipes={() => {
+                            if (!hasFetchedUserRecipesRef.current) { hasFetchedUserRecipesRef.current = true; refreshUserRecipes(); }
+                            setCurrentScreen(Screen.MY_RECIPES);
+                        }}
+                        onFavorites={() => {
+                            if (!hasFetchedFavoritesRef.current) { hasFetchedFavoritesRef.current = true; refreshFavorites(); }
+                            setCurrentScreen(Screen.SAVED);
+                        }}
                         onGroceryList={() => setCurrentScreen(Screen.GROCERY)}
                     />
                 );
@@ -587,6 +604,7 @@ const App: React.FC = () => {
                         onBack={() => setCurrentScreen(selectedRecipe ? Screen.DETAIL : Screen.HOME)}
                         onRecipeClick={(r) => navigateTo(Screen.DETAIL, r)}
                         toggleFavorite={handleToggleFavorite}
+                        onUserClick={(clickedUserId) => navigateTo(Screen.PUBLIC_PROFILE, undefined, clickedUserId)}
                     />
                 ) : null;
             case Screen.REVIEW:
@@ -650,7 +668,12 @@ const App: React.FC = () => {
                         currentScreen={currentScreen}
                         onNavigate={(screen) => {
                             if (screen === Screen.SAVED || screen === Screen.PROFILE) {
-                                requireAuth(() => setCurrentScreen(screen), currentScreen);
+                                requireAuth(() => {
+                                    if ((screen === Screen.SAVED) && !hasFetchedFavoritesRef.current) { hasFetchedFavoritesRef.current = true; refreshFavorites(); }
+                                    if ((screen === Screen.PROFILE) && !hasFetchedFavoritesRef.current) { hasFetchedFavoritesRef.current = true; refreshFavorites(); }
+                                    if ((screen === Screen.PROFILE) && !hasFetchedUserRecipesRef.current) { hasFetchedUserRecipesRef.current = true; refreshUserRecipes(); }
+                                    setCurrentScreen(screen);
+                                }, currentScreen);
                             } else {
                                 setCurrentScreen(screen);
                             }

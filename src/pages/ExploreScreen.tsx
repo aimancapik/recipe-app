@@ -15,7 +15,7 @@ interface ExploreScreenProps {
     onToggleFavorite: (id: string) => void;
     onOpenFilter: () => void;
     filters: FilterOptions;
-    onRefresh: (search: string, category: string) => void;
+    onRefresh: (search: string, category: string, feed?: 'forYou' | 'following', followerId?: string) => void;
 }
 
 const ExploreScreen: React.FC<ExploreScreenProps> = ({

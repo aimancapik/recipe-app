@@ -113,6 +113,12 @@ create index if not exists idx_follows_follower on follows(follower_id);
 create index if not exists idx_follows_following on follows(following_id);
 create index if not exists idx_grocery_user on grocery_items(user_id);
 
+-- Performance indexes for common query patterns
+create index if not exists idx_recipes_created_at on recipes(created_at desc);
+create index if not exists idx_recipes_status_created on recipes(status, created_at desc);
+create index if not exists idx_recipes_category on recipes(category);
+create index if not exists idx_favorites_recipe on favorites(recipe_id);
+
 -- ============================================================
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================================
@@ -210,15 +216,14 @@ begin
 end;
 $$;
 
--- 5. Paginated Recipes with embedded data
+-- 5. Paginated Recipes — LIGHTWEIGHT (no ingredients/directions for feed performance)
+-- Full recipe data should be fetched on-demand via get_recipes_by_ids
 create or replace function get_paginated_recipes(p_offset int, p_page_size int)
-returns table (id uuid, title text, image text, prep_time text, rating numeric, reviews integer, serves text, kcal text, level text, category text, user_id uuid, status text, images text[], ingredients jsonb, directions jsonb)
+returns table (id uuid, title text, image text, prep_time text, rating numeric, reviews integer, serves text, kcal text, level text, category text, user_id uuid, status text, description text, images text[])
 language plpgsql security definer as $$
 begin
   return query
-  select r.id, r.title, r.image, r.prep_time, r.rating, r.reviews, r.serves, r.kcal, r.level, r.category, r.user_id, r.status, r.images,
-    coalesce((select jsonb_agg(jsonb_build_object('name', i.name, 'sort_order', i.sort_order)) from ingredients i where i.recipe_id = r.id), '[]'::jsonb),
-    coalesce((select jsonb_agg(jsonb_build_object('step', d.step, 'title', d.title, 'description', d.description, 'image', d.image, 'media_type', d.media_type, 'timer', d.timer, 'sort_order', d.sort_order)) from directions d where d.recipe_id = r.id), '[]'::jsonb)
+  select r.id, r.title, r.image, r.prep_time, r.rating, r.reviews, r.serves, r.kcal, r.level, r.category, r.user_id, r.status, r.description, r.images
   from recipes r where r.status = 'published' order by r.created_at desc limit p_page_size offset p_offset;
 end;
 $$;

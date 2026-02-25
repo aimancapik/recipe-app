@@ -16,59 +16,80 @@ interface UserProfile {
   bio?: string;
 }
 
+const PAGE_SIZE = 50;
+
 const FollowersModal: React.FC<FollowersModalProps> = ({ userId, type, isOpen, onClose, onUserClick }) => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const fetchUsers = async (offset = 0) => {
+    if (offset === 0) setLoading(true);
+    else setLoadingMore(true);
+
+    try {
+      if (type === 'followers') {
+        const { data, error } = await supabase
+          .from('follows')
+          .select(`
+            follower_id,
+            follower:profiles!follower_id (
+              id,
+              full_name,
+              avatar_url,
+              bio
+            )
+          `)
+          .eq('following_id', userId)
+          .range(offset, offset + PAGE_SIZE - 1);
+
+        if (error) throw error;
+
+        const filteredUsers = data?.map((item: any) => {
+          const profile = item.follower;
+          return Array.isArray(profile) ? profile[0] : profile;
+        }).filter(Boolean) || [];
+
+        setUsers(prev => offset === 0 ? filteredUsers : [...prev, ...filteredUsers]);
+        setHasMore(filteredUsers.length === PAGE_SIZE);
+      } else {
+        const { data, error } = await supabase
+          .from('follows')
+          .select(`
+            following_id,
+            following:profiles!following_id (
+              id,
+              full_name,
+              avatar_url,
+              bio
+            )
+          `)
+          .eq('follower_id', userId)
+          .range(offset, offset + PAGE_SIZE - 1);
+
+        if (error) throw error;
+
+        const filteredUsers = data?.map((item: any) => {
+          const profile = item.following;
+          return Array.isArray(profile) ? profile[0] : profile;
+        }).filter(Boolean) || [];
+
+        setUsers(prev => offset === 0 ? filteredUsers : [...prev, ...filteredUsers]);
+        setHasMore(filteredUsers.length === PAGE_SIZE);
+      }
+    } catch (err) {
+      console.error(`Error fetching ${type}:`, err);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  };
 
   useEffect(() => {
     if (!isOpen) return;
-
-    const fetchUsers = async () => {
-      setLoading(true);
-      try {
-        if (type === 'followers') {
-          // Get users who follow this user
-          const { data, error } = await supabase
-            .from('follows')
-            .select(`
-              follower_id,
-              profiles:follower_id (
-                id,
-                full_name,
-                avatar_url,
-                bio
-              )
-            `)
-            .eq('following_id', userId);
-
-          if (error) throw error;
-          setUsers(data?.map((item: any) => item.profiles).filter(Boolean) || []);
-        } else {
-          // Get users this user follows
-          const { data, error } = await supabase
-            .from('follows')
-            .select(`
-              following_id,
-              profiles:following_id (
-                id,
-                full_name,
-                avatar_url,
-                bio
-              )
-            `)
-            .eq('follower_id', userId);
-
-          if (error) throw error;
-          setUsers(data?.map((item: any) => item.profiles).filter(Boolean) || []);
-        }
-      } catch (err) {
-        console.error(`Error fetching ${type}:`, err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUsers();
+    setUsers([]);
+    fetchUsers(0);
   }, [userId, type, isOpen]);
 
   if (!isOpen) return null;
@@ -160,6 +181,15 @@ const FollowersModal: React.FC<FollowersModalProps> = ({ userId, type, isOpen, o
                   </span>
                 </div>
               ))}
+              {hasMore && (
+                <button
+                  onClick={() => fetchUsers(users.length)}
+                  disabled={loadingMore}
+                  className="btn btn-ghost btn-sm w-full mt-2"
+                >
+                  {loadingMore ? <span className="loading loading-spinner loading-sm"></span> : 'Load more'}
+                </button>
+              )}
             </div>
           )}
         </div>

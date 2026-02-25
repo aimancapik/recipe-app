@@ -13,6 +13,7 @@ interface PublicProfileScreenProps {
     onBack: () => void;
     onRecipeClick: (recipe: Recipe) => void;
     toggleFavorite: (id: string) => void;
+    onUserClick: (userId: string) => void;
 }
 
 interface Profile {
@@ -29,7 +30,7 @@ interface SocialStats {
     recipes: number;
 }
 
-const PublicProfileScreen: React.FC<PublicProfileScreenProps> = ({ userId, onBack, onRecipeClick, toggleFavorite }) => {
+const PublicProfileScreen: React.FC<PublicProfileScreenProps> = ({ userId, onBack, onRecipeClick, toggleFavorite, onUserClick }) => {
     const { user: currentUser } = useAuth();
     const [profile, setProfile] = useState<Profile | null>(null);
     const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -44,44 +45,30 @@ const PublicProfileScreen: React.FC<PublicProfileScreenProps> = ({ userId, onBac
         const loadProfileData = async () => {
             setLoading(true);
             try {
-                // 1. Fetch Profile
-                const { data: profileData, error: profileError } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', userId)
-                    .single();
+                // Fetch all profile data in parallel instead of sequentially
+                const [profileResult, userRecipes, followersResult, followingResult, followCheckResult] = await Promise.all([
+                    supabase.from('profiles').select('*').eq('id', userId).single(),
+                    fetchRecipesByUserId(userId),
+                    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId),
+                    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', userId),
+                    currentUser
+                        ? supabase.from('follows').select('*').eq('follower_id', currentUser.id).eq('following_id', userId).maybeSingle()
+                        : Promise.resolve({ data: null }),
+                ]);
 
-                if (profileError) throw profileError;
-                setProfile(profileData);
+                if (profileResult.error) throw profileResult.error;
+                setProfile(profileResult.data);
 
-                // 2. Fetch Recipes
-                const userRecipes = await fetchRecipesByUserId(userId);
                 const publishedRecipes = userRecipes.filter(r => r.status === 'published');
                 setRecipes(publishedRecipes);
 
-                // 3. Fetch Social Stats (Followers & Following)
-                const [followersCount, followingCount] = await Promise.all([
-                    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId),
-                    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', userId)
-                ]);
-
                 setSocialStats({
-                    followers: followersCount.count || 0,
-                    following: followingCount.count || 0,
+                    followers: followersResult.count || 0,
+                    following: followingResult.count || 0,
                     recipes: publishedRecipes.length
                 });
 
-                // 4. Check if current user follows this chef
-                if (currentUser) {
-                    const { data: followData } = await supabase
-                        .from('follows')
-                        .select('*')
-                        .eq('follower_id', currentUser.id)
-                        .eq('following_id', userId)
-                        .maybeSingle();
-
-                    setIsFollowing(!!followData);
-                }
+                setIsFollowing(!!followCheckResult.data);
             } catch (err) {
                 console.error('Error loading public profile:', err);
             } finally {
@@ -303,11 +290,7 @@ const PublicProfileScreen: React.FC<PublicProfileScreenProps> = ({ userId, onBac
                 type={followersModal.type}
                 isOpen={followersModal.isOpen}
                 onClose={() => setFollowersModal({ ...followersModal, isOpen: false })}
-                onUserClick={(clickedUserId) => {
-                    // Navigate to that user's profile
-                    // Note: This would need to be passed as a prop or handled by parent component
-                    console.log('Navigate to user:', clickedUserId);
-                }}
+                onUserClick={onUserClick}
             />
         </div>
     );

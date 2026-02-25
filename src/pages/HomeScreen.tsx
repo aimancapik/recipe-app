@@ -22,9 +22,8 @@ interface HomeScreenProps {
     hasMore: boolean;
     loadingMore: boolean;
     loading: boolean;
-    followingIds?: Set<string>;
     onLoginClick: () => void;
-    onRefresh: (search: string, category: string) => void;
+    onRefresh: (search: string, category: string, feed?: 'forYou' | 'following', followerId?: string) => void;
     onPullRefresh: () => Promise<void>;
 }
 
@@ -41,7 +40,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     hasMore,
     loadingMore,
     loading,
-    followingIds = new Set(),
     onLoginClick,
     onRefresh,
     onPullRefresh
@@ -62,22 +60,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
             const query = searchValue.trim();
             // Category 'all' maps to empty string for the RPC
             const category = activeCategory === 'all' ? '' : activeCategory;
-            onRefresh(query, category);
+            onRefresh(query, category, feedType, user?.id);
         }, 500); // 500ms debounce
 
         return () => clearTimeout(timer);
-    }, [searchValue, activeCategory, onRefresh]);
-
-    const filteredRecipes = recipes.filter(r => {
-        // Filter by feed type (For You vs Following)
-        if (feedType === 'following') {
-            // Only show recipes from chefs the user follows
-            if (!r.userId || !followingIds.has(r.userId)) {
-                return false;
-            }
-        }
-        return true;
-    });
+    }, [searchValue, activeCategory, feedType, user?.id, onRefresh]);
 
     // Intersection Observer for Infinite Scroll
     const observerTarget = React.useRef(null);
@@ -109,6 +96,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         return () => observer.disconnect();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Set up once — callback reads fresh values from refs
+
+    // The recipes are now filtered at the database level when feedType is 'following'
+    const filteredRecipes = recipes;
 
     const inputRef = React.useRef<HTMLInputElement>(null);
 
