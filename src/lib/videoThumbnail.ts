@@ -269,3 +269,51 @@ export async function isValidVideoFile(file: File): Promise<boolean> {
     return false;
   }
 }
+/**
+ * Generate a thumbnail from a video URL at specified timestamp
+ */
+export async function generateVideoThumbnailFromUrl(
+  url: string,
+  seekTo: number = 1.0,
+  format: 'jpeg' | 'webp' = 'jpeg',
+  quality: number = 0.8
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    if (!ctx) {
+      reject(new Error('Failed to get canvas context'));
+      return;
+    }
+
+    video.crossOrigin = 'anonymous';
+    video.preload = 'metadata';
+    video.muted = true;
+    video.playsInline = true;
+
+    video.onloadedmetadata = () => {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      video.currentTime = Math.min(seekTo, video.duration);
+    };
+
+    video.onseeked = () => {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL(
+        format === 'webp' ? 'image/webp' : 'image/jpeg',
+        quality
+      );
+      video.remove();
+      resolve(dataUrl);
+    };
+
+    video.onerror = () => {
+      video.remove();
+      reject(new Error('Failed to load video from URL'));
+    };
+
+    video.src = url;
+  });
+}

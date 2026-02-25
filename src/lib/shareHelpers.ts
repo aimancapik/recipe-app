@@ -1,22 +1,54 @@
 import { Recipe } from '@/types';
+import { isVideoUrl } from '@/utils/mediaHelpers';
+import { generateVideoThumbnailFromUrl } from '@/lib/videoThumbnail';
 
 /**
  * Share a recipe using the Web Share API (if available) or fallback to copy link
  */
 export async function shareRecipe(recipe: Recipe): Promise<{ success: boolean; method: 'native' | 'clipboard' | 'none' }> {
-  const shareData = {
+  const url = getRecipeUrl(recipe.id);
+  const shareData: ShareData = {
     title: recipe.title,
     text: `Check out this delicious recipe: ${recipe.title}${recipe.description ? ` - ${recipe.description}` : ''}`,
-    url: getRecipeUrl(recipe.id),
+    url: url,
   };
 
-  // Try native Web Share API first (mobile devices)
+  // Try to include image/thumbnail if available
+  let imageFile: File | null = null;
+  const coverUrl = recipe.image;
+
+  if (coverUrl) {
+    try {
+      if (isVideoUrl(coverUrl)) {
+        // Handle Video Thumbnail
+        const youtubeId = getYouTubeId(coverUrl);
+        const thumbnailUrl = youtubeId
+          ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`
+          : await generateVideoThumbnailFromUrl(coverUrl).catch(() => null);
+
+        if (thumbnailUrl) {
+          imageFile = await fetchUrlAsFile(thumbnailUrl, 'recipe-thumbnail.jpg');
+        }
+      } else {
+        // Handle direct image
+        imageFile = await fetchUrlAsFile(coverUrl, 'recipe-image.jpg');
+      }
+    } catch (err) {
+      console.warn('Failed to prepare share image:', err);
+    }
+  }
+
+  // Add files to shareData if supported
+  if (imageFile && navigator.canShare && navigator.canShare({ files: [imageFile] })) {
+    shareData.files = [imageFile];
+  }
+
+  // Try native Web Share API first
   if (navigator.share && canShareNatively(shareData)) {
     try {
       await navigator.share(shareData);
       return { success: true, method: 'native' };
     } catch (error) {
-      // User cancelled or error occurred
       if ((error as Error).name === 'AbortError') {
         return { success: false, method: 'none' };
       }
@@ -24,14 +56,39 @@ export async function shareRecipe(recipe: Recipe): Promise<{ success: boolean; m
     }
   }
 
-  // Fallback to copying link to clipboard
+  // Fallback to clipboard
   try {
-    await copyToClipboard(shareData.url);
-    return { success: true, method: 'clipboard' };
+    const success = await copyToClipboard(url);
+    return { success, method: success ? 'clipboard' : 'none' };
   } catch (error) {
     console.error('Error copying to clipboard:', error);
     return { success: false, method: 'none' };
   }
+}
+
+/**
+ * Fetch a URL and convert it to a File object
+ */
+async function fetchUrlAsFile(url: string, fileName: string): Promise<File | null> {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const extension = blob.type.split('/')[1] || 'jpg';
+    const finalFileName = fileName.endsWith(`.${extension}`) ? fileName : `${fileName.split('.')[0]}.${extension}`;
+    return new File([blob], finalFileName, { type: blob.type });
+  } catch (err) {
+    console.error('fetchUrlAsFile failed:', err);
+    return null;
+  }
+}
+
+/**
+ * Extract YouTube ID from URL
+ */
+function getYouTubeId(url: string): string | null {
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
 }
 
 /**
