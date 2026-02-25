@@ -31,6 +31,8 @@ const PublicProfileScreen = lazy(() => import('@/pages/PublicProfileScreen'));
 const ReviewRecipeScreen = lazy(() => import('@/pages/ReviewRecipeScreen'));
 const CookingModeScreen = lazy(() => import('@/pages/CookingModeScreen'));
 const ReelsScreen = lazy(() => import('@/pages/ReelsScreen'));
+const OnboardingScreen = lazy(() => import('@/pages/OnboardingScreen'));
+const NotificationScreen = lazy(() => import('@/pages/NotificationScreen'));
 
 const App: React.FC = () => {
     const { isDark, toggleTheme } = useTheme();
@@ -68,6 +70,15 @@ const App: React.FC = () => {
     const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
     const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
     const [currentChefId, setCurrentChefId] = useState<string | null>(null);
+
+    const [showOnboarding, setShowOnboarding] = useState(() => {
+        return localStorage.getItem('recipe_app_onboarded') !== 'true';
+    });
+
+    const completeOnboarding = () => {
+        localStorage.setItem('recipe_app_onboarded', 'true');
+        setShowOnboarding(false);
+    };
     const [fullFavoriteRecipes, setFullFavoriteRecipes] = useState<Recipe[]>([]);
     const [fullUserRecipes, setFullUserRecipes] = useState<Recipe[]>([]);
 
@@ -91,8 +102,8 @@ const App: React.FC = () => {
     }, [user, fetchRecipesByUserId]);
 
     // Stable callback for HomeScreen/ExploreScreen refresh — avoids infinite effect loops
-    const handleRefresh = useCallback((search: string, category: string, feed?: 'forYou' | 'following', followerId?: string) => {
-        fetchRecipes(false, search, category, feed, followerId);
+    const handleRefresh = useCallback((search: string, category: string, feed?: 'forYou' | 'following', followerId?: string, ingredients?: string[]) => {
+        fetchRecipes(false, search, category, feed, followerId, ingredients || []);
     }, [fetchRecipes]);
 
     // Lazily fetch favorites/user-recipes only when navigating to those screens
@@ -433,6 +444,7 @@ const App: React.FC = () => {
                         onToggleFavorite={handleToggleFavorite}
                         onSeeAll={handleSeeAll}
                         onOpenGrocery={() => requireAuth(() => navigateTo(Screen.GROCERY), Screen.HOME)}
+                        onOpenNotifications={() => requireAuth(() => navigateTo(Screen.NOTIFICATION), Screen.HOME)}
                         isDark={isDark}
                         onToggleTheme={toggleTheme}
                         user={user}
@@ -445,6 +457,25 @@ const App: React.FC = () => {
                         onPullRefresh={async () => {
                             await fetchRecipes(false);
                         }}
+                    />
+                );
+            case Screen.NOTIFICATION:
+                return (
+                    <NotificationScreen
+                        onBack={() => setCurrentScreen(Screen.HOME)}
+                        onRecipeClick={async (recipeId) => {
+                            try {
+                                const fetched = await fetchRecipesByIds([recipeId]);
+                                if (fetched.length > 0) {
+                                    setSelectedRecipe(fetched[0]);
+                                    setCurrentScreen(Screen.DETAIL);
+                                    window.scrollTo(0, 0);
+                                }
+                            } catch (err) {
+                                console.error('Error opening recipe from notification:', err);
+                            }
+                        }}
+                        onProfileClick={(chefId) => navigateTo(Screen.PUBLIC_PROFILE, undefined, chefId)}
                     />
                 );
             case Screen.REELS:
@@ -689,6 +720,9 @@ const App: React.FC = () => {
                     onAddToShoppingList={() => requireAuth(() => navigateTo(Screen.GROCERY), Screen.HOME)}
                     onModalToggle={setIsNavHidden}
                 />
+                <Suspense fallback={null}>
+                    {showOnboarding && <OnboardingScreen onComplete={completeOnboarding} />}
+                </Suspense>
             </div>
         </AIGenerationProvider>
     );

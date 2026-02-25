@@ -230,3 +230,22 @@ a:focus-visible,
     transition-duration: 0.01ms !important;
   }
 }
+
+@keyframes favorite-burst {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.4); filter: brightness(1.2); }
+  100% { transform: scale(1); }
+}
+
+.animate-favorite {
+  animation: favorite-burst 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

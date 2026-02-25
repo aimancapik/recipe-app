@@ -15,7 +15,7 @@ interface ExploreScreenProps {
     onToggleFavorite: (id: string) => void;
     onOpenFilter: () => void;
     filters: FilterOptions;
-    onRefresh: (search: string, category: string, feed?: 'forYou' | 'following', followerId?: string) => void;
+    onRefresh: (search: string, category: string, feed?: 'forYou' | 'following', followerId?: string, ingredients?: string[]) => void;
 }
 
 const ExploreScreen: React.FC<ExploreScreenProps> = ({
@@ -31,15 +31,18 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
 }) => {
     const [search, setSearch] = useState(initialSearch);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategory || null);
+    const [ingredients, setIngredients] = useState<string[]>([]);
+    const [ingredientInput, setIngredientInput] = useState('');
 
     // Handle server-side filtering with debouncing
     useEffect(() => {
         const timer = setTimeout(() => {
-            onRefresh(search.trim(), selectedCategory || '');
+            onRefresh(search.trim(), selectedCategory || '', 'forYou', undefined, ingredients);
         }, 500); // 500ms debounce
 
         return () => clearTimeout(timer);
-    }, [search, selectedCategory, onRefresh]);
+    }, [search, selectedCategory, ingredients, onRefresh]);
+
     const [history, setHistory] = useState<string[]>(() => {
         const saved = localStorage.getItem('recipe_search_history');
         return saved ? JSON.parse(saved) : ['Avocado Toast', 'Quick Pasta', 'Gluten-free pancakes', 'Chicken Curry'];
@@ -119,7 +122,7 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
         <div className="flex flex-col min-h-screen bg-base-200">
             <div className="sticky top-0 z-10 bg-base-200/95 backdrop-blur-md px-4 pt-6 pb-4">
                 <div className="flex items-center justify-between mb-4">
-                    <h1 className="text-2xl font-bold tracking-tight text-base-content">Explore</h1>
+                    <h1 className="text-4xl font-black tracking-tight bg-gradient-to-r from-primary to-orange-400 bg-clip-text text-transparent pb-1">Explore</h1>
                     <button
                         onClick={onAIGenerate}
                         className="btn btn-primary btn-circle btn-sm shadow-lg animate-pulse"
@@ -150,6 +153,47 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
                         )}
                     </button>
                 </form>
+
+                <div className="mt-3">
+                    <form
+                        className="flex items-center gap-2 mb-2"
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            if (ingredientInput.trim() && !ingredients.includes(ingredientInput.trim().toLowerCase())) {
+                                setIngredients([...ingredients, ingredientInput.trim().toLowerCase()]);
+                                setIngredientInput('');
+                            }
+                        }}
+                    >
+                        <span className="text-xs font-bold text-base-content/60 uppercase tracking-wider">Pantry Match</span>
+                        <input
+                            type="text"
+                            placeholder="Add ingredient (e.g. egg, milk)"
+                            className="input input-sm input-bordered flex-1 rounded-full text-sm"
+                            value={ingredientInput}
+                            onChange={(e) => setIngredientInput(e.target.value)}
+                        />
+                        <button type="submit" className="btn btn-sm btn-circle btn-primary shadow-sm" disabled={!ingredientInput.trim()}>
+                            <span className="material-symbols-outlined text-[16px]">add</span>
+                        </button>
+                    </form>
+                    {ingredients.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                            {ingredients.map(ing => (
+                                <div key={ing} className="badge badge-primary gap-1 pl-3 pr-1 py-3 text-xs font-medium shadow-sm animate-fade-in font-bold">
+                                    {ing}
+                                    <button
+                                        type="button"
+                                        onClick={() => setIngredients(ingredients.filter(i => i !== ing))}
+                                        className="hover:scale-110 active:scale-95 transition-all text-primary-content bg-primary-focus rounded-full flex items-center justify-center p-0.5"
+                                    >
+                                        <span className="material-symbols-outlined text-[12px]">close</span>
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
 
                 {showSearchHint && (
                     <p className="text-[10px] font-bold text-primary mt-2 animate-pulse uppercase tracking-wider">
@@ -242,12 +286,23 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
                                 showCategory={true}
                             />
                         ) : (
-                            <div className="flex flex-col items-center justify-center py-20 text-base-content/40">
-                                <span className="material-symbols-outlined text-6xl mb-4">search_off</span>
-                                <p className="text-lg font-medium">No matches for your selection.</p>
-                                <p className="text-sm">Try adjusting your search or category.</p>
-                                <button onClick={handleClearFilters} className="btn btn-primary btn-sm mt-6">
-                                    Clear all filters
+                            <div className="flex flex-col items-center justify-center py-20 text-base-content/40 animate-fade-in">
+                                <div className="relative w-24 h-24 mb-6 flex items-center justify-center">
+                                    <div className="absolute inset-0 bg-base-200/50 rounded-full animate-ping opacity-20" style={{ animationDuration: '3s' }}></div>
+                                    <div className="absolute inset-2 bg-base-200 rounded-full animate-pulse-soft"></div>
+                                    <div className="absolute inset-4 bg-base-300 rounded-full flex items-center justify-center shadow-inner">
+                                        <span className="material-symbols-outlined text-4xl text-base-content/40 relative z-10">search_off</span>
+                                    </div>
+                                </div>
+                                <p className="text-xl font-bold text-base-content/70 mb-2">No recipes found</p>
+                                <p className="text-sm text-center px-8 text-base-content/50 leading-relaxed mb-6 max-w-xs">
+                                    Try adjusting your filters or search term to discover more delicious recipes.
+                                </p>
+                                <button
+                                    onClick={handleClearFilters}
+                                    className="btn btn-outline btn-primary rounded-xl h-10 px-6 font-semibold"
+                                >
+                                    Reset Search & Filters
                                 </button>
                             </div>
                         )}

@@ -33,6 +33,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onClick, onToggleFavori
     const [chef, setChef] = useState<ChefProfile | null>(null);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const [imgError, setImgError] = useState(false);
+    const [isAnimatingFavorite, setIsAnimatingFavorite] = useState(false);
 
     const handleUpdateStatus = async (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -125,12 +126,16 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onClick, onToggleFavori
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
+                        if (!recipe.isFavorite) {
+                            setIsAnimatingFavorite(true);
+                            setTimeout(() => setIsAnimatingFavorite(false), 400);
+                        }
                         onToggleFavorite?.(recipe.id);
                     }}
                     className={`absolute top-2.5 right-2.5 size-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all active:scale-90 ${recipe.isFavorite
                         ? 'bg-red-500/90 text-white shadow-lg shadow-red-500/30'
                         : 'bg-black/30 text-white hover:bg-black/50'
-                        }`}
+                        } ${isAnimatingFavorite ? 'animate-favorite' : ''}`}
                 >
                     <span className={`material-symbols-outlined text-[18px] transition-all ${recipe.isFavorite ? 'fill-icon scale-110' : ''}`}>
                         {recipe.isFavorite ? 'favorite' : 'favorite_border'}
@@ -207,8 +212,8 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onClick, onToggleFavori
                                 onClick={handleUpdateStatus}
                                 disabled={isUpdatingStatus}
                                 className={`btn btn-sm btn-square rounded-xl transition-all border-none shadow-sm ${isUpdatingStatus
-                                        ? 'bg-base-300 pointer-events-none'
-                                        : 'bg-base-200/50 text-base-content/70 hover:bg-warning hover:text-white'
+                                    ? 'bg-base-300 pointer-events-none'
+                                    : 'bg-base-200/50 text-base-content/70 hover:bg-warning hover:text-white'
                                     }`}
                                 title={recipe.status === 'draft' ? 'Publish Recipe' : 'Set to Draft'}
                             >

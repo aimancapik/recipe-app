@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Recipe } from '@/types';
+import { supabase } from '@/lib/supabase';
 
 interface ReelsScreenProps {
   recipes: Recipe[];
@@ -18,6 +19,8 @@ const ReelsScreen: React.FC<ReelsScreenProps> = ({
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [chefProfiles, setChefProfiles] = useState<Record<string, { full_name: string; avatar_url: string }>>({});
+
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number>(0);
   const touchEndY = useRef<number>(0);
@@ -25,26 +28,77 @@ const ReelsScreen: React.FC<ReelsScreenProps> = ({
 
   // Filter recipes that have video content (either video cover or video in first direction step)
   const videoRecipes = recipes.filter(recipe => {
-    const hasVideoImage = recipe.image?.includes('.mp4') || recipe.image?.includes('.webm') ||
-                         recipe.image?.includes('.mov') || recipe.image?.includes('youtube') ||
-                         recipe.image?.includes('vimeo');
-    const hasVideoInSteps = recipe.directions?.some(dir => dir.mediaType === 'video');
-    return hasVideoImage || hasVideoInSteps;
+    const isVideo = (url: string | undefined) => {
+      if (!url) return false;
+      const lowerUrl = url.toLowerCase();
+      return lowerUrl.includes('.mp4') ||
+        lowerUrl.includes('.webm') ||
+        lowerUrl.includes('.mov') ||
+        lowerUrl.includes('youtube') ||
+        lowerUrl.includes('vimeo') ||
+        lowerUrl.includes('video/') || // For data URIs e.g., data:video/mp4
+        // Supabase storage URLs for videos often contain content type headers or we can guess by presence of video keyword
+        lowerUrl.includes('video%2F'); // URL encoded contentType
+    };
+
+    const hasVideoPrimary = isVideo(recipe.image);
+    const hasVideoInGallery = recipe.images?.some(img => isVideo(img)) || false;
+    const hasVideoInSteps = recipe.directions?.some(dir => dir.mediaType === 'video') || false;
+
+    return hasVideoPrimary || hasVideoInGallery || hasVideoInSteps;
   });
 
   const currentRecipe = videoRecipes[currentIndex];
 
   // Get video URL from recipe
   const getVideoUrl = (recipe: Recipe): string => {
-    // Check if main image is a video
-    const imageIsVideo = recipe.image?.includes('.mp4') || recipe.image?.includes('.webm') ||
-                        recipe.image?.includes('.mov');
-    if (imageIsVideo) return recipe.image;
+    const isVideo = (url: string | undefined) => {
+      if (!url) return false;
+      const lowerUrl = url.toLowerCase();
+      return lowerUrl.includes('.mp4') ||
+        lowerUrl.includes('.webm') ||
+        lowerUrl.includes('.mov') ||
+        lowerUrl.includes('video/') ||
+        lowerUrl.includes('video%2F');
+    };
 
-    // Otherwise get video from first direction with video
+    // Check main image
+    if (isVideo(recipe.image)) return recipe.image;
+
+    // Check gallery images
+    const galleryVideo = recipe.images?.find(img => isVideo(img));
+    if (galleryVideo) return galleryVideo;
+
+    // Check steps
     const videoStep = recipe.directions?.find(dir => dir.mediaType === 'video');
     return videoStep?.image || recipe.image;
   };
+
+  // Fetch chef profile when current recipe changes
+  useEffect(() => {
+    if (!currentRecipe?.userId || chefProfiles[currentRecipe.userId]) return;
+
+    const fetchProfile = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('full_name, avatar_url')
+          .eq('id', currentRecipe.userId)
+          .single();
+
+        if (data && !error) {
+          setChefProfiles(prev => ({
+            ...prev,
+            [currentRecipe.userId!]: data
+          }));
+        }
+      } catch (err) {
+        console.error('Error fetching chef profile config', err);
+      }
+    };
+
+    fetchProfile();
+  }, [currentRecipe?.userId]);
 
   // Handle swipe navigation
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -172,26 +226,39 @@ const ReelsScreen: React.FC<ReelsScreenProps> = ({
           onClick={togglePlayPause}
         >
           {currentRecipe && (
-            getVideoUrl(currentRecipe).includes('.mp4') ||
-            getVideoUrl(currentRecipe).includes('.webm') ||
-            getVideoUrl(currentRecipe).includes('.mov') ? (
-              <video
-                ref={(el) => el && videoRefs.current.set(currentIndex, el)}
-                src={getVideoUrl(currentRecipe)}
-                className="h-full w-full object-contain"
-                loop
-                playsInline
-                muted={false}
-                autoPlay
-              />
-            ) : (
-              // Fallback to image if video fails
-              <img
-                src={currentRecipe.image}
-                alt={currentRecipe.title}
-                className="h-full w-full object-cover"
-              />
-            )
+            (() => {
+              const url = getVideoUrl(currentRecipe);
+              const lowerUrl = url?.toLowerCase() || '';
+              const isDefinitelyVideo = lowerUrl.includes('.mp4') ||
+                lowerUrl.includes('.webm') ||
+                lowerUrl.includes('.mov') ||
+                lowerUrl.includes('video/') ||
+                lowerUrl.includes('video%2F') ||
+                currentRecipe.directions?.some(d => d.mediaType === 'video' && d.image === url);
+
+              if (isDefinitelyVideo) {
+                return (
+                  <video
+                    ref={(el) => { if (el) videoRefs.current.set(currentIndex, el); }}
+                    src={url}
+                    className="h-full w-full object-contain"
+                    loop
+                    playsInline
+                    muted={false}
+                    autoPlay
+                  />
+                );
+              }
+
+              // Fallback to image if video fails or is not a recognized video
+              return (
+                <img
+                  src={currentRecipe.image}
+                  alt={currentRecipe.title}
+                  className="h-full w-full object-cover"
+                />
+              );
+            })()
           )}
         </div>
 
@@ -251,16 +318,16 @@ const ReelsScreen: React.FC<ReelsScreenProps> = ({
             </span>
           </button>
 
-          {/* Save to Collection */}
+          {/* Save to Collection (Placeholder, currently no prop passed for this on ReelsScreen, can implement a toast or real collection logic) */}
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onToggleFavorite(currentRecipe.id);
+              alert("Save to collection coming soon to Reels!");
             }}
             className="flex flex-col items-center gap-1"
           >
             <div className="btn btn-circle btn-lg bg-base-content/20 border-none hover:bg-base-content/30 backdrop-blur-sm">
-              <span className={`material-symbols-outlined text-3xl ${currentRecipe.isFavorite ? 'fill-1 text-primary' : 'text-white'}`}>
+              <span className={`material-symbols-outlined text-3xl text-white`}>
                 bookmark
               </span>
             </div>
@@ -291,22 +358,29 @@ const ReelsScreen: React.FC<ReelsScreenProps> = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onProfileClick?.(currentRecipe.userId);
+                onProfileClick?.(currentRecipe.userId!);
               }}
               className="flex items-center gap-3 mb-4"
             >
               <div className="avatar">
-                <div className="w-10 h-10 rounded-full bg-base-200">
-                  <span className="material-symbols-outlined text-2xl">
-                    person
-                  </span>
+                <div className="w-10 h-10 rounded-full bg-base-200 overflow-hidden flex items-center justify-center">
+                  {chefProfiles[currentRecipe.userId]?.avatar_url ? (
+                    <img src={chefProfiles[currentRecipe.userId].avatar_url} alt="Chef" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="material-symbols-outlined text-2xl text-base-content/50">
+                      person
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="text-left">
-                <p className="text-white font-bold text-sm">Chef Name</p>
-                <p className="text-white/60 text-xs">@chef_username</p>
+                <p className="text-white font-bold text-sm drop-shadow-md">
+                  {chefProfiles[currentRecipe.userId]?.full_name || 'Chef'}
+                </p>
+                <p className="text-white/80 text-xs drop-shadow-md">
+                  @{chefProfiles[currentRecipe.userId]?.full_name?.toLowerCase().replace(/\s+/g, '_') || 'chef'}
+                </p>
               </div>
-              <button className="btn btn-primary btn-sm ml-2">Follow</button>
             </button>
           )}
 
@@ -377,9 +451,8 @@ const ReelsScreen: React.FC<ReelsScreenProps> = ({
           {videoRecipes.map((_, idx) => (
             <div
               key={idx}
-              className={`h-0.5 flex-1 rounded-full transition-all ${
-                idx === currentIndex ? 'bg-white' : 'bg-white/30'
-              }`}
+              className={`h-0.5 flex-1 rounded-full transition-all ${idx === currentIndex ? 'bg-white' : 'bg-white/30'
+                }`}
             />
           ))}
         </div>

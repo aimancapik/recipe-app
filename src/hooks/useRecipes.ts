@@ -64,6 +64,7 @@ function transformRow(row: any): Recipe {
         images: row.images || [],
         ingredients,
         directions,
+        matchedIngredientsCount: row.matched_ingredients_count,
     };
 }
 
@@ -78,7 +79,7 @@ export function useRecipes() {
     const loadedCountRef = useRef(0);
     const isFetchingRef = useRef(false);
     const hasMoreRef = useRef(true);
-    const filtersRef = useRef({ search: '', category: '', feed: 'forYou' as 'forYou' | 'following', followerId: '' as string });
+    const filtersRef = useRef({ search: '', category: '', feed: 'forYou' as 'forYou' | 'following', followerId: '' as string, ingredients: [] as string[] });
 
     const fetchRecipesByIds = useCallback(async (ids: string[]) => {
         if (ids.length === 0) return [];
@@ -108,7 +109,7 @@ export function useRecipes() {
     }, []);
 
     // Fetch recipes with pagination — stable callback (no state deps)
-    const fetchRecipes = useCallback(async (isLoadMore = false, search = '', category = '', feed: 'forYou' | 'following' = 'forYou', followerId = '') => {
+    const fetchRecipes = useCallback(async (isLoadMore = false, search = '', category = '', feed: 'forYou' | 'following' = 'forYou', followerId = '', ingredients: string[] = []) => {
         if (isFetchingRef.current) return;
         isFetchingRef.current = true;
 
@@ -120,10 +121,11 @@ export function useRecipes() {
                 category = filtersRef.current.category;
                 feed = filtersRef.current.feed;
                 followerId = filtersRef.current.followerId;
+                ingredients = filtersRef.current.ingredients;
             } else {
                 setLoading(true);
                 // When starting a new fetch, we update the ref filters
-                filtersRef.current = { search, category, feed, followerId };
+                filtersRef.current = { search, category, feed, followerId, ingredients };
                 loadedCountRef.current = 0;
             }
 
@@ -146,14 +148,16 @@ export function useRecipes() {
                     p_offset: offset,
                     p_page_size: PAGE_SIZE,
                     p_search: search,
-                    p_category: category
+                    p_category: category,
+                    p_ingredients: ingredients.length > 0 ? ingredients : '{}'
                 }, { count: 'exact' });
             } else {
                 fetchPromise = supabase.rpc('get_paginated_recipes', {
                     p_offset: offset,
                     p_page_size: PAGE_SIZE,
                     p_search: search,
-                    p_category: category
+                    p_category: category,
+                    p_ingredients: ingredients.length > 0 ? ingredients : '{}'
                 }, { count: 'exact' });
             }
 

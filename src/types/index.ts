@@ -16,7 +16,8 @@ export enum Screen {
     PUBLIC_PROFILE = 'public_profile',
     REVIEW = 'review',
     COOKING_MODE = 'cooking_mode',
-    REELS = 'reels'
+    REELS = 'reels',
+    NOTIFICATION = 'notification'
 }
 
 export interface Direction {
@@ -46,6 +47,8 @@ export interface Recipe {
     userId?: string;
     status?: 'published' | 'draft';
     images?: string[];
+    matchedIngredientsCount?: number;
+    dietaryPreferences?: string[];
 }
 
 export interface Category {

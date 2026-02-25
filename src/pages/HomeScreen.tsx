@@ -8,6 +8,7 @@ import LoadingAnimation from '@/components/LoadingAnimation';
 import { SkeletonGrid } from '@/components/SkeletonCard';
 import { getAvatarUrl } from '@/data/avatars';
 import PullToRefresh from '@/components/PullToRefresh';
+import { useNotifications } from '@/hooks/useNotifications';
 
 interface HomeScreenProps {
     recipes: Recipe[];
@@ -15,6 +16,7 @@ interface HomeScreenProps {
     onToggleFavorite: (id: string) => void;
     onSeeAll: (category?: string) => void;
     onOpenGrocery: () => void;
+    onOpenNotifications: () => void;
     isDark: boolean;
     onToggleTheme: () => void;
     user: User | null;
@@ -33,6 +35,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     onToggleFavorite,
     onSeeAll,
     onOpenGrocery,
+    onOpenNotifications,
     isDark,
     onToggleTheme,
     user,
@@ -44,6 +47,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     onRefresh,
     onPullRefresh
 }) => {
+    const { unreadCount } = useNotifications();
     const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Chef';
     const avatarId = user?.user_metadata?.avatar_id;
     const avatarUrl = user?.user_metadata?.avatar_url || (avatarId ? getAvatarUrl(avatarId) : 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100');
@@ -135,8 +139,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                         >
                             <span className="material-symbols-outlined text-xl">{isDark ? 'light_mode' : 'dark_mode'}</span>
                         </button>
-                        <button onClick={onOpenGrocery} className="btn btn-ghost btn-circle btn-sm indicator hover:bg-base-200">
-                            <span className="indicator-item badge badge-error badge-xs"></span>
+                        <button onClick={onOpenNotifications} className="btn btn-ghost btn-circle btn-sm indicator hover:bg-base-200" title="Notifications">
+                            {unreadCount > 0 && <span className="indicator-item badge badge-primary badge-xs scale-75"></span>}
+                            <span className="material-symbols-outlined text-xl">notifications</span>
+                        </button>
+                        <button onClick={onOpenGrocery} className="btn btn-ghost btn-circle btn-sm indicator hover:bg-base-200" title="Grocery List">
+                            {/* <span className="indicator-item badge badge-error badge-xs"></span> */}
                             <span className="material-symbols-outlined text-xl">shopping_bag</span>
                         </button>
                     </div>
@@ -231,7 +239,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                         <h3 className="text-lg font-bold text-base-content">
                             {isSearching
                                 ? `Results`
-                                : activeCategory === 'all' ? 'All Recipes' : `${CATEGORIES.find(c => c.id === activeCategory)?.name || activeCategory}`}
+                                : activeCategory === 'all' ? 'All Recipes' : `${CATEGORIES.find(c => c.id === activeCategory)?.name || activeCategory} `}
                         </h3>
                         <p className="text-xs text-base-content/40 mt-0.5">
                             {filteredRecipes.length} recipe{filteredRecipes.length !== 1 ? 's' : ''} found
@@ -249,7 +257,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                 </div>
 
                 {loading && recipes.length === 0 ? (
-                    <div className="columns-1 sm:columns-2 gap-4 space-y-0">
+                    <div className="columns-2 gap-4 space-y-4">
                         <SkeletonGrid count={8} />
                     </div>
                 ) : filteredRecipes.length > 0 ? (
@@ -260,29 +268,37 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                         showCategory={activeCategory === 'all'}
                     />
                 ) : isSearching && !loading ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-base-content/40">
-                        <div className="w-20 h-20 rounded-full bg-base-200 flex items-center justify-center mb-4">
-                            <span className="material-symbols-outlined text-4xl">search_off</span>
+                    <div className="flex flex-col items-center justify-center py-20 text-base-content/40 animate-fade-in">
+                        <div className="relative w-24 h-24 mb-6 flex items-center justify-center">
+                            <div className="absolute inset-0 bg-base-200/50 rounded-full animate-ping opacity-20" style={{ animationDuration: '3s' }}></div>
+                            <div className="absolute inset-2 bg-base-200 rounded-full animate-pulse-soft"></div>
+                            <div className="absolute inset-4 bg-base-300 rounded-full flex items-center justify-center shadow-inner">
+                                <span className="material-symbols-outlined text-4xl text-base-content/40 relative z-10">search_off</span>
+                            </div>
                         </div>
-                        <p className="text-base font-semibold text-base-content/60">No recipes found</p>
-                        <p className="text-sm mt-1 text-base-content/40">Try a different keyword or category</p>
+                        <p className="text-lg font-bold text-base-content/70">No recipes found</p>
+                        <p className="text-sm mt-1 text-base-content/40 text-center max-w-[250px]">Try adjusting your search terms or exploring a different category.</p>
                     </div>
                 ) : feedType === 'following' && !loading ? (
                     user ? (
-                        <div className="flex flex-col items-center justify-center py-20 text-base-content/40">
-                            <div className="w-20 h-20 rounded-full bg-base-200 flex items-center justify-center mb-4">
-                                <span className="material-symbols-outlined text-4xl">group</span>
+                        <div className="flex flex-col items-center justify-center py-20 text-base-content/40 animate-fade-in">
+                            <div className="relative w-24 h-24 mb-6 flex items-center justify-center group">
+                                <div className="absolute inset-0 bg-primary/5 rounded-full animate-pulse-soft"></div>
+                                <div className="absolute inset-2 bg-primary/10 rounded-full transition-transform group-hover:scale-105"></div>
+                                <div className="absolute inset-4 bg-primary/20 rounded-full flex items-center justify-center shadow-inner">
+                                    <span className="material-symbols-outlined text-4xl text-primary relative z-10">group_add</span>
+                                </div>
                             </div>
-                            <p className="text-lg font-semibold text-base-content/60 mb-2">No recipes yet</p>
-                            <p className="text-sm text-center mb-5 px-8 text-base-content/40">
-                                Follow chefs to see their recipes here
+                            <p className="text-xl font-bold text-base-content/70 mb-2">Your Feed is Empty</p>
+                            <p className="text-sm text-center mb-8 px-8 text-base-content/50 leading-relaxed">
+                                Follow your favorite chefs to see their latest culinary creations appear here.
                             </p>
                             <button
                                 onClick={() => setFeedType('forYou')}
-                                className="btn btn-primary btn-sm rounded-xl gap-2 shadow-md shadow-primary/20"
+                                className="btn btn-primary h-12 px-6 rounded-2xl gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform"
                             >
-                                <span className="material-symbols-outlined text-lg">explore</span>
-                                Browse All Recipes
+                                <span className="material-symbols-outlined text-xl">explore</span>
+                                Discover Chefs
                             </button>
                         </div>
                     ) : (
@@ -303,19 +319,23 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                         </div>
                     )
                 ) : !loading && filteredRecipes.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-base-content/40">
-                        <div className="w-20 h-20 rounded-full bg-base-200 flex items-center justify-center mb-4">
-                            <span className="material-symbols-outlined text-4xl">no_meals</span>
+                    <div className="flex flex-col items-center justify-center py-20 text-base-content/40 animate-fade-in">
+                        <div className="relative w-24 h-24 mb-6 flex items-center justify-center">
+                            <div className="absolute inset-0 bg-base-200/40 rounded-full animate-pulse-soft"></div>
+                            <div className="absolute inset-3 bg-base-200/80 rounded-full"></div>
+                            <div className="absolute inset-5 bg-base-300 rounded-full flex items-center justify-center">
+                                <span className="material-symbols-outlined text-4xl text-base-content/30 relative z-10">restaurant_menu</span>
+                            </div>
                         </div>
-                        <p className="text-lg font-semibold text-base-content/60 mb-2">No recipes found</p>
-                        <p className="text-sm text-center px-8 text-base-content/40">
-                            We couldn't find any recipes for this category yet.
+                        <p className="text-xl font-bold text-base-content/70 mb-2">Nothing Here Yet</p>
+                        <p className="text-sm text-center px-8 text-base-content/50 leading-relaxed mb-6">
+                            We couldn't find any recipes matching this category. Be the first to publish one!
                         </p>
                         <button
                             onClick={() => setActiveCategory('all')}
-                            className="btn btn-ghost btn-sm mt-4 text-primary"
+                            className="btn btn-outline btn-primary rounded-xl h-10 px-6 font-semibold"
                         >
-                            Reset Category
+                            View All Categories
                         </button>
                     </div>
                 ) : null}

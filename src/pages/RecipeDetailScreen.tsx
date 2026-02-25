@@ -4,7 +4,11 @@ import LoadingAnimation from '@/components/LoadingAnimation';
 import { Recipe } from '@/types';
 import StepTimer from '@/components/StepTimer';
 import ReviewsSection from '@/components/ReviewsSection';
+import CommentsSection from '@/components/CommentsSection';
 import { shareRecipe } from '@/lib/shareHelpers';
+import { useCollections } from '@/hooks/useCollections';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/lib/supabase';
 
 interface RecipeDetailScreenProps {
     recipe: Recipe;
@@ -25,11 +29,18 @@ interface ChefProfile {
 }
 
 const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack, onToggleFavorite, onAddToGrocery, onOpenGrocery, onPublish, onEdit, onChefClick, onRate, onStartCooking }) => {
+    const { user } = useAuth();
+    const { collections, fetchCollections, addRecipeToCollection, removeRecipeFromCollection, isRecipeInCollection } = useCollections();
     const [publishing, setPublishing] = useState(false);
     const [chef, setChef] = useState<ChefProfile | null>(null);
     const [viewMediaIndex, setViewMediaIndex] = useState<number | null>(null);
     const [shareToast, setShareToast] = useState<{ show: boolean; message: string }>({ show: false, message: '' });
     const carouselRef = useRef<HTMLDivElement>(null);
+    const baseServes = parseInt(recipe.serves.replace(/[^0-9]/g, '')) || 1;
+    const [currentServes, setCurrentServes] = useState(baseServes);
+    const [showCollectionModal, setShowCollectionModal] = useState(false);
+    const [recipeCollections, setRecipeCollections] = useState<Set<string>>(new Set());
+    const [isSaving, setIsSaving] = useState(false);
 
     // Handle initial scroll when gallery opens
     useEffect(() => {
@@ -62,7 +73,48 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                     .then(({ data }) => setChef(data));
             });
         }
-    }, [recipe.userId]);
+
+        // Fetch collection mapping for this user's recipe
+        if (user) {
+            fetchCollections();
+        }
+    }, [recipe.userId, user, fetchCollections]);
+
+    React.useEffect(() => {
+        // Find out which collections contain this recipe
+        const checkCollections = async () => {
+            const inCollections = new Set<string>();
+            for (const c of collections) {
+                const isThere = await isRecipeInCollection(c.id, recipe.id);
+                if (isThere) inCollections.add(c.id);
+            }
+            setRecipeCollections(inCollections);
+        };
+        if (collections.length > 0 && showCollectionModal) {
+            checkCollections();
+        }
+    }, [collections, recipe.id, showCollectionModal, isRecipeInCollection]);
+
+    const handleToggleCollection = async (collectionId: string) => {
+        try {
+            setIsSaving(true);
+            if (recipeCollections.has(collectionId)) {
+                await removeRecipeFromCollection(collectionId, recipe.id);
+                setRecipeCollections(prev => {
+                    const next = new Set(prev);
+                    next.delete(collectionId);
+                    return next;
+                });
+            } else {
+                await addRecipeToCollection(collectionId, recipe.id);
+                setRecipeCollections(prev => new Set(prev).add(collectionId));
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const handlePublish = async () => {
         if (!onPublish || publishing) return;
@@ -155,6 +207,12 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                     </button>
                     {!onPublish && (
                         <div className="flex gap-2">
+                            <button
+                                onClick={() => setShowCollectionModal(true)}
+                                className="btn btn-circle btn-sm glass text-white border-none transition-all active:scale-90"
+                            >
+                                <span className="material-symbols-outlined">bookmark_add</span>
+                            </button>
                             <button
                                 onClick={handleShare}
                                 className="btn btn-circle btn-sm glass text-white border-none transition-all active:scale-90"
@@ -384,8 +442,10 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
 
                 {/* Reviews Section */}
                 {!onPublish && (
-                    <div className="mb-8">
+                    <div className="mb-8 space-y-8">
                         <ReviewsSection recipeId={recipe.id} />
+                        <hr className="border-base-200" />
+                        <CommentsSection recipeId={recipe.id} />
                     </div>
                 )}
             </div>
@@ -512,6 +572,57 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                     </div>
                 </div>
             )}
+
+            {/* Collection Modal */}
+            <dialog className={`modal modal-bottom sm:modal-middle ${showCollectionModal ? 'modal-open' : ''}`}>
+                <div className="modal-box p-0 overflow-hidden bg-base-100 flex flex-col max-h-[80vh]">
+                    <div className="p-4 border-b border-base-200 flex justify-between items-center sticky top-0 bg-base-100 z-10">
+                        <h3 className="font-bold text-lg">Save to Collection</h3>
+                        <button className="btn btn-sm btn-circle btn-ghost" onClick={() => setShowCollectionModal(false)}>✕</button>
+                    </div>
+
+                    <div className="p-4 overflow-y-auto flex-1">
+                        {collections.length === 0 ? (
+                            <div className="text-center py-8 text-base-content/60">
+                                <span className="material-symbols-outlined text-5xl mb-2 opacity-50">folder_off</span>
+                                <p>You don't have any collections yet.</p>
+                                <p className="text-sm mt-1">Go to Saved Recipes to create one.</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                {collections.map(c => {
+                                    const inCollection = recipeCollections.has(c.id);
+                                    return (
+                                        <div
+                                            key={c.id}
+                                            onClick={() => !isSaving && handleToggleCollection(c.id)}
+                                            className={`flex justify-between items-center p-3 rounded-xl border cursor-pointer transition-all ${inCollection ? 'border-primary bg-primary/5' : 'border-base-200 hover:bg-base-200/50'
+                                                } ${isSaving ? 'opacity-50 pointer-events-none' : ''}`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="bg-base-200 w-10 h-10 rounded-lg flex items-center justify-center">
+                                                    <span className="material-symbols-outlined text-base-content/50">folder</span>
+                                                </div>
+                                                <div>
+                                                    <p className="font-semibold text-base">{c.name}</p>
+                                                </div>
+                                            </div>
+
+                                            <div className={`w-6 h-6 rounded-full border flex items-center justify-center ${inCollection ? 'border-primary bg-primary text-primary-content' : 'border-base-300'
+                                                }`}>
+                                                {inCollection && <span className="material-symbols-outlined text-[16px] font-bold">check</span>}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                </div>
+                <form method="dialog" className="modal-backdrop" onClick={() => setShowCollectionModal(false)}>
+                    <button>close</button>
+                </form>
+            </dialog>
         </div>
     );
 };
