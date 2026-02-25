@@ -15,6 +15,7 @@ interface ExploreScreenProps {
     onToggleFavorite: (id: string) => void;
     onOpenFilter: () => void;
     filters: FilterOptions;
+    onRefresh: (search: string, category: string) => void;
 }
 
 const ExploreScreen: React.FC<ExploreScreenProps> = ({
@@ -25,10 +26,20 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
     onAIGenerate,
     onToggleFavorite,
     onOpenFilter,
-    filters
+    filters,
+    onRefresh
 }) => {
     const [search, setSearch] = useState(initialSearch);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategory || null);
+
+    // Handle server-side filtering with debouncing
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            onRefresh(search.trim(), selectedCategory || '');
+        }, 500); // 500ms debounce
+
+        return () => clearTimeout(timer);
+    }, [search, selectedCategory, onRefresh]);
     const [history, setHistory] = useState<string[]>(() => {
         const saved = localStorage.getItem('recipe_search_history');
         return saved ? JSON.parse(saved) : ['Avocado Toast', 'Quick Pasta', 'Gluten-free pancakes', 'Chicken Curry'];
@@ -53,15 +64,6 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
 
     const filteredRecipes = useMemo(() => {
         let result = recipes.filter(r => {
-            const query = search.toLowerCase().trim();
-            const isSearchActive = query.length >= 3;
-            const matchesSearch = !isSearchActive ||
-                r.title.toLowerCase().includes(query) ||
-                r.ingredients.some(ing => ing.toLowerCase().includes(query)) ||
-                r.category.toLowerCase().includes(query);
-
-            const matchesCategory = !selectedCategory || r.category.toLowerCase() === selectedCategory.toLowerCase();
-
             const matchesDifficulty = !filters.difficulty || r.level === filters.difficulty;
 
             // Improved dietary matching: Check category, title, AND ingredients
@@ -83,7 +85,7 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
                 else if (filters.cookingTime === '60plus') matchesTime = mins > 60;
             }
 
-            return matchesSearch && matchesCategory && matchesDifficulty && matchesDietary && matchesTime;
+            return matchesDifficulty && matchesDietary && matchesTime;
         });
 
         if (filters.sortBy === 'rating') {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { Recipe } from '@/types';
 import { CATEGORIES } from '@/data/constants';
@@ -7,6 +7,7 @@ import RecipeMasonryGrid from '@/components/RecipeMasonryGrid';
 import LoadingAnimation from '@/components/LoadingAnimation';
 import { SkeletonGrid } from '@/components/SkeletonCard';
 import { getAvatarUrl } from '@/data/avatars';
+import PullToRefresh from '@/components/PullToRefresh';
 
 interface HomeScreenProps {
     recipes: Recipe[];
@@ -23,6 +24,8 @@ interface HomeScreenProps {
     loading: boolean;
     followingIds?: Set<string>;
     onLoginClick: () => void;
+    onRefresh: (search: string, category: string) => void;
+    onPullRefresh: () => Promise<void>;
 }
 
 const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -39,7 +42,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     loadingMore,
     loading,
     followingIds = new Set(),
-    onLoginClick
+    onLoginClick,
+    onRefresh,
+    onPullRefresh
 }) => {
     const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Chef';
     const avatarId = user?.user_metadata?.avatar_id;
@@ -49,8 +54,19 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     const [isFocused, setIsFocused] = useState(false);
     const [feedType, setFeedType] = useState<'forYou' | 'following'>('forYou');
 
-    const searchQuery = searchValue.trim().toLowerCase();
-    const isSearching = searchQuery.length >= 2;
+    const isSearching = searchValue.trim().length >= 2;
+
+    // Handle server-side filtering with debouncing
+    React.useEffect(() => {
+        const timer = setTimeout(() => {
+            const query = searchValue.trim();
+            // Category 'all' maps to empty string for the RPC
+            const category = activeCategory === 'all' ? '' : activeCategory;
+            onRefresh(query, category);
+        }, 500); // 500ms debounce
+
+        return () => clearTimeout(timer);
+    }, [searchValue, activeCategory, onRefresh]);
 
     const filteredRecipes = recipes.filter(r => {
         // Filter by feed type (For You vs Following)
@@ -60,17 +76,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                 return false;
             }
         }
-
-        // Filter by category
-        const matchesCategory = activeCategory === 'all' || r.category === activeCategory;
-
-        // Filter by search query
-        if (!isSearching) return matchesCategory;
-        return matchesCategory && (
-            r.title.toLowerCase().includes(searchQuery) ||
-            r.ingredients.some(ing => ing.toLowerCase().includes(searchQuery)) ||
-            r.category.toLowerCase().includes(searchQuery)
-        );
+        return true;
     });
 
     // Intersection Observer for Infinite Scroll
@@ -115,7 +121,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     };
 
     return (
-        <div className="flex flex-col pb-20">
+        <PullToRefresh onRefresh={onPullRefresh} className="flex flex-col pb-20">
             {/* Premium Header */}
             <header className="relative px-5 pt-8 pb-4">
                 <div className="flex items-center justify-between">
@@ -341,7 +347,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                     )}
                 </div>
             </div>
-        </div>
+        </PullToRefresh>
     );
 };
 

@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import ReactPlayer from 'react-player';
-import { uploadImage, UploadProgress } from '@/lib/storage';
+import { uploadOptimizedImage, UploadProgress } from '@/lib/storage';
 import { videoToGif } from '@/lib/videoToGif';
 import { compressVideo, shouldCompressVideo, formatFileSize } from '@/lib/videoCompression';
 import LoadingAnimation from '@/components/LoadingAnimation';
@@ -25,9 +25,10 @@ interface InstructionStep {
 
 interface PublishRecipeScreenProps {
     onBack: () => void;
-    onPublish?: (data: RecipeFormData) => void;
-    onUpdate?: (id: string, data: RecipeFormData) => void;
-    onSaveDraft?: (data: RecipeFormData) => void;
+    onPublish?: (data: RecipeFormData) => Promise<void>;
+    onUpdate?: (id: string, data: RecipeFormData) => Promise<void>;
+    onSaveDraft?: (data: RecipeFormData) => Promise<void>;
+    onSuccess?: () => void;
     editingRecipe?: Recipe | null;
 }
 
@@ -45,7 +46,14 @@ export interface RecipeFormData {
 
 const UNITS = ['g', 'kg', 'ml', 'tsp', 'tbsp', 'cup', 'pcs'];
 
-const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPublish, onUpdate, onSaveDraft, editingRecipe }) => {
+const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({
+    onBack,
+    onPublish,
+    onUpdate,
+    onSaveDraft,
+    onSuccess,
+    editingRecipe
+}) => {
     const isEditing = !!editingRecipe;
     const [step, setStep] = useState(1);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -107,6 +115,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
 
     const [uploading, setUploading] = useState(false);
     const [isPublishing, setIsPublishing] = useState(false);
+    const [isSuccess, setIsSuccess] = useState(false);
     const [mediaErrors, setMediaErrors] = useState<{ [key: number]: boolean }>({});
     const [uploadProgress, setUploadProgress] = useState<number>(0);
     const [compressionStatus, setCompressionStatus] = useState<string>('');
@@ -173,8 +182,8 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
 
                 setCompressionStatus('');
 
-                // Upload with progress
-                const url = await uploadImage(file as File, 'covers', (progress) => {
+                // Upload with optimization and progress
+                const { url } = await uploadOptimizedImage(file as File, 'covers', (progress) => {
                     const totalProgress = ((i + progress.percentage / 100) / filesToUpload.length) * 100;
                     setUploadProgress(Math.round(totalProgress));
                 });
@@ -187,15 +196,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
         } catch (err) {
             console.error('Upload failed:', err);
             const errorMessage = err instanceof Error ? err.message : 'Upload failed';
-            alert(`Upload Error: ${errorMessage}`);
-
-            // Only fallback to base64 for images under 5MB
-            const file = filesToUpload[0];
-            if (file && file.size < 5 * 1024 * 1024 && file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onloadend = () => setCoverImages(prev => [...prev, reader.result as string]);
-                reader.readAsDataURL(file as File);
-            }
+            alert(`Upload Error: ${errorMessage}. Please check your connection and try again.`);
         } finally {
             setUploading(false);
             setUploadProgress(0);
@@ -266,7 +267,8 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
 
             setCompressionStatus('');
 
-            const url = await uploadImage(fileToUpload, 'steps', (progress) => {
+            // Upload with optimization
+            const { url } = await uploadOptimizedImage(fileToUpload, 'steps', (progress) => {
                 setUploadProgress(progress.percentage);
             });
 
@@ -275,17 +277,8 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
             ));
         } catch (err) {
             console.error('Upload failed:', err);
-            // Fallback to base64
-            await new Promise<void>((resolve) => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    setInstructions(prev => prev.map(s =>
-                        s.id === stepId ? { ...s, image: reader.result as string, mediaType: 'image' } : s
-                    ));
-                    resolve();
-                };
-                reader.readAsDataURL(file);
-            });
+            const errorMessage = err instanceof Error ? err.message : 'Upload failed';
+            alert(`Upload Error: ${errorMessage}. Please try again.`);
         } finally {
             setUploading(false);
             setUploadProgress(0);
@@ -380,11 +373,16 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
             if (onSaveDraft) {
                 await onSaveDraft(finalData);
             }
+            setIsSuccess(true);
+            // Brief delay to show success state
+            await new Promise(resolve => setTimeout(resolve, 1500));
             onBack();
         } catch (err) {
             console.error('Saving draft failed:', err);
+            alert('Failed to save draft. Please try again.');
         } finally {
             setIsPublishing(false);
+            setIsSuccess(false);
             setShowExitModal(false);
         }
     };
@@ -443,10 +441,18 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
             } else {
                 await onPublish?.(finalData);
             }
+            setIsSuccess(true);
+            // Brief delay to show success state before App.tsx navigation kicks in (if it hasn't already)
+            // Note: App.tsx navigates at the end of its handlers, so we need to be careful.
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            if (onSuccess) onSuccess();
+            else onBack();
         } catch (err) {
             console.error('Publishing failed:', err);
+            alert('Failed to publish recipe. Please try again.');
         } finally {
             setIsPublishing(false);
+            setIsSuccess(false);
         }
     };
 
@@ -1328,11 +1334,16 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                         ) : (
                             <button
                                 onClick={handlePublish}
-                                disabled={isPublishing}
-                                className="btn btn-primary flex-[2] btn-lg gap-2 shadow-lg disabled:opacity-70"
+                                disabled={isPublishing || isSuccess}
+                                className={`btn flex-[2] btn-lg gap-2 shadow-lg transition-all duration-300 ${isSuccess ? 'btn-success text-success-content' : 'btn-primary disabled:opacity-70'}`}
                             >
                                 {isPublishing ? (
                                     <LoadingAnimation size={24} />
+                                ) : isSuccess ? (
+                                    <>
+                                        <span className="material-symbols-outlined text-[20px] animate-bounce">check_circle</span>
+                                        {editingRecipe?.id.startsWith('temp-') ? 'Saved!' : isEditing ? 'Updated!' : 'Published!'}
+                                    </>
                                 ) : (
                                     <>
                                         <span className="material-symbols-outlined text-[20px]">
@@ -1363,10 +1374,15 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({ onBack, onPub
                         <div className="p-6 pt-0 flex flex-col gap-3">
                             <button
                                 onClick={handleSaveDraftAndExit}
-                                disabled={isPublishing}
-                                className="btn btn-primary btn-lg w-full gap-2 rounded-2xl shadow-lg shadow-primary/20"
+                                disabled={isPublishing || isSuccess}
+                                className={`btn btn-lg w-full gap-2 rounded-2xl shadow-lg transition-all duration-300 ${isSuccess ? 'btn-success text-success-content' : 'btn-primary shadow-primary/20'}`}
                             >
-                                {isPublishing ? <LoadingAnimation size={20} /> : (
+                                {isPublishing ? <LoadingAnimation size={20} /> : isSuccess ? (
+                                    <>
+                                        <span className="material-symbols-outlined text-[20px] animate-bounce">check_circle</span>
+                                        Saved!
+                                    </>
+                                ) : (
                                     <>
                                         <span className="material-symbols-outlined text-[20px]">inventory_2</span>
                                         Save as Draft

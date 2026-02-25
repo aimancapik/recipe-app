@@ -10,7 +10,7 @@ interface RecipeMasonryGridProps {
     showCategory?: boolean;
     onEdit?: (recipe: Recipe) => void;
     onDelete?: (recipe: Recipe) => void;
-    onUpdateStatus?: (recipe: Recipe, status: 'published' | 'draft') => void;
+    onUpdateStatus?: (recipe: Recipe, status: 'published' | 'draft') => Promise<void>;
 }
 
 const RecipeMasonryGrid: React.FC<RecipeMasonryGridProps> = ({

@@ -23,9 +23,31 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Recipe, Direction } from '@/types';
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 20;
 
 function transformRow(row: any): Recipe {
+    // ingredients & directions may be absent from lightweight listings
+    // (get_paginated_recipes omits them for performance).
+    // They are only present when fetched via get_recipes_by_ids / get_user_recipes.
+    const ingredients = row.ingredients
+        ? (row.ingredients as any[])
+            .sort((a: any, b: any) => a.sort_order - b.sort_order)
+            .map((i: any) => i.name)
+        : [];
+
+    const directions = row.directions
+        ? (row.directions as any[])
+            .sort((a: any, b: any) => a.sort_order - b.sort_order)
+            .map((d: any): Direction => ({
+                step: d.step,
+                title: d.title,
+                description: d.description,
+                image: d.image || null,
+                mediaType: d.media_type || 'image',
+                timer: d.timer || undefined,
+            }))
+        : [];
+
     return {
         id: row.id,
         title: row.title,
@@ -41,19 +63,8 @@ function transformRow(row: any): Recipe {
         isFavorite: false,
         status: row.status || 'published',
         images: row.images || [],
-        ingredients: (row.ingredients || [])
-            .sort((a: any, b: any) => a.sort_order - b.sort_order)
-            .map((i: any) => i.name),
-        directions: (row.directions || [])
-            .sort((a: any, b: any) => a.sort_order - b.sort_order)
-            .map((d: any): Direction => ({
-                step: d.step,
-                title: d.title,
-                description: d.description,
-                image: d.image || null,
-                mediaType: d.media_type || 'image',
-                timer: d.timer || undefined,
-            })),
+        ingredients,
+        directions,
     };
 }
 
@@ -68,6 +79,7 @@ export function useRecipes() {
     const loadedCountRef = useRef(0);
     const isFetchingRef = useRef(false);
     const hasMoreRef = useRef(true);
+    const filtersRef = useRef({ search: '', category: '' });
 
     const fetchRecipesByIds = useCallback(async (ids: string[]) => {
         if (ids.length === 0) return [];
@@ -97,13 +109,22 @@ export function useRecipes() {
     }, []);
 
     // Fetch recipes with pagination — stable callback (no state deps)
-    const fetchRecipes = useCallback(async (isLoadMore = false) => {
+    const fetchRecipes = useCallback(async (isLoadMore = false, search = '', category = '') => {
         if (isFetchingRef.current) return;
         isFetchingRef.current = true;
 
         try {
-            if (isLoadMore) setLoadingMore(true);
-            else setLoading(true);
+            if (isLoadMore) {
+                setLoadingMore(true);
+                // When loading more, we use existing filters from ref
+                search = filtersRef.current.search;
+                category = filtersRef.current.category;
+            } else {
+                setLoading(true);
+                // When starting a new fetch, we update the ref filters
+                filtersRef.current = { search, category };
+                loadedCountRef.current = 0;
+            }
 
             setError(null);
             const offset = isLoadMore ? loadedCountRef.current : 0;
@@ -111,7 +132,9 @@ export function useRecipes() {
             const { data, count, error: fetchError } = await supabase
                 .rpc('get_paginated_recipes', {
                     p_offset: offset,
-                    p_page_size: PAGE_SIZE
+                    p_page_size: PAGE_SIZE,
+                    p_search: search,
+                    p_category: category
                 }, { count: 'exact' });
 
             if (fetchError) throw fetchError;
@@ -160,9 +183,31 @@ export function useRecipes() {
         }
     }, [fetchRecipes]);
 
+    // Helper to check if any data contains oversized strings (likely leaked base64 images)
+    const checkPayloadSize = (recipe: Omit<Recipe, 'id'>) => {
+        const MAX_STRING_SIZE = 100 * 1024; // 100KB
+        const errors: string[] = [];
+
+        const checkValue = (val: any, path: string) => {
+            if (typeof val === 'string' && val.length > MAX_STRING_SIZE) {
+                errors.push(`${path} is too large (${Math.round(val.length / 1024)}KB). Large images must be uploaded to storage, not stored as text.`);
+            } else if (Array.isArray(val)) {
+                val.forEach((item, i) => checkValue(item, `${path}[${i}]`));
+            } else if (val && typeof val === 'object') {
+                Object.entries(val).forEach(([k, v]) => checkValue(v, `${path}.${k}`));
+            }
+        };
+
+        checkValue(recipe, 'recipe');
+        if (errors.length > 0) {
+            throw new Error(`Data size guard: ${errors[0]}`);
+        }
+    };
+
     // Add a new recipe (used by PublishRecipeScreen)
     const addRecipe = async (recipe: Omit<Recipe, 'id'>) => {
         try {
+            checkPayloadSize(recipe);
             const { data: { user } } = await supabase.auth.getUser();
 
             // 1. Insert the recipe row
@@ -251,6 +296,7 @@ export function useRecipes() {
     // Update an existing recipe (metadata + replace ingredients & directions)
     const updateRecipe = async (id: string, recipe: Omit<Recipe, 'id'>) => {
         try {
+            checkPayloadSize(recipe);
             // 1. Update the recipe row
             const { error: recipeError } = await supabase
                 .from('recipes')
@@ -273,38 +319,43 @@ export function useRecipes() {
             if (recipeError) throw recipeError;
 
             // 2. Replace ingredients: delete old, insert new
-            await supabase.from('ingredients').delete().eq('recipe_id', id);
-            if (recipe.ingredients.length > 0) {
-                const { error: ingError } = await supabase
-                    .from('ingredients')
-                    .insert(
-                        recipe.ingredients.map((name, idx) => ({
-                            recipe_id: id,
-                            name,
-                            sort_order: idx,
-                        }))
-                    );
-                if (ingError) throw ingError;
+            // ONLY if ingredients were modified/provided in the update
+            if (recipe.ingredients) {
+                await supabase.from('ingredients').delete().eq('recipe_id', id);
+                if (recipe.ingredients.length > 0) {
+                    const { error: ingError } = await supabase
+                        .from('ingredients')
+                        .insert(
+                            recipe.ingredients.map((name, idx) => ({
+                                recipe_id: id,
+                                name,
+                                sort_order: idx,
+                            }))
+                        );
+                    if (ingError) throw ingError;
+                }
             }
 
             // 3. Replace directions: delete old, insert new
-            await supabase.from('directions').delete().eq('recipe_id', id);
-            if (recipe.directions.length > 0) {
-                const { error: dirError } = await supabase
-                    .from('directions')
-                    .insert(
-                        recipe.directions.map((dir, idx) => ({
-                            recipe_id: id,
-                            step: dir.step,
-                            title: dir.title,
-                            description: dir.description,
-                            image: dir.image || null,
-                            media_type: dir.mediaType || 'image',
-                            timer: dir.timer || null,
-                            sort_order: idx,
-                        }))
-                    );
-                if (dirError) throw dirError;
+            if (recipe.directions) {
+                await supabase.from('directions').delete().eq('recipe_id', id);
+                if (recipe.directions.length > 0) {
+                    const { error: dirError } = await supabase
+                        .from('directions')
+                        .insert(
+                            recipe.directions.map((dir, idx) => ({
+                                recipe_id: id,
+                                step: dir.step,
+                                title: dir.title,
+                                description: dir.description,
+                                image: dir.image || null,
+                                media_type: dir.mediaType || 'image',
+                                timer: dir.timer || null,
+                                sort_order: idx,
+                            }))
+                        );
+                    if (dirError) throw dirError;
+                }
             }
 
             // Refresh the list
@@ -315,11 +366,27 @@ export function useRecipes() {
         }
     };
 
+    // Targeted status update — only patches the status column, no full reload
+    const updateStatus = async (id: string, status: 'published' | 'draft') => {
+        const { error: updateError } = await supabase
+            .from('recipes')
+            .update({ status })
+            .eq('id', id);
+
+        if (updateError) {
+            console.error('useRecipes updateStatus error:', updateError);
+            throw updateError;
+        }
+
+        // Update local state instantly so the UI reflects the change
+        setRecipes(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+    };
+
     // Fetch on mount only
     useEffect(() => {
         fetchRecipes();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    return { recipes, loading, loadingMore, hasMore, error, fetchRecipes, fetchRecipesByIds, fetchRecipesByUserId, loadMore, addRecipe, deleteRecipe, updateRecipe, setRecipes };
+    return { recipes, loading, loadingMore, hasMore, error, fetchRecipes, fetchRecipesByIds, fetchRecipesByUserId, loadMore, addRecipe, deleteRecipe, updateRecipe, updateStatus, setRecipes };
 }

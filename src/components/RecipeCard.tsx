@@ -12,7 +12,7 @@ interface RecipeCardProps {
     index?: number;
     onEdit?: (recipe: Recipe) => void;
     onDelete?: (recipe: Recipe) => void;
-    onUpdateStatus?: (recipe: Recipe, status: 'published' | 'draft') => void;
+    onUpdateStatus?: (recipe: Recipe, status: 'published' | 'draft') => Promise<void>;
     onChefClick?: (userId: string) => void;
 }
 
@@ -31,7 +31,22 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onClick, onToggleFavori
 
     const [isHovered, setIsHovered] = useState(false);
     const [chef, setChef] = useState<ChefProfile | null>(null);
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const [imgError, setImgError] = useState(false);
+
+    const handleUpdateStatus = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!onUpdateStatus) return;
+
+        try {
+            setIsUpdatingStatus(true);
+            await onUpdateStatus(recipe, recipe.status === 'draft' ? 'published' : 'draft');
+        } catch (err) {
+            console.error('Failed to update status:', err);
+        } finally {
+            setIsUpdatingStatus(false);
+        }
+    };
 
     // Fetch chef profile
     useEffect(() => {
@@ -189,16 +204,21 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onClick, onToggleFavori
                     <div className="flex gap-1.5">
                         {onUpdateStatus && (
                             <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onUpdateStatus(recipe, recipe.status === 'draft' ? 'published' : 'draft');
-                                }}
-                                className="btn btn-sm btn-square rounded-xl transition-all border-none bg-base-200/50 text-base-content/70 hover:bg-warning hover:text-white shadow-sm"
+                                onClick={handleUpdateStatus}
+                                disabled={isUpdatingStatus}
+                                className={`btn btn-sm btn-square rounded-xl transition-all border-none shadow-sm ${isUpdatingStatus
+                                        ? 'bg-base-300 pointer-events-none'
+                                        : 'bg-base-200/50 text-base-content/70 hover:bg-warning hover:text-white'
+                                    }`}
                                 title={recipe.status === 'draft' ? 'Publish Recipe' : 'Set to Draft'}
                             >
-                                <span className="material-symbols-outlined text-[18px]">
-                                    {recipe.status === 'draft' ? 'visibility' : 'visibility_off'}
-                                </span>
+                                {isUpdatingStatus ? (
+                                    <span className="loading loading-spinner loading-xs"></span>
+                                ) : (
+                                    <span className="material-symbols-outlined text-[18px]">
+                                        {recipe.status === 'draft' ? 'visibility' : 'visibility_off'}
+                                    </span>
+                                )}
                             </button>
                         )}
                         {onEdit && (

@@ -34,7 +34,7 @@ const ReelsScreen = lazy(() => import('@/pages/ReelsScreen'));
 
 const App: React.FC = () => {
     const { isDark, toggleTheme } = useTheme();
-    const { recipes, loading, loadingMore, hasMore, fetchRecipes, fetchRecipesByIds, fetchRecipesByUserId, loadMore, addRecipe, deleteRecipe, updateRecipe } = useRecipes();
+    const { recipes, loading, loadingMore, hasMore, fetchRecipes, fetchRecipesByIds, fetchRecipesByUserId, loadMore, addRecipe, deleteRecipe, updateRecipe, updateStatus } = useRecipes();
     const { favoriteIds, isFavorite, toggleFavorite } = useFavorites();
     const { items: groceryItems, toggleItem: toggleGroceryItem, clearChecked: clearCheckedGroceryItems, addFromRecipe } = useGrocery();
     const {
@@ -90,6 +90,11 @@ const App: React.FC = () => {
         setFullUserRecipes(fetched);
     }, [user, fetchRecipesByUserId]);
 
+    // Stable callback for HomeScreen/ExploreScreen refresh — avoids infinite effect loops
+    const handleRefresh = useCallback((search: string, category: string) => {
+        fetchRecipes(false, search, category);
+    }, [fetchRecipes]);
+
     // Fetch full recipe data for all favorite IDs to ensure Saved screen is always populated
     React.useEffect(() => {
         refreshFavorites();
@@ -118,8 +123,30 @@ const App: React.FC = () => {
         ...fullUserRecipes.map(r => ({ ...r, isFavorite: isFavorite(r.id) }))
     ].map(item => [item.id, item])).values());
 
-    const navigateTo = (screen: Screen, recipe?: Recipe, chefId?: string) => {
-        if (recipe) setSelectedRecipe(recipe);
+    const navigateTo = async (screen: Screen, recipe?: Recipe, chefId?: string) => {
+        if (recipe) {
+            // If navigating to DETAIL and the recipe is lightweight (no ingredients/directions),
+            // fetch the full data first. Recipes from get_paginated_recipes won't have these fields.
+            if (screen === Screen.DETAIL && recipe.ingredients.length === 0 && recipe.directions.length === 0 && !recipe.id.startsWith('temp-')) {
+                setSelectedRecipe(recipe); // show immediately with what we have
+                setCurrentScreen(screen);
+                window.scrollTo(0, 0);
+                // Fetch full data in background
+                try {
+                    const fullRecipes = await fetchRecipesByIds([recipe.id]);
+                    if (fullRecipes.length > 0) {
+                        setSelectedRecipe(fullRecipes[0]);
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch full recipe:', err);
+                }
+                if (chefId) setCurrentChefId(chefId);
+                setSearchQuery('');
+                setInitialCategory(null);
+                return;
+            }
+            setSelectedRecipe(recipe);
+        }
         if (chefId) setCurrentChefId(chefId);
         if (screen !== Screen.EXPLORE) {
             setSearchQuery('');
@@ -247,11 +274,11 @@ const App: React.FC = () => {
             await fetchRecipes(); // Refresh the main feed too
         } catch (err) {
             console.error('Failed to publish recipe:', err);
+            throw err; // Re-throw so the UI can handle it
         }
-        navigateTo(Screen.HOME);
     };
 
-    const handleSaveDraftRecipe = (data: RecipeFormData) => {
+    const handleSaveDraftRecipe = async (data: RecipeFormData) => {
         if (!editingRecipe) return;
 
         const updatedDraft: Recipe = {
@@ -278,9 +305,15 @@ const App: React.FC = () => {
             status: 'draft'
         };
 
-        setSelectedRecipe(updatedDraft);
-        setEditingRecipe(null);
-        setCurrentScreen(Screen.DETAIL);
+        try {
+            await updateRecipe(editingRecipe.id, updatedDraft);
+            await refreshUserRecipes();
+            setSelectedRecipe(updatedDraft);
+            setEditingRecipe(null);
+        } catch (err) {
+            console.error('Failed to save draft:', err);
+            throw err;
+        }
     };
 
     const handleUpdateRecipe = async (id: string, data: RecipeFormData) => {
@@ -316,11 +349,11 @@ const App: React.FC = () => {
             await refreshUserRecipes();
             await refreshFavorites();
             await fetchRecipes(); // Refresh the main feed
+            setEditingRecipe(null);
         } catch (err) {
             console.error('Failed to update recipe:', err);
+            throw err;
         }
-        setEditingRecipe(null);
-        navigateTo(Screen.MY_RECIPES);
     };
 
     const handleAIPublish = async () => {
@@ -397,6 +430,10 @@ const App: React.FC = () => {
                         loading={loading}
                         followingIds={followingIds}
                         onLoginClick={() => setCurrentScreen(Screen.LOGIN)}
+                        onRefresh={handleRefresh}
+                        onPullRefresh={async () => {
+                            await fetchRecipes(false);
+                        }}
                     />
                 );
             case Screen.REELS:
@@ -420,6 +457,7 @@ const App: React.FC = () => {
                         onToggleFavorite={handleToggleFavorite}
                         onOpenFilter={() => navigateTo(Screen.FILTER)}
                         filters={filters}
+                        onRefresh={handleRefresh}
                     />
                 );
             case Screen.DETAIL:
@@ -513,6 +551,15 @@ const App: React.FC = () => {
                         onPublish={handlePublishRecipe}
                         onUpdate={handleUpdateRecipe}
                         onSaveDraft={handleSaveDraftRecipe}
+                        onSuccess={() => {
+                            if (editingRecipe?.id.startsWith('temp-')) {
+                                setCurrentScreen(Screen.DETAIL);
+                            } else if (editingRecipe) {
+                                navigateTo(Screen.MY_RECIPES);
+                            } else {
+                                navigateTo(Screen.HOME);
+                            }
+                        }}
                         editingRecipe={editingRecipe}
                     />
                 );
@@ -528,7 +575,8 @@ const App: React.FC = () => {
                         onDelete={handleDeleteRecipe}
                         onRecipeClick={(r) => navigateTo(Screen.DETAIL, r)}
                         onUpdateStatus={async (r, status) => {
-                            await updateRecipe(r.id, { ...r, status });
+                            await updateStatus(r.id, status);
+                            await refreshUserRecipes();
                         }}
                     />
                 );
