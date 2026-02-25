@@ -11,7 +11,7 @@ interface BottomNavProps {
 const BottomNav: React.FC<BottomNavProps> = ({ currentScreen, onNavigate, onQuickAction }) => {
     const navItems = [
         { screen: Screen.HOME, icon: 'home', label: 'Home' },
-        { screen: Screen.REELS, icon: 'play_circle', label: 'Reels' },
+        { screen: Screen.BITES, icon: 'play_circle', label: 'Bites' },
         null, // placeholder for center button
         { screen: Screen.SAVED, icon: 'bookmark', label: 'Saved' },
         { screen: Screen.PROFILE, icon: 'person', label: 'Profile' },

@@ -16,7 +16,7 @@ export enum Screen {
     PUBLIC_PROFILE = 'public_profile',
     REVIEW = 'review',
     COOKING_MODE = 'cooking_mode',
-    REELS = 'reels',
+    BITES = 'bites',
     NOTIFICATION = 'notification'
 }
 

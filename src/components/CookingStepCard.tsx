@@ -1,5 +1,4 @@
-import React from 'react';
-import ReactPlayer from 'react-player';
+import React, { useRef, useState } from 'react';
 import { Direction } from '@/types';
 import { isVideoUrl } from '@/utils/mediaHelpers';
 
@@ -9,6 +8,8 @@ interface CookingStepCardProps {
   totalSteps: number;
   fallbackImage?: string;
   onStartTimer?: (seconds: number) => void;
+  note?: string;
+  onNoteChange?: (note: string) => void;
 }
 
 const CookingStepCard: React.FC<CookingStepCardProps> = ({
@@ -17,40 +18,62 @@ const CookingStepCard: React.FC<CookingStepCardProps> = ({
   totalSteps,
   fallbackImage,
   onStartTimer,
+  note,
+  onNoteChange,
 }) => {
   const hasMedia = step.image && step.image.trim() !== '';
   const mediaUrl = hasMedia ? step.image : fallbackImage;
   const isVideo = mediaUrl ? isVideoUrl(mediaUrl) : false;
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoPaused, setVideoPaused] = useState(false);
+  const [editingNote, setEditingNote] = useState(false);
+  const [noteText, setNoteText] = useState(note || '');
+
+  const toggleVideo = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) {
+      videoRef.current.play();
+      setVideoPaused(false);
+    } else {
+      videoRef.current.pause();
+      setVideoPaused(true);
+    }
+  };
+
+  const handleSaveNote = () => {
+    onNoteChange?.(noteText.trim());
+    setEditingNote(false);
+  };
 
   return (
     <div className="h-full w-full flex flex-col bg-base-100">
-      {/* Progress Indicator */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-base-200 z-20">
-        <div
-          className="h-full bg-primary transition-all duration-300"
-          style={{ width: `${(stepNumber / totalSteps) * 100}%` }}
-        />
-      </div>
-
-      {/* Media Section (50%) */}
-      <div className="relative h-1/2 w-full bg-base-200 flex-shrink-0">
+      {/* Media Section (45%) */}
+      <div className="relative h-[45%] w-full bg-base-200 flex-shrink-0">
         {mediaUrl ? (
           isVideo ? (
-            <div className="w-full h-full">
-              <ReactPlayer
-                url={mediaUrl}
-                playing
+            <div className="w-full h-full relative" onClick={toggleVideo}>
+              <video
+                ref={videoRef}
+                src={mediaUrl!}
+                className="w-full h-full object-cover"
+                autoPlay
                 muted
                 loop
                 playsInline
-                width="100%"
-                height="100%"
-                className="object-cover"
               />
+              {/* Play/Pause overlay */}
+              {videoPaused && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                  <div className="bg-black/50 rounded-full p-4 backdrop-blur-sm">
+                    <span className="material-symbols-outlined text-white text-4xl">play_arrow</span>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <img
-              src={mediaUrl}
+              src={mediaUrl!}
               alt={step.title}
               className="w-full h-full object-cover"
             />
@@ -69,28 +92,80 @@ const CookingStepCard: React.FC<CookingStepCardProps> = ({
         </div>
       </div>
 
-      {/* Content Section (50%) */}
+      {/* Content Section (55%) */}
       <div className="flex-1 flex flex-col p-6 overflow-y-auto">
         {/* Step Title */}
         {step.title && (
-          <h2 className="text-2xl font-bold text-base-content mb-4 leading-tight">
+          <h2 className="text-2xl font-bold text-base-content mb-3 leading-tight">
             {step.title}
           </h2>
         )}
 
         {/* Step Description */}
-        <p className="text-lg text-base-content/80 leading-relaxed mb-6 flex-1">
+        <p className="text-lg text-base-content/80 leading-relaxed mb-4 flex-1">
           {step.description}
         </p>
+
+        {/* Personal Note */}
+        {onNoteChange && (
+          <div className="mb-4">
+            {editingNote ? (
+              <div className="space-y-2">
+                <textarea
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  placeholder="Add a personal note for this step..."
+                  className="textarea textarea-bordered w-full text-sm h-20 resize-none"
+                  autoFocus
+                  onClick={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                />
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setEditingNote(false); setNoteText(note || ''); }}
+                    className="btn btn-ghost btn-xs"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleSaveNote(); }}
+                    className="btn btn-primary btn-xs"
+                  >
+                    Save Note
+                  </button>
+                </div>
+              </div>
+            ) : note ? (
+              <div
+                onClick={(e) => { e.stopPropagation(); setNoteText(note); setEditingNote(true); }}
+                className="bg-warning/10 border border-warning/20 rounded-lg p-3 cursor-pointer hover:bg-warning/15 transition-colors"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="material-symbols-outlined text-warning text-sm">edit_note</span>
+                  <span className="text-xs font-semibold text-warning uppercase tracking-wider">Your Note</span>
+                </div>
+                <p className="text-sm text-base-content/70">{note}</p>
+              </div>
+            ) : (
+              <button
+                onClick={(e) => { e.stopPropagation(); setEditingNote(true); }}
+                className="btn btn-ghost btn-sm gap-2 text-base-content/40 hover:text-base-content/60"
+              >
+                <span className="material-symbols-outlined text-sm">add_notes</span>
+                Add Note
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Timer Button */}
         {step.timer && step.timer > 0 && (
           <button
-            onClick={() => onStartTimer?.(step.timer!)}
+            onClick={(e) => { e.stopPropagation(); onStartTimer?.(step.timer!); }}
             className="btn btn-primary btn-lg w-full gap-3 mb-4"
           >
             <span className="material-symbols-outlined text-2xl">timer</span>
-            <span>Start {Math.floor(step.timer / 60)}m Timer</span>
+            <span>Start {step.timer >= 60 ? `${Math.floor(step.timer / 60)}m` : `${step.timer}s`} Timer</span>
           </button>
         )}
 

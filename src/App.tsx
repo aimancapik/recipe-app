@@ -30,7 +30,7 @@ const MyRecipesScreen = lazy(() => import('@/pages/MyRecipesScreen'));
 const PublicProfileScreen = lazy(() => import('@/pages/PublicProfileScreen'));
 const ReviewRecipeScreen = lazy(() => import('@/pages/ReviewRecipeScreen'));
 const CookingModeScreen = lazy(() => import('@/pages/CookingModeScreen'));
-const ReelsScreen = lazy(() => import('@/pages/ReelsScreen'));
+const BitesScreen = lazy(() => import('@/pages/BitesScreen'));
 const OnboardingScreen = lazy(() => import('@/pages/OnboardingScreen'));
 const NotificationScreen = lazy(() => import('@/pages/NotificationScreen'));
 
@@ -478,9 +478,9 @@ const App: React.FC = () => {
                         onProfileClick={(chefId) => navigateTo(Screen.PUBLIC_PROFILE, undefined, chefId)}
                     />
                 );
-            case Screen.REELS:
+            case Screen.BITES:
                 return (
-                    <ReelsScreen
+                    <BitesScreen
                         recipes={recipesWithFavorites}
                         onRecipeClick={(r) => navigateTo(Screen.DETAIL, r)}
                         onToggleFavorite={handleToggleFavorite}

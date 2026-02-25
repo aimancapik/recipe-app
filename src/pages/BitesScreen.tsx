@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Recipe } from '@/types';
 import { supabase } from '@/lib/supabase';
+import { useCollections } from '@/hooks/useCollections';
+import { useAuth } from '@/hooks/useAuth';
 
-interface ReelsScreenProps {
+interface BitesScreenProps {
   recipes: Recipe[];
   onRecipeClick: (recipe: Recipe) => void;
   onToggleFavorite: (id: string) => void;
@@ -10,16 +12,22 @@ interface ReelsScreenProps {
   onProfileClick?: (userId: string) => void;
 }
 
-const ReelsScreen: React.FC<ReelsScreenProps> = ({
+const BitesScreen: React.FC<BitesScreenProps> = ({
   recipes,
   onRecipeClick,
   onToggleFavorite,
   onBack,
   onProfileClick
 }) => {
+  const { user } = useAuth();
+  const { collections, fetchCollections, addRecipeToCollection, removeRecipeFromCollection, isRecipeInCollection } = useCollections();
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [chefProfiles, setChefProfiles] = useState<Record<string, { full_name: string; avatar_url: string }>>({});
+  const [showCollectionModal, setShowCollectionModal] = useState(false);
+  const [recipeCollections, setRecipeCollections] = useState<Set<string>>(new Set());
+  const [isSaving, setIsSaving] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number>(0);
@@ -58,6 +66,8 @@ const ReelsScreen: React.FC<ReelsScreenProps> = ({
       return lowerUrl.includes('.mp4') ||
         lowerUrl.includes('.webm') ||
         lowerUrl.includes('.mov') ||
+        lowerUrl.includes('youtube') ||
+        lowerUrl.includes('vimeo') ||
         lowerUrl.includes('video/') ||
         lowerUrl.includes('video%2F');
     };
@@ -100,6 +110,49 @@ const ReelsScreen: React.FC<ReelsScreenProps> = ({
     fetchProfile();
   }, [currentRecipe?.userId]);
 
+  // Fetch collections on mount when user is logged in
+  useEffect(() => {
+    if (user) {
+      fetchCollections();
+    }
+  }, [user, fetchCollections]);
+
+  // Check which collections contain current recipe when modal opens
+  useEffect(() => {
+    const checkCollections = async () => {
+      const inCollections = new Set<string>();
+      for (const c of collections) {
+        const isThere = await isRecipeInCollection(c.id, currentRecipe.id);
+        if (isThere) inCollections.add(c.id);
+      }
+      setRecipeCollections(inCollections);
+    };
+    if (collections.length > 0 && showCollectionModal && currentRecipe) {
+      checkCollections();
+    }
+  }, [collections, currentRecipe?.id, showCollectionModal, isRecipeInCollection]);
+
+  const handleToggleCollection = async (collectionId: string) => {
+    try {
+      setIsSaving(true);
+      if (recipeCollections.has(collectionId)) {
+        await removeRecipeFromCollection(collectionId, currentRecipe.id);
+        setRecipeCollections(prev => {
+          const next = new Set(prev);
+          next.delete(collectionId);
+          return next;
+        });
+      } else {
+        await addRecipeToCollection(collectionId, currentRecipe.id);
+        setRecipeCollections(prev => new Set(prev).add(collectionId));
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // Handle swipe navigation
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
@@ -115,11 +168,11 @@ const ReelsScreen: React.FC<ReelsScreenProps> = ({
 
     if (Math.abs(swipeDistance) > minSwipeDistance) {
       if (swipeDistance > 0 && currentIndex < videoRecipes.length - 1) {
-        // Swipe up - next reel
-        goToReel(currentIndex + 1);
+        // Swipe up - next bite
+        goToBite(currentIndex + 1);
       } else if (swipeDistance < 0 && currentIndex > 0) {
-        // Swipe down - previous reel
-        goToReel(currentIndex - 1);
+        // Swipe down - previous bite
+        goToBite(currentIndex - 1);
       }
     }
 
@@ -127,7 +180,7 @@ const ReelsScreen: React.FC<ReelsScreenProps> = ({
     touchEndY.current = 0;
   };
 
-  const goToReel = (index: number) => {
+  const goToBite = (index: number) => {
     // Pause current video
     const currentVideo = videoRefs.current.get(currentIndex);
     if (currentVideo) currentVideo.pause();
@@ -152,9 +205,9 @@ const ReelsScreen: React.FC<ReelsScreenProps> = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowUp' && currentIndex > 0) {
-        goToReel(currentIndex - 1);
+        goToBite(currentIndex - 1);
       } else if (e.key === 'ArrowDown' && currentIndex < videoRecipes.length - 1) {
-        goToReel(currentIndex + 1);
+        goToBite(currentIndex + 1);
       } else if (e.key === ' ') {
         e.preventDefault();
         setIsPlaying(prev => !prev);
@@ -193,13 +246,15 @@ const ReelsScreen: React.FC<ReelsScreenProps> = ({
     }
   };
 
+  const isRecipeSaved = recipeCollections.size > 0;
+
   if (videoRecipes.length === 0) {
     return (
       <div className="fixed inset-0 bg-base-100 flex flex-col items-center justify-center p-8">
         <span className="material-symbols-outlined text-6xl text-base-content/20 mb-4">
           video_library
         </span>
-        <h2 className="text-xl font-bold text-base-content/60 mb-2">No Recipe Reels Yet</h2>
+        <h2 className="text-xl font-bold text-base-content/60 mb-2">No Recipe Bites Yet</h2>
         <p className="text-base-content/40 text-center mb-6">
           Recipe videos will appear here when users upload video recipes
         </p>
@@ -232,11 +287,44 @@ const ReelsScreen: React.FC<ReelsScreenProps> = ({
               const isDefinitelyVideo = lowerUrl.includes('.mp4') ||
                 lowerUrl.includes('.webm') ||
                 lowerUrl.includes('.mov') ||
+                lowerUrl.includes('youtube.com/') ||
+                lowerUrl.includes('youtu.be/') ||
+                lowerUrl.includes('vimeo.com/') ||
                 lowerUrl.includes('video/') ||
                 lowerUrl.includes('video%2F') ||
                 currentRecipe.directions?.some(d => d.mediaType === 'video' && d.image === url);
 
+              const isYouTube = lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be');
+
               if (isDefinitelyVideo) {
+                if (isYouTube) {
+                  // Extract YouTube ID
+                  let videoId = '';
+                  if (lowerUrl.includes('youtube.com/watch')) {
+                    videoId = url.split('v=')[1]?.split('&')[0];
+                  } else if (lowerUrl.includes('youtu.be/')) {
+                    videoId = url.split('youtu.be/')[1]?.split('?')[0];
+                  } else if (lowerUrl.includes('youtube.com/embed/')) {
+                    videoId = url.split('youtube.com/embed/')[1]?.split('?')[0];
+                  } else if (lowerUrl.includes('youtube.com/shorts/')) {
+                    videoId = url.split('shorts/')[1]?.split('?')[0];
+                  }
+
+                  if (videoId) {
+                    return (
+                      <div className="h-full w-full bg-black flex items-center justify-center">
+                        <iframe
+                          className="w-full aspect-video max-h-full"
+                          src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&controls=0&modestbranding=1&rel=0&playlist=${videoId}`}
+                          title={currentRecipe.title}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      </div>
+                    );
+                  }
+                }
+
                 return (
                   <video
                     ref={(el) => { if (el) videoRefs.current.set(currentIndex, el); }}
@@ -244,7 +332,7 @@ const ReelsScreen: React.FC<ReelsScreenProps> = ({
                     className="h-full w-full object-contain"
                     loop
                     playsInline
-                    muted={false}
+                    muted={true}
                     autoPlay
                   />
                 );
@@ -275,7 +363,7 @@ const ReelsScreen: React.FC<ReelsScreenProps> = ({
             <span className="material-symbols-outlined">arrow_back</span>
           </button>
           <div className="text-white text-sm font-semibold">
-            Recipe Reels
+            Recipe Bites
           </div>
           <div className="w-10" /> {/* Spacer for centering */}
         </div>
@@ -318,16 +406,20 @@ const ReelsScreen: React.FC<ReelsScreenProps> = ({
             </span>
           </button>
 
-          {/* Save to Collection (Placeholder, currently no prop passed for this on ReelsScreen, can implement a toast or real collection logic) */}
+          {/* Save to Collection */}
           <button
             onClick={(e) => {
               e.stopPropagation();
-              alert("Save to collection coming soon to Reels!");
+              if (!user) {
+                alert('Please log in to save recipes to collections.');
+                return;
+              }
+              setShowCollectionModal(true);
             }}
             className="flex flex-col items-center gap-1"
           >
             <div className="btn btn-circle btn-lg bg-base-content/20 border-none hover:bg-base-content/30 backdrop-blur-sm">
-              <span className={`material-symbols-outlined text-3xl text-white`}>
+              <span className={`material-symbols-outlined text-3xl ${isRecipeSaved ? 'fill-1 text-primary' : 'text-white'}`}>
                 bookmark
               </span>
             </div>
@@ -429,8 +521,8 @@ const ReelsScreen: React.FC<ReelsScreenProps> = ({
         {/* Play/Pause Indicator */}
         {!isPlaying && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="bg-black/50 rounded-full p-6 backdrop-blur-sm">
-              <span className="material-symbols-outlined text-white text-6xl">
+            <div className="bg-black/50 rounded-full w-20 h-20 flex items-center justify-center backdrop-blur-sm">
+              <span className="material-symbols-outlined text-white text-5xl">
                 play_arrow
               </span>
             </div>
@@ -446,19 +538,61 @@ const ReelsScreen: React.FC<ReelsScreenProps> = ({
           </div>
         </div>
 
-        {/* Progress Indicator */}
-        <div className="absolute top-20 left-4 right-4 flex gap-1 z-10">
-          {videoRecipes.map((_, idx) => (
-            <div
-              key={idx}
-              className={`h-0.5 flex-1 rounded-full transition-all ${idx === currentIndex ? 'bg-white' : 'bg-white/30'
-                }`}
-            />
-          ))}
-        </div>
+
       </div>
+
+      {/* Collection Modal */}
+      <dialog className={`modal modal-bottom sm:modal-middle ${showCollectionModal ? 'modal-open' : ''}`} style={{ zIndex: 60 }}>
+        <div className="modal-box p-0 overflow-hidden bg-base-100 flex flex-col max-h-[80vh]">
+          <div className="p-4 border-b border-base-200 flex justify-between items-center sticky top-0 bg-base-100 z-10">
+            <h3 className="font-bold text-lg">Save to Collection</h3>
+            <button className="btn btn-sm btn-circle btn-ghost" onClick={() => setShowCollectionModal(false)}>✕</button>
+          </div>
+
+          <div className="p-4 overflow-y-auto flex-1">
+            {collections.length === 0 ? (
+              <div className="text-center py-8 text-base-content/60">
+                <span className="material-symbols-outlined text-5xl mb-2 opacity-50">folder_off</span>
+                <p>You don't have any collections yet.</p>
+                <p className="text-sm mt-1">Go to Saved Recipes to create one.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {collections.map(c => {
+                  const inCollection = recipeCollections.has(c.id);
+                  return (
+                    <div
+                      key={c.id}
+                      onClick={() => !isSaving && handleToggleCollection(c.id)}
+                      className={`flex justify-between items-center p-3 rounded-xl border cursor-pointer transition-all ${inCollection ? 'border-primary bg-primary/5' : 'border-base-200 hover:bg-base-200/50'
+                        } ${isSaving ? 'opacity-50 pointer-events-none' : ''}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="bg-base-200 w-10 h-10 rounded-lg flex items-center justify-center">
+                          <span className="material-symbols-outlined text-base-content/50">folder</span>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-base">{c.name}</p>
+                        </div>
+                      </div>
+
+                      <div className={`w-6 h-6 rounded-full border flex items-center justify-center ${inCollection ? 'border-primary bg-primary text-primary-content' : 'border-base-300'
+                        }`}>
+                        {inCollection && <span className="material-symbols-outlined text-[16px] font-bold">check</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+        <form method="dialog" className="modal-backdrop" onClick={() => setShowCollectionModal(false)}>
+          <button>close</button>
+        </form>
+      </dialog>
     </div>
   );
 };
 
-export default ReelsScreen;
+export default BitesScreen;
