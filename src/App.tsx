@@ -162,6 +162,30 @@ const App: React.FC = () => {
         return () => clearTimeout(timer);
     }, []);
 
+    // Deep linking support for shared recipes
+    React.useEffect(() => {
+        const path = window.location.pathname;
+        const recipeMatch = path.match(/\/recipe\/([0-9a-fA-F-]+)/); // UUID or friendly ID
+
+        if (recipeMatch && recipeMatch[1]) {
+            const recipeId = recipeMatch[1];
+
+            const handleDeepLink = async () => {
+                try {
+                    const fetchedRecipes = await fetchRecipesByIds([recipeId]);
+                    if (fetchedRecipes.length > 0) {
+                        setSelectedRecipe(fetchedRecipes[0]);
+                        setCurrentScreen(Screen.DETAIL);
+                    }
+                } catch (err) {
+                    console.error('Deep link failed:', err);
+                }
+            };
+
+            handleDeepLink();
+        }
+    }, [fetchRecipesByIds]);
+
     const handleSignIn = async (email: string, password: string) => {
         await signIn(email, password);
         handleAuthSuccess();
@@ -372,6 +396,7 @@ const App: React.FC = () => {
                         loadingMore={loadingMore}
                         loading={loading}
                         followingIds={followingIds}
+                        onLoginClick={() => setCurrentScreen(Screen.LOGIN)}
                     />
                 );
             case Screen.REELS:
@@ -413,7 +438,7 @@ const App: React.FC = () => {
                             setCurrentScreen(Screen.PUBLISH);
                         } : undefined}
                         onChefClick={(chefId) => navigateTo(Screen.PUBLIC_PROFILE, undefined, chefId)}
-                        onRate={() => setCurrentScreen(Screen.REVIEW)}
+                        onRate={() => requireAuth(() => setCurrentScreen(Screen.REVIEW), Screen.DETAIL)}
                         onStartCooking={() => setCurrentScreen(Screen.COOKING_MODE)}
                     />
                 ) : null;

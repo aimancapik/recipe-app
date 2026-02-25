@@ -22,6 +22,7 @@ interface HomeScreenProps {
     loadingMore: boolean;
     loading: boolean;
     followingIds?: Set<string>;
+    onLoginClick: () => void;
 }
 
 const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -37,7 +38,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     hasMore,
     loadingMore,
     loading,
-    followingIds = new Set()
+    followingIds = new Set(),
+    onLoginClick
 }) => {
     const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Chef';
     const avatarId = user?.user_metadata?.avatar_id;
@@ -270,20 +272,54 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                         <p className="text-sm mt-1 text-base-content/40">Try a different keyword or category</p>
                     </div>
                 ) : feedType === 'following' && !loading ? (
+                    user ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-base-content/40">
+                            <div className="w-20 h-20 rounded-full bg-base-200 flex items-center justify-center mb-4">
+                                <span className="material-symbols-outlined text-4xl">group</span>
+                            </div>
+                            <p className="text-lg font-semibold text-base-content/60 mb-2">No recipes yet</p>
+                            <p className="text-sm text-center mb-5 px-8 text-base-content/40">
+                                Follow chefs to see their recipes here
+                            </p>
+                            <button
+                                onClick={() => setFeedType('forYou')}
+                                className="btn btn-primary btn-sm rounded-xl gap-2 shadow-md shadow-primary/20"
+                            >
+                                <span className="material-symbols-outlined text-lg">explore</span>
+                                Browse All Recipes
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-20 text-base-content/40">
+                            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                                <span className="material-symbols-outlined text-4xl text-primary">login</span>
+                            </div>
+                            <p className="text-lg font-semibold text-base-content/60 mb-2">Join the Community</p>
+                            <p className="text-sm text-center mb-6 px-10 text-base-content/40">
+                                Please login to see recipes from chefs you follow!
+                            </p>
+                            <button
+                                onClick={onLoginClick}
+                                className="btn btn-primary rounded-2xl px-8 shadow-lg shadow-primary/25"
+                            >
+                                Login to Account
+                            </button>
+                        </div>
+                    )
+                ) : !loading && filteredRecipes.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 text-base-content/40">
                         <div className="w-20 h-20 rounded-full bg-base-200 flex items-center justify-center mb-4">
-                            <span className="material-symbols-outlined text-4xl">group</span>
+                            <span className="material-symbols-outlined text-4xl">no_meals</span>
                         </div>
-                        <p className="text-lg font-semibold text-base-content/60 mb-2">No recipes yet</p>
-                        <p className="text-sm text-center mb-5 px-8 text-base-content/40">
-                            Follow chefs to see their recipes here
+                        <p className="text-lg font-semibold text-base-content/60 mb-2">No recipes found</p>
+                        <p className="text-sm text-center px-8 text-base-content/40">
+                            We couldn't find any recipes for this category yet.
                         </p>
                         <button
-                            onClick={() => setFeedType('forYou')}
-                            className="btn btn-primary btn-sm rounded-xl gap-2 shadow-md shadow-primary/20"
+                            onClick={() => setActiveCategory('all')}
+                            className="btn btn-ghost btn-sm mt-4 text-primary"
                         >
-                            <span className="material-symbols-outlined text-lg">explore</span>
-                            Browse All Recipes
+                            Reset Category
                         </button>
                     </div>
                 ) : null}
