@@ -50,13 +50,20 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     const { unreadCount } = useNotifications();
     const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Chef';
     const avatarId = user?.user_metadata?.avatar_id;
-    const avatarUrl = user?.user_metadata?.avatar_url || (avatarId ? getAvatarUrl(avatarId) : 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100');
+    const googleAvatar = user?.user_metadata?.avatar_url;
+    const avatarUrl = getAvatarUrl(avatarId || googleAvatar);
     const [activeCategory, setActiveCategory] = useState('all');
     const [searchValue, setSearchValue] = useState('');
     const [isFocused, setIsFocused] = useState(false);
     const [feedType, setFeedType] = useState<'forYou' | 'following'>('forYou');
+    const [switching, setSwitching] = useState(false);
 
     const isSearching = searchValue.trim().length >= 2;
+
+    // Clear switching state once loading finishes
+    React.useEffect(() => {
+        if (!loading) setSwitching(false);
+    }, [loading]);
 
     // Handle server-side filtering with debouncing
     React.useEffect(() => {
@@ -121,8 +128,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3.5">
                         <div className="relative">
-                            <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-primary/30 ring-offset-2 ring-offset-base-100">
-                                <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                            <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-primary/30 ring-offset-2 ring-offset-base-100 bg-primary flex items-center justify-center">
+                                {avatarUrl ? (
+                                    <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                                ) : (
+                                    <span className="text-primary-content font-black text-lg">{displayName.charAt(0).toUpperCase()}</span>
+                                )}
                             </div>
                             <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-success border-2 border-base-100" />
                         </div>
@@ -155,7 +166,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
             <div className="px-5 pb-3">
                 <label
                     className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 transition-all duration-300 ${isFocused
-                        ? 'bg-base-100 shadow-lg shadow-primary/10 ring-2 ring-primary/30'
+                        ? 'bg-base-100 shadow-lg shadow-primary/10'
                         : 'bg-base-200/70'
                         }`}
                 >
@@ -165,7 +176,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                     <input
                         ref={inputRef}
                         style={{ boxShadow: 'none', border: 'none', outline: 'none' }}
-                        className="grow text-sm bg-transparent text-base-content placeholder:text-base-content/40 !border-none !outline-none !shadow-none p-0 h-auto"
+                        className="no-focus-ring grow text-sm bg-transparent text-base-content placeholder:text-base-content/40 border-0 outline-none ring-0 shadow-none focus:border-0 focus:outline-none focus:ring-0 focus:shadow-none !border-none !outline-none !shadow-none !ring-0 appearance-none p-0 h-auto"
                         placeholder="Search recipes, ingredients..."
                         type="text"
                         value={searchValue}
@@ -189,7 +200,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
             <div className="px-5 pb-4">
                 <div className="flex gap-1 p-1 bg-base-200/60 rounded-2xl w-full">
                     <button
-                        onClick={() => setFeedType('forYou')}
+                        onClick={() => { setFeedType('forYou'); setSwitching(true); }}
                         className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${feedType === 'forYou'
                             ? 'bg-primary text-primary-content shadow-md shadow-primary/25'
                             : 'text-base-content/50 hover:text-base-content'
@@ -198,7 +209,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                         For You
                     </button>
                     <button
-                        onClick={() => setFeedType('following')}
+                        onClick={() => { setFeedType('following'); setSwitching(true); }}
                         className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${feedType === 'following'
                             ? 'bg-primary text-primary-content shadow-md shadow-primary/25'
                             : 'text-base-content/50 hover:text-base-content'
@@ -256,7 +267,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                     )}
                 </div>
 
-                {loading && recipes.length === 0 ? (
+                {(loading || switching) && (recipes.length === 0 || switching) ? (
                     <div className="columns-2 gap-4 space-y-4">
                         <SkeletonGrid count={8} />
                     </div>

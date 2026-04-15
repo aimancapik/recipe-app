@@ -10,7 +10,6 @@ interface CookingModeScreenProps {
   onExit: () => void;
 }
 
-// --- Serving size calculator helper ---
 const fractionMap: Record<string, number> = {
   '½': 0.5, '⅓': 1/3, '⅔': 2/3, '¼': 0.25, '¾': 0.75,
   '⅕': 0.2, '⅖': 0.4, '⅗': 0.6, '⅘': 0.8,
@@ -19,40 +18,25 @@ const fractionMap: Record<string, number> = {
 
 function scaleIngredient(ingredient: string, multiplier: number): string {
   if (multiplier === 1) return ingredient;
-
-  // Match leading number (integer, decimal, or fraction) at the start
-  // Examples: "2 cups", "1.5 tsp", "½ cup", "1 ½ cups", "1/2 cup"
   const match = ingredient.match(/^(\d+\s*)?([½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]|\d+\/\d+)?(\s*.+)$/);
-
   if (!match) return ingredient;
-
   const [, wholeStr, fracStr, rest] = match;
   let value = 0;
-
-  if (wholeStr) {
-    value += parseFloat(wholeStr.trim());
-  }
-
+  if (wholeStr) value += parseFloat(wholeStr.trim());
   if (fracStr) {
-    if (fractionMap[fracStr]) {
-      value += fractionMap[fracStr];
-    } else if (fracStr.includes('/')) {
+    if (fractionMap[fracStr]) value += fractionMap[fracStr];
+    else if (fracStr.includes('/')) {
       const [num, den] = fracStr.split('/').map(Number);
       if (den && den !== 0) value += num / den;
     }
   }
-
   if (value === 0) return ingredient;
-
   const scaled = value * multiplier;
-  // Format nicely: remove trailing .0 for whole numbers
   const formatted = scaled % 1 === 0 ? scaled.toString() : scaled.toFixed(1).replace(/\.0$/, '');
-
   return `${formatted}${rest}`;
 }
 
-// --- LocalStorage helpers ---
-function loadProgress(recipeId: string): { currentStep: number; completedSteps: number[] } | null {
+function loadProgress(recipeId: string) {
   try {
     const data = localStorage.getItem(`cooking_progress_${recipeId}`);
     return data ? JSON.parse(data) : null;
@@ -62,107 +46,68 @@ function loadProgress(recipeId: string): { currentStep: number; completedSteps: 
 function saveProgress(recipeId: string, currentStep: number, completedSteps: Set<number>) {
   try {
     localStorage.setItem(`cooking_progress_${recipeId}`, JSON.stringify({
-      currentStep,
-      completedSteps: [...completedSteps],
-      lastUpdated: Date.now(),
+      currentStep, completedSteps: [...completedSteps], lastUpdated: Date.now(),
     }));
-  } catch { /* ignore quota errors */ }
+  } catch {}
 }
 
 function clearProgress(recipeId: string) {
   try { localStorage.removeItem(`cooking_progress_${recipeId}`); } catch {}
 }
 
-function loadNotes(recipeId: string): Record<number, string> {
-  try {
-    const data = localStorage.getItem(`cooking_notes_${recipeId}`);
-    return data ? JSON.parse(data) : {};
-  } catch { return {}; }
-}
-
-function saveNotes(recipeId: string, notes: Record<number, string>) {
-  try {
-    localStorage.setItem(`cooking_notes_${recipeId}`, JSON.stringify(notes));
-  } catch {}
-}
 
 const CookingModeScreen: React.FC<CookingModeScreenProps> = ({ recipe, onExit }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [showIngredients, setShowIngredients] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [activeTimer, setActiveTimer] = useState<number | null>(null);
-  const [timerKey, setTimerKey] = useState(0);
+  // Map of stepIndex -> { seconds, key } for multiple concurrent timers
+  const [activeTimers, setActiveTimers] = useState<Record<number, { seconds: number; timerKey: number }>>({});
+  const timerKeyCounter = useRef(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [autoAdvance, setAutoAdvance] = useState(false);
   const [servingMultiplier, setServingMultiplier] = useState(1);
-  const [stepNotes, setStepNotes] = useState<Record<number, string>>({});
   const [showResumePrompt, setShowResumePrompt] = useState(false);
   const [savedProgress, setSavedProgress] = useState<{ currentStep: number; completedSteps: number[] } | null>(null);
-  const [showHints, setShowHints] = useState(true);
   const [showCompletion, setShowCompletion] = useState(false);
 
-  // Keep screen awake during cooking
   useWakeLock();
-  const { speak, stop: stopSpeech, toggle: toggleSpeech, isEnabled: ttsEnabled, isSpeaking, isSupported: ttsSupported } = useSpeech();
+  const { speak, stop: stopSpeech, toggle: toggleSpeech, isEnabled: ttsEnabled, isSpeaking, isSupported: ttsSupported, voices, settings, updateSettings } = useSpeech();
 
-  const containerRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number>(0);
   const touchEndY = useRef<number>(0);
   const lastTapTime = useRef<number>(0);
-  const longPressTimer = useRef<number | null>(null);
-  const [showQuickActions, setShowQuickActions] = useState(false);
 
   const totalSteps = recipe.directions.length;
   const canGoNext = currentStep < totalSteps - 1;
   const canGoPrev = currentStep > 0;
   const progressPercent = ((currentStep + 1) / totalSteps) * 100;
+  const isCurrentCompleted = completedSteps.has(currentStep);
 
-  // --- Load saved progress on mount ---
   useEffect(() => {
     const progress = loadProgress(recipe.id);
     if (progress && progress.currentStep > 0) {
       setSavedProgress(progress);
       setShowResumePrompt(true);
     }
-    const notes = loadNotes(recipe.id);
-    setStepNotes(notes);
   }, [recipe.id]);
 
-  // --- Auto-hide tap hints after 3 seconds ---
   useEffect(() => {
-    const timer = setTimeout(() => setShowHints(false), 3000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // --- Save progress on step/completion changes ---
-  useEffect(() => {
-    if (!showResumePrompt) {
-      saveProgress(recipe.id, currentStep, completedSteps);
-    }
+    if (!showResumePrompt) saveProgress(recipe.id, currentStep, completedSteps);
   }, [currentStep, completedSteps, recipe.id, showResumePrompt]);
 
-  // --- Save notes when they change ---
-  useEffect(() => {
-    saveNotes(recipe.id, stepNotes);
-  }, [stepNotes, recipe.id]);
 
-  // --- TTS: read step when it changes ---
   useEffect(() => {
     if (ttsEnabled && recipe.directions[currentStep]) {
       const step = recipe.directions[currentStep];
-      const text = [step.title, step.description].filter(Boolean).join('. ');
-      speak(text);
+      speak([step.title, step.description].filter(Boolean).join('. '));
     }
   }, [currentStep, ttsEnabled]);
 
-  // --- Check for all steps completion ---
   useEffect(() => {
     if (completedSteps.size === totalSteps && totalSteps > 0 && !showCompletion) {
       setShowCompletion(true);
       clearProgress(recipe.id);
-      if ('vibrate' in navigator) {
-        navigator.vibrate([100, 50, 100, 50, 200]);
-      }
+      if ('vibrate' in navigator) navigator.vibrate([100, 50, 100, 50, 200]);
     }
   }, [completedSteps.size, totalSteps, recipe.id]);
 
@@ -175,250 +120,171 @@ const CookingModeScreen: React.FC<CookingModeScreenProps> = ({ recipe, onExit })
     setSavedProgress(null);
   };
 
-  // --- Double-tap detection ---
-  const handleDoubleTap = useCallback(() => {
-    toggleStepComplete(currentStep);
-    if ('vibrate' in navigator) navigator.vibrate(50);
-  }, [currentStep]);
+  const toggleStepComplete = useCallback((stepIndex: number) => {
+    setCompletedSteps(prev => {
+      const next = new Set(prev);
+      if (next.has(stepIndex)) next.delete(stepIndex);
+      else next.add(stepIndex);
+      return next;
+    });
+  }, []);
 
-  // Handle tap zones with double-tap detection
-  const handleTapZone = (e: React.MouseEvent | React.TouchEvent) => {
-    const now = Date.now();
-    const timeDiff = now - lastTapTime.current;
-    lastTapTime.current = now;
-
-    // Double-tap detection (center zone)
-    if (timeDiff < 300) {
-      handleDoubleTap();
-      return;
-    }
-
-    // Single tap after delay — navigate
-    const target = e.currentTarget as HTMLElement;
-    const rect = target.getBoundingClientRect();
-    const y = 'touches' in e ? e.touches[0]?.clientY ?? 0 : (e as React.MouseEvent).clientY;
-    const relativeY = y - rect.top;
-    const zoneHeight = rect.height * 0.2;
-
-    if (relativeY < zoneHeight && canGoPrev) {
-      setCurrentStep(prev => prev - 1);
-      if ('vibrate' in navigator) navigator.vibrate(30);
-    } else if (relativeY > rect.height - zoneHeight && canGoNext) {
+  const goNext = useCallback(() => {
+    if (canGoNext) {
       setCurrentStep(prev => prev + 1);
       if ('vibrate' in navigator) navigator.vibrate(30);
     }
-  };
+  }, [canGoNext]);
 
-  // --- Long-press detection ---
-  const handleLongPressStart = () => {
-    longPressTimer.current = window.setTimeout(() => {
-      setShowQuickActions(true);
-      if ('vibrate' in navigator) navigator.vibrate(50);
-    }, 500);
-  };
-
-  const handleLongPressEnd = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
+  const goPrev = useCallback(() => {
+    if (canGoPrev) {
+      setCurrentStep(prev => prev - 1);
+      if ('vibrate' in navigator) navigator.vibrate(30);
     }
-  };
+  }, [canGoPrev]);
 
-  // Handle touch start
+  // Swipe handlers
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
-    handleLongPressStart();
   };
-
-  // Handle touch move
   const handleTouchMove = (e: React.TouchEvent) => {
     touchEndY.current = e.touches[0].clientY;
-    // Cancel long press if finger moves
-    if (Math.abs(touchStartY.current - touchEndY.current) > 10) {
-      handleLongPressEnd();
-    }
   };
-
-  // Handle touch end (swipe detection)
   const handleTouchEnd = () => {
-    handleLongPressEnd();
-    const swipeDistance = touchStartY.current - touchEndY.current;
-    const minSwipeDistance = 50;
-
-    if (Math.abs(swipeDistance) > minSwipeDistance) {
-      if (swipeDistance > 0 && canGoNext) {
-        setCurrentStep(prev => prev + 1);
-        if ('vibrate' in navigator) navigator.vibrate(30);
-      } else if (swipeDistance < 0 && canGoPrev) {
-        setCurrentStep(prev => prev - 1);
-        if ('vibrate' in navigator) navigator.vibrate(30);
-      }
+    const dist = touchStartY.current - touchEndY.current;
+    if (Math.abs(dist) > 50) {
+      if (dist > 0) goNext();
+      else goPrev();
     }
-
     touchStartY.current = 0;
     touchEndY.current = 0;
   };
 
-  // Keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowUp' || e.key === 'ArrowRight') {
-        if (canGoNext) {
-          setCurrentStep(prev => prev + 1);
-        }
-      } else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') {
-        if (canGoPrev) {
-          setCurrentStep(prev => prev - 1);
-        }
-      } else if (e.key === 'Escape') {
-        onExit();
-      } else if (e.key === ' ') {
-        e.preventDefault();
-        toggleStepComplete(currentStep);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [canGoNext, canGoPrev, currentStep, onExit]);
-
-  // Prevent body scroll
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, []);
-
-  // Stop speech on exit
-  useEffect(() => {
-    return () => { stopSpeech(); };
-  }, [stopSpeech]);
-
-  const handleStartTimer = (seconds: number) => {
-    setActiveTimer(seconds);
-    setTimerKey(prev => prev + 1);
+  // Double-tap to complete
+  const handleContentTap = () => {
+    const now = Date.now();
+    if (now - lastTapTime.current < 300) {
+      toggleStepComplete(currentStep);
+      if ('vibrate' in navigator) navigator.vibrate(50);
+    }
+    lastTapTime.current = now;
   };
 
-  const handleTimerComplete = () => {
-    setActiveTimer(null);
-    setCompletedSteps(prev => new Set([...prev, currentStep]));
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowUp' || e.key === 'ArrowRight') goNext();
+      else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') goPrev();
+      else if (e.key === 'Escape') onExit();
+      else if (e.key === ' ') { e.preventDefault(); toggleStepComplete(currentStep); }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [goNext, goPrev, currentStep, onExit, toggleStepComplete]);
 
-    if (autoAdvance && canGoNext) {
-      setTimeout(() => {
-        setCurrentStep(prev => prev + 1);
-      }, 1000);
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
+  useEffect(() => { return () => { stopSpeech(); }; }, [stopSpeech]);
+
+
+  const handleStartTimer = (seconds: number) => {
+    timerKeyCounter.current += 1;
+    setActiveTimers(prev => ({
+      ...prev,
+      [currentStep]: { seconds, timerKey: timerKeyCounter.current }
+    }));
+  };
+
+  const handleTimerComplete = (stepIndex: number) => {
+    toggleStepComplete(stepIndex);
+    setActiveTimers(prev => {
+      const next = { ...prev };
+      delete next[stepIndex];
+      return next;
+    });
+    if (autoAdvance && stepIndex === currentStep && canGoNext) {
+      setTimeout(goNext, 1000);
     }
   };
 
-  const toggleStepComplete = (stepIndex: number) => {
-    setCompletedSteps(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(stepIndex)) {
-        newSet.delete(stepIndex);
-      } else {
-        newSet.add(stepIndex);
-      }
-      return newSet;
-    });
-  };
-
-  const handleNoteChange = (stepIndex: number, note: string) => {
-    setStepNotes(prev => {
-      const updated = { ...prev };
-      if (note) {
-        updated[stepIndex] = note;
-      } else {
-        delete updated[stepIndex];
-      }
-      return updated;
+  const handleTimerDismiss = (stepIndex: number) => {
+    setActiveTimers(prev => {
+      const next = { ...prev };
+      delete next[stepIndex];
+      return next;
     });
   };
 
   const handleExit = () => {
     saveProgress(recipe.id, currentStep, completedSteps);
     stopSpeech();
+    setActiveTimers({});
     onExit();
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-base-100 flex flex-col">
-      {/* Progress Bar */}
-      <div className="absolute top-0 left-0 right-0 z-40 h-1 bg-base-300">
+    <div className="fixed inset-0 z-50 bg-base-100 flex flex-col select-none">
+
+      {/* ── Top progress bar ── */}
+      <div className="absolute top-0 left-0 right-0 z-50 h-0.5 bg-base-300">
         <div
-          className="h-full bg-primary transition-all duration-300"
+          className="h-full bg-primary transition-all duration-500 ease-out"
           style={{ width: `${progressPercent}%` }}
         />
       </div>
 
-      {/* Header */}
-      <div className="absolute top-1 left-0 right-0 z-30 bg-gradient-to-b from-black/60 to-transparent p-4 flex items-center justify-between">
+      {/* ── Header ── */}
+      <header className="relative z-40 flex items-center gap-3 px-4 pt-5 pb-3">
         <button
           onClick={handleExit}
-          className="btn btn-circle btn-ghost btn-sm text-white hover:bg-white/20"
-          aria-label="Exit cooking mode"
+          className="size-10 flex items-center justify-center rounded-full bg-base-200 hover:bg-base-300 transition-colors shrink-0"
         >
-          <span className="material-symbols-outlined">close</span>
+          <span className="material-symbols-outlined text-[20px]">arrow_back</span>
         </button>
 
-        <div className="flex flex-col items-center flex-1 mx-4">
-          <h1 className="text-white font-bold text-lg line-clamp-1">
-            {recipe.title}
-          </h1>
-          <p className="text-white/60 text-xs font-medium">
-            Step {currentStep + 1} of {totalSteps}
-          </p>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Now Cooking</p>
+          <h1 className="font-bold text-base text-base-content truncate leading-tight">{recipe.title}</h1>
         </div>
 
-        <div className="flex gap-1">
-          {/* TTS Toggle */}
+        <div className="flex items-center gap-1 shrink-0">
           {ttsSupported && (
             <button
               onClick={toggleSpeech}
-              className={`btn btn-circle btn-ghost btn-sm hover:bg-white/20 ${ttsEnabled ? 'text-primary' : 'text-white'}`}
-              aria-label={ttsEnabled ? 'Disable voice' : 'Enable voice'}
+              className={`size-10 flex items-center justify-center rounded-full transition-all ${ttsEnabled ? 'bg-primary text-primary-content shadow-md shadow-primary/30' : 'bg-base-200 text-base-content/60 hover:bg-base-300'}`}
+              title={ttsEnabled ? 'Disable voice' : 'Enable voice'}
             >
-              <span className="material-symbols-outlined">
-                {ttsEnabled ? (isSpeaking ? 'volume_up' : 'record_voice_over') : 'volume_off'}
+              <span className="material-symbols-outlined text-[20px]">
+                {ttsEnabled ? 'record_voice_over' : 'volume_off'}
               </span>
             </button>
           )}
           <button
-            onClick={() => setShowSettings(!showSettings)}
-            className="btn btn-circle btn-ghost btn-sm text-white hover:bg-white/20"
-            aria-label="Settings"
+            onClick={() => setShowIngredients(true)}
+            className="size-10 flex items-center justify-center rounded-full bg-base-200 hover:bg-base-300 transition-colors text-base-content/70"
+            title="Ingredients"
           >
-            <span className="material-symbols-outlined">settings</span>
+            <span className="material-symbols-outlined text-[20px]">grocery</span>
           </button>
           <button
-            onClick={() => setShowIngredients(!showIngredients)}
-            className="btn btn-circle btn-ghost btn-sm text-white hover:bg-white/20"
-            aria-label="View ingredients"
+            onClick={() => setShowSettings(true)}
+            className="size-10 flex items-center justify-center rounded-full bg-base-200 hover:bg-base-300 transition-colors text-base-content/70"
+            title="Settings"
           >
-            <span className="material-symbols-outlined">list</span>
+            <span className="material-symbols-outlined text-[20px]">tune</span>
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* Tap Zones Hint - auto-hides */}
-      {showHints && (
-        <div className="absolute left-0 right-0 top-20 z-10 pointer-events-none animate-fade-in">
-          <div className="flex justify-center">
-            <div className="bg-black/40 backdrop-blur-sm px-4 py-2 rounded-full text-white/80 text-xs font-medium">
-              Tap top/bottom to navigate, double-tap to complete
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Content with Tap Zones */}
+      {/* ── Step Content ── */}
       <div
-        ref={containerRef}
-        className="flex-1 relative cursor-pointer"
+        className="flex-1 overflow-hidden"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        onClick={handleTapZone}
+        onClick={handleContentTap}
       >
         <CookingStepCard
           step={recipe.directions[currentStep]}
@@ -426,264 +292,131 @@ const CookingModeScreen: React.FC<CookingModeScreenProps> = ({ recipe, onExit })
           totalSteps={totalSteps}
           fallbackImage={recipe.image}
           onStartTimer={handleStartTimer}
-          note={stepNotes[currentStep]}
-          onNoteChange={(note) => handleNoteChange(currentStep, note)}
+          isTimerActive={currentStep in activeTimers}
+          isCompleted={isCurrentCompleted}
         />
-
-        {/* Step Completion Checkbox */}
-        <div className="absolute bottom-24 right-6 z-20">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleStepComplete(currentStep);
-              if ('vibrate' in navigator) navigator.vibrate(50);
-            }}
-            className={`btn btn-circle btn-lg border-2 transition-all ${
-              completedSteps.has(currentStep)
-                ? 'bg-primary border-primary text-primary-content'
-                : 'bg-black/60 border-white/40 text-white hover:bg-black/80'
-            }`}
-            aria-label={completedSteps.has(currentStep) ? 'Mark as incomplete' : 'Mark as complete'}
-          >
-            <span className="material-symbols-outlined text-2xl">
-              {completedSteps.has(currentStep) ? 'check_circle' : 'radio_button_unchecked'}
-            </span>
-          </button>
-        </div>
       </div>
 
-      {/* Navigation Indicators */}
-      <div className="absolute left-0 right-0 bottom-8 flex justify-center items-center gap-2 pointer-events-none z-20">
-        {Array.from({ length: totalSteps }).map((_, idx) => (
-          <div key={idx} className="relative">
-            <div
-              className={`h-2 rounded-full transition-all duration-300 ${
+      {/* ── Persistent Timer Bar ── */}
+      {Object.keys(activeTimers).length > 0 && (
+        <div className="relative z-40 px-4 pt-3 pb-1 bg-base-100 border-t border-base-200 space-y-2">
+          {Object.entries(activeTimers).map(([stepIdx, timer]) => {
+            const idx = parseInt(stepIdx);
+            const stepTitle = recipe.directions[idx]?.title;
+            return (
+              <StepTimer
+                key={timer.timerKey}
+                seconds={timer.seconds}
+                label={`Step ${idx + 1}${stepTitle ? ` · ${stepTitle}` : ''}`}
+                onComplete={() => handleTimerComplete(idx)}
+                onClose={() => handleTimerDismiss(idx)}
+              />
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Bottom Navigation Bar ── */}
+      <div className="relative z-40 px-4 pb-6 pt-3 bg-base-100 border-t border-base-200">
+        {/* Step dots */}
+        <div className="flex justify-center gap-1.5 mb-4">
+          {Array.from({ length: totalSteps }).map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentStep(idx)}
+              className={`rounded-full transition-all duration-300 ${
                 idx === currentStep
-                  ? 'w-8 bg-primary'
+                  ? 'w-6 h-2 bg-primary'
                   : completedSteps.has(idx)
-                  ? 'w-2 bg-primary/60'
-                  : 'w-2 bg-white/30'
+                  ? 'w-2 h-2 bg-primary/40'
+                  : 'w-2 h-2 bg-base-300'
               }`}
             />
-            {/* Note indicator dot */}
-            {stepNotes[idx] && (
-              <div className="absolute -top-1.5 -right-1 w-2 h-2 bg-warning rounded-full" />
-            )}
-          </div>
-        ))}
+          ))}
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Prev */}
+          <button
+            onClick={goPrev}
+            disabled={!canGoPrev}
+            className="size-12 flex items-center justify-center rounded-2xl bg-base-200 disabled:opacity-30 hover:bg-base-300 active:scale-95 transition-all"
+          >
+            <span className="material-symbols-outlined">arrow_back</span>
+          </button>
+
+          {/* Complete toggle — center, prominent */}
+          <button
+            onClick={(e) => { e.stopPropagation(); toggleStepComplete(currentStep); if ('vibrate' in navigator) navigator.vibrate(50); }}
+            className={`flex-1 h-12 flex items-center justify-center gap-2 rounded-2xl font-bold transition-all active:scale-95 ${
+              isCurrentCompleted
+                ? 'bg-primary text-primary-content shadow-lg shadow-primary/30'
+                : 'bg-base-200 text-base-content hover:bg-base-300'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[20px]">
+              {isCurrentCompleted ? 'check_circle' : 'radio_button_unchecked'}
+            </span>
+            <span className="text-sm">{isCurrentCompleted ? 'Done!' : 'Mark Done'}</span>
+          </button>
+
+          {/* Next */}
+          <button
+            onClick={goNext}
+            disabled={!canGoNext}
+            className="size-12 flex items-center justify-center rounded-2xl bg-base-content text-base-100 disabled:opacity-30 active:scale-95 transition-all"
+          >
+            <span className="material-symbols-outlined">arrow_forward</span>
+          </button>
+        </div>
+
+        <p className="text-center text-[11px] text-base-content/30 mt-3 font-medium">
+          {completedSteps.size} of {totalSteps} steps done · double-tap to complete
+        </p>
       </div>
 
-      {/* Quick Actions Menu (from long-press) */}
-      {showQuickActions && (
-        <div
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm z-40 flex items-center justify-center"
-          onClick={() => setShowQuickActions(false)}
-        >
-          <div
-            className="bg-base-100 rounded-2xl p-4 w-64 space-y-2"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="font-bold text-center mb-3">Quick Actions</h3>
-            <button
-              onClick={() => { toggleStepComplete(currentStep); setShowQuickActions(false); }}
-              className="btn btn-ghost btn-sm w-full justify-start gap-3"
-            >
-              <span className="material-symbols-outlined text-lg">
-                {completedSteps.has(currentStep) ? 'remove_done' : 'check_circle'}
-              </span>
-              {completedSteps.has(currentStep) ? 'Mark Incomplete' : 'Mark Complete'}
-            </button>
-            {recipe.directions[currentStep]?.timer && recipe.directions[currentStep].timer! > 0 && (
-              <button
-                onClick={() => { handleStartTimer(recipe.directions[currentStep].timer!); setShowQuickActions(false); }}
-                className="btn btn-ghost btn-sm w-full justify-start gap-3"
-              >
-                <span className="material-symbols-outlined text-lg">timer</span>
-                Start Timer
-              </button>
-            )}
-            {ttsSupported && (
-              <button
-                onClick={() => {
-                  const step = recipe.directions[currentStep];
-                  speak([step.title, step.description].filter(Boolean).join('. '));
-                  setShowQuickActions(false);
-                }}
-                className="btn btn-ghost btn-sm w-full justify-start gap-3"
-              >
-                <span className="material-symbols-outlined text-lg">record_voice_over</span>
-                Read Step Aloud
-              </button>
-            )}
-            <button
-              onClick={() => setShowQuickActions(false)}
-              className="btn btn-ghost btn-sm w-full text-base-content/50 mt-2"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Settings Panel */}
-      {showSettings && (
-        <div
-          className="absolute inset-0 bg-black/80 backdrop-blur-sm z-40 flex items-end"
-          onClick={() => setShowSettings(false)}
-        >
-          <div
-            className="bg-base-100 rounded-t-3xl p-6 w-full max-h-[60vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold">Cooking Settings</h2>
-              <button
-                onClick={() => setShowSettings(false)}
-                className="btn btn-circle btn-ghost btn-sm"
-              >
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-
-            <div className="space-y-6">
-              {/* Auto-advance */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold">Auto-advance</h3>
-                  <p className="text-sm text-base-content/60">
-                    Automatically move to next step when timer ends
-                  </p>
-                </div>
-                <input
-                  type="checkbox"
-                  className="toggle toggle-primary"
-                  checked={autoAdvance}
-                  onChange={(e) => setAutoAdvance(e.target.checked)}
-                />
-              </div>
-
-              {/* TTS Toggle */}
-              {ttsSupported && (
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold">Read Steps Aloud</h3>
-                    <p className="text-sm text-base-content/60">
-                      Automatically read each step using text-to-speech
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    className="toggle toggle-primary"
-                    checked={ttsEnabled}
-                    onChange={toggleSpeech}
-                  />
-                </div>
-              )}
-
-              {/* Serving Size Multiplier */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold">Serving Size</h3>
-                  <span className="badge badge-primary">{servingMultiplier}x</span>
-                </div>
-                <input
-                  type="range"
-                  min="0.5"
-                  max="4"
-                  step="0.5"
-                  value={servingMultiplier}
-                  onChange={(e) => setServingMultiplier(parseFloat(e.target.value))}
-                  className="range range-primary range-sm"
-                />
-                <div className="flex justify-between text-xs text-base-content/50 mt-1">
-                  <span>0.5x</span>
-                  <span>1x</span>
-                  <span>2x</span>
-                  <span>4x</span>
-                </div>
-              </div>
-
-              {/* Completed Steps */}
-              <div>
-                <h3 className="font-semibold mb-3">
-                  Progress ({completedSteps.size}/{totalSteps} completed)
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {Array.from({ length: totalSteps }).map((_, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        setCurrentStep(idx);
-                        setShowSettings(false);
-                      }}
-                      className={`btn btn-sm ${
-                        idx === currentStep
-                          ? 'btn-primary'
-                          : completedSteps.has(idx)
-                          ? 'btn-success'
-                          : 'btn-outline'
-                      }`}
-                    >
-                      {idx + 1}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Clear Progress */}
-              <button
-                onClick={() => {
-                  setCompletedSteps(new Set());
-                  setCurrentStep(0);
-                  clearProgress(recipe.id);
-                  setShowSettings(false);
-                }}
-                className="btn btn-outline btn-error btn-sm w-full"
-              >
-                Reset Progress
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Ingredients Overlay with real serving calculator */}
+      {/* ── Ingredients Sheet ── */}
       {showIngredients && (
-        <div
-          className="absolute inset-0 bg-black/80 backdrop-blur-sm z-40 flex items-end"
-          onClick={() => setShowIngredients(false)}
-        >
+        <div className="fixed inset-0 z-50 flex items-end" onClick={() => setShowIngredients(false)}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
           <div
-            className="bg-base-100 rounded-t-3xl p-6 w-full max-h-[80vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+            className="relative bg-base-100 rounded-t-3xl w-full max-h-[80vh] overflow-y-auto pb-8"
+            onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-4">
+            {/* Handle */}
+            <div className="flex justify-center pt-3 pb-2">
+              <div className="w-10 h-1 rounded-full bg-base-300" />
+            </div>
+
+            <div className="px-6 pb-2 flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-bold">Ingredients</h2>
+                <h2 className="text-xl font-bold">Ingredients</h2>
                 {servingMultiplier !== 1 && (
-                  <p className="text-sm text-primary font-semibold">
-                    Adjusted for {servingMultiplier}x servings
-                  </p>
+                  <p className="text-xs text-primary font-semibold mt-0.5">{servingMultiplier}× serving adjustment</p>
                 )}
               </div>
-              <button
-                onClick={() => setShowIngredients(false)}
-                className="btn btn-circle btn-ghost btn-sm"
-              >
-                <span className="material-symbols-outlined">close</span>
-              </button>
+              <div className="flex items-center gap-2 bg-base-200 rounded-xl px-3 py-2">
+                <button
+                  onClick={() => setServingMultiplier(m => Math.max(0.5, m - 0.5))}
+                  className="size-6 flex items-center justify-center rounded-lg hover:bg-base-300"
+                >
+                  <span className="material-symbols-outlined text-[16px]">remove</span>
+                </button>
+                <span className="text-sm font-black w-8 text-center">{servingMultiplier}×</span>
+                <button
+                  onClick={() => setServingMultiplier(m => Math.min(4, m + 0.5))}
+                  className="size-6 flex items-center justify-center rounded-lg hover:bg-base-300"
+                >
+                  <span className="material-symbols-outlined text-[16px]">add</span>
+                </button>
+              </div>
             </div>
 
-            <ul className="space-y-3">
-              {recipe.ingredients.map((ingredient, index) => (
-                <li
-                  key={index}
-                  className="flex items-start gap-3 p-3 rounded-lg hover:bg-base-200 transition-colors"
-                >
-                  <span className="material-symbols-outlined text-primary mt-0.5">
-                    check_circle
-                  </span>
-                  <span className="text-base-content flex-1">
+            <ul className="px-6 pt-3 space-y-2">
+              {recipe.ingredients.map((ingredient, idx) => (
+                <li key={idx} className="flex items-center gap-3 p-3 rounded-xl bg-base-200/60">
+                  <div className="size-2 rounded-full bg-primary shrink-0" />
+                  <span className="text-sm text-base-content font-medium">
                     {scaleIngredient(ingredient, servingMultiplier)}
                   </span>
                 </li>
@@ -693,40 +426,162 @@ const CookingModeScreen: React.FC<CookingModeScreenProps> = ({ recipe, onExit })
         </div>
       )}
 
-      {/* Timer Overlay */}
-      {activeTimer !== null && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center">
-          <StepTimer
-            key={timerKey}
-            seconds={activeTimer}
-            label={recipe.directions[currentStep].title || `Step ${currentStep + 1}`}
-            onComplete={handleTimerComplete}
-            onClose={() => setActiveTimer(null)}
-            fullScreen
-          />
+      {/* ── Settings Sheet ── */}
+      {showSettings && (
+        <div className="fixed inset-0 z-50 flex items-end" onClick={() => setShowSettings(false)}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div
+            className="relative bg-base-100 rounded-t-3xl w-full max-h-[70vh] overflow-y-auto pb-8"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-center pt-3 pb-2">
+              <div className="w-10 h-1 rounded-full bg-base-300" />
+            </div>
+
+            <div className="px-6 pb-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold">Settings</h2>
+              <span className="text-sm text-base-content/40 font-medium">{completedSteps.size}/{totalSteps} done</span>
+            </div>
+
+            <div className="px-6 space-y-1">
+              {/* Auto-advance */}
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-base-200/60">
+                <div>
+                  <p className="font-semibold text-sm">Auto-advance</p>
+                  <p className="text-xs text-base-content/50 mt-0.5">Move to next step when timer ends</p>
+                </div>
+                <input type="checkbox" className="toggle toggle-primary toggle-sm" checked={autoAdvance} onChange={e => setAutoAdvance(e.target.checked)} />
+              </div>
+
+              {/* TTS */}
+              {ttsSupported && (
+                <div className="rounded-2xl bg-base-200/60 overflow-hidden">
+                  {/* Enable toggle */}
+                  <div className="flex items-center justify-between p-4">
+                    <div>
+                      <p className="font-semibold text-sm">Read Steps Aloud</p>
+                      <p className="text-xs text-base-content/50 mt-0.5">Text-to-speech narration</p>
+                    </div>
+                    <input type="checkbox" className="toggle toggle-primary toggle-sm" checked={ttsEnabled} onChange={toggleSpeech} />
+                  </div>
+
+                  {ttsEnabled && (
+                    <div className="px-4 pb-4 space-y-4 border-t border-base-300">
+                      {/* Voice selector */}
+                      {voices.length > 0 && (
+                        <div className="pt-3">
+                          <p className="text-xs font-bold text-base-content/50 uppercase tracking-wider mb-2">Voice</p>
+                          <select
+                            value={settings.voiceURI}
+                            onChange={e => updateSettings({ voiceURI: e.target.value })}
+                            className="w-full bg-base-100 border border-base-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-primary"
+                          >
+                            <option value="">System Default</option>
+                            {voices.map(v => (
+                              <option key={v.voiceURI} value={v.voiceURI}>
+                                {v.name} {v.localService ? '' : '(Online)'}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {/* Speed */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs font-bold text-base-content/50 uppercase tracking-wider">Speed</p>
+                          <span className="text-xs font-black text-primary">{settings.rate.toFixed(1)}×</span>
+                        </div>
+                        <input
+                          type="range" min="0.5" max="2" step="0.1"
+                          value={settings.rate}
+                          onChange={e => updateSettings({ rate: parseFloat(e.target.value) })}
+                          className="range range-primary range-xs w-full"
+                        />
+                        <div className="flex justify-between text-[10px] text-base-content/40 mt-1 font-medium">
+                          <span>Slow</span><span>Normal</span><span>Fast</span>
+                        </div>
+                      </div>
+
+                      {/* Pitch */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs font-bold text-base-content/50 uppercase tracking-wider">Pitch</p>
+                          <span className="text-xs font-black text-primary">{settings.pitch.toFixed(1)}</span>
+                        </div>
+                        <input
+                          type="range" min="0.5" max="2" step="0.1"
+                          value={settings.pitch}
+                          onChange={e => updateSettings({ pitch: parseFloat(e.target.value) })}
+                          className="range range-primary range-xs w-full"
+                        />
+                        <div className="flex justify-between text-[10px] text-base-content/40 mt-1 font-medium">
+                          <span>Low</span><span>Normal</span><span>High</span>
+                        </div>
+                      </div>
+
+                      {/* Preview button */}
+                      <button
+                        onClick={() => speak('Here is a preview of how your steps will sound while cooking.')}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary/10 text-primary text-sm font-bold hover:bg-primary/20 transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">play_circle</span>
+                        Preview Voice
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Jump to step */}
+              <div className="p-4 rounded-2xl bg-base-200/60">
+                <p className="font-semibold text-sm mb-3">Jump to Step</p>
+                <div className="flex flex-wrap gap-2">
+                  {Array.from({ length: totalSteps }).map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => { setCurrentStep(idx); setShowSettings(false); }}
+                      className={`size-9 rounded-xl text-sm font-bold transition-all ${
+                        idx === currentStep ? 'bg-primary text-primary-content shadow-md' :
+                        completedSteps.has(idx) ? 'bg-success/20 text-success' : 'bg-base-300 text-base-content/60'
+                      }`}
+                    >
+                      {idx + 1}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Reset */}
+              <button
+                onClick={() => { setCompletedSteps(new Set()); setCurrentStep(0); clearProgress(recipe.id); setShowSettings(false); }}
+                className="w-full p-4 rounded-2xl border border-error/30 text-error text-sm font-bold hover:bg-error/5 transition-colors flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[18px]">restart_alt</span>
+                Reset Progress
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Resume Prompt */}
+
+      {/* ── Resume Prompt ── */}
       {showResumePrompt && savedProgress && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-          <div className="bg-base-100 rounded-2xl p-6 max-w-sm w-full text-center">
-            <span className="material-symbols-outlined text-5xl text-primary mb-4">bookmark_added</span>
-            <h3 className="text-xl font-bold mb-2">Resume Cooking?</h3>
-            <p className="text-base-content/60 mb-6">
-              You left off at <span className="font-semibold text-primary">Step {savedProgress.currentStep + 1}</span> with {savedProgress.completedSteps.length}/{totalSteps} steps completed.
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+          <div className="bg-base-100 rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl">
+            <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <span className="material-symbols-outlined text-primary text-3xl">bookmark_added</span>
+            </div>
+            <h3 className="text-xl font-bold mb-1">Resume Cooking?</h3>
+            <p className="text-base-content/50 text-sm mb-6">
+              You left off at <span className="font-bold text-primary">Step {savedProgress.currentStep + 1}</span> with {savedProgress.completedSteps.length}/{totalSteps} steps done.
             </p>
             <div className="flex gap-3">
-              <button
-                onClick={() => handleResume(false)}
-                className="btn btn-outline flex-1"
-              >
+              <button onClick={() => handleResume(false)} className="btn flex-1 rounded-2xl btn-ghost border border-base-200 normal-case font-bold">
                 Start Over
               </button>
-              <button
-                onClick={() => handleResume(true)}
-                className="btn btn-primary flex-1"
-              >
+              <button onClick={() => handleResume(true)} className="btn flex-1 rounded-2xl btn-primary normal-case font-bold">
                 Resume
               </button>
             </div>
@@ -734,31 +589,26 @@ const CookingModeScreen: React.FC<CookingModeScreenProps> = ({ recipe, onExit })
         </div>
       )}
 
-      {/* Completion Celebration */}
+      {/* ── Completion Screen ── */}
       {showCompletion && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-          <div className="bg-base-100 rounded-2xl p-8 max-w-sm w-full text-center">
+          <div className="bg-base-100 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
             <div className="text-6xl mb-4">🎉</div>
-            <h2 className="text-2xl font-bold mb-2">Done Cooking!</h2>
-            <p className="text-base-content/60 mb-2">
-              You've completed all {totalSteps} steps of
-            </p>
-            <p className="font-bold text-lg text-primary mb-6">{recipe.title}</p>
+            <h2 className="text-2xl font-bold mb-1">All Done!</h2>
+            <p className="text-base-content/50 text-sm mb-1">You've completed every step of</p>
+            <p className="font-bold text-base text-primary mb-8 line-clamp-2">{recipe.title}</p>
             <div className="flex flex-col gap-3">
               <button
-                onClick={() => {
-                  clearProgress(recipe.id);
-                  handleExit();
-                }}
-                className="btn btn-primary w-full"
+                onClick={() => { clearProgress(recipe.id); handleExit(); }}
+                className="btn btn-primary w-full rounded-2xl normal-case font-bold"
               >
                 Back to Recipe
               </button>
               <button
                 onClick={() => setShowCompletion(false)}
-                className="btn btn-ghost btn-sm w-full text-base-content/50"
+                className="btn btn-ghost btn-sm w-full normal-case text-base-content/40"
               >
-                Keep Reviewing Steps
+                Review Steps
               </button>
             </div>
           </div>

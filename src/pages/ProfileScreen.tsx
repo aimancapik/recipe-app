@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import LoadingAnimation from '@/components/LoadingAnimation';
+import React, { useState, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import AvatarPickerModal from '@/components/AvatarPickerModal';
 import { getAvatarUrl } from '@/data/avatars';
+import { clearProfileCache } from '@/components/RecipeCard';
+import { uploadOptimizedImage } from '@/lib/storage';
 
 interface ProfileScreenProps {
     onBack: () => void;
@@ -13,6 +14,7 @@ interface ProfileScreenProps {
     onUpdateProfile: (updates: {
         full_name?: string;
         avatar_id?: string;
+        cover_url?: string;
         bio?: string;
         socials?: {
             instagram?: string;
@@ -27,6 +29,8 @@ interface ProfileScreenProps {
     onMyRecipes?: () => void;
     onFavorites?: () => void;
     onGroceryList?: () => void;
+    onMealPlan?: () => void;
+    onNotifications?: () => void;
 }
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({
@@ -42,7 +46,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
     onModalToggle,
     onMyRecipes,
     onFavorites,
-    onGroceryList
+    onGroceryList,
+    onMealPlan,
+    onNotifications
 }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
@@ -54,12 +60,17 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
         youtube: user?.user_metadata?.socials?.youtube || '',
     });
     const [uploading, setUploading] = useState(false);
+    const [uploadingCover, setUploadingCover] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [showHelpSheet, setShowHelpSheet] = useState(false);
+    const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+    const coverInputRef = useRef<HTMLInputElement>(null);
 
     const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Guest';
     const email = user?.email || '';
     const avatarId = user?.user_metadata?.avatar_id || null;
     const avatarUrl = avatarId ? getAvatarUrl(avatarId) : null;
+    const coverUrl = user?.user_metadata?.cover_url || null;
     const initial = displayName.charAt(0).toUpperCase();
 
     const handleSignOut = async () => {
@@ -68,6 +79,22 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
             onBack();
         } catch (err) {
             console.error('Sign out failed:', err);
+        }
+    };
+
+    const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        try {
+            setUploadingCover(true);
+            const { url } = await uploadOptimizedImage(file, 'covers');
+            await onUpdateProfile({ cover_url: url });
+        } catch (err) {
+            console.error('Failed to upload cover:', err);
+            alert('Failed to upload cover image. Please try again.');
+        } finally {
+            setUploadingCover(false);
+            if (coverInputRef.current) coverInputRef.current.value = '';
         }
     };
 
@@ -82,6 +109,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
         try {
             setUploading(true);
             await onUpdateProfile({ avatar_id: id });
+            if (user?.id) {
+                clearProfileCache(user.id);
+            }
         } catch (err) {
             console.error('Failed to update avatar:', err);
             alert('Failed to update your avatar. Please try again.');
@@ -99,6 +129,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 bio,
                 socials
             });
+            if (user?.id) {
+                clearProfileCache(user.id);
+            }
             setIsEditing(false);
         } catch (err: any) {
             console.error('Profile update failed:', err);
@@ -134,7 +167,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                                 <span className="material-symbols-outlined filled-icon">edit</span>
                             </button>
                         )}
-                        <button onClick={handleSignOut} className="flex size-10 items-center justify-center rounded-full hover:bg-red-500/10 transition-colors text-error">
+                        <button onClick={() => setShowSignOutConfirm(true)} className="flex size-10 items-center justify-center rounded-full hover:bg-red-500/10 transition-colors text-error">
                             <span className="material-symbols-outlined">logout</span>
                         </button>
                     </div>
@@ -142,11 +175,38 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
             </header>
 
             <main className="flex-1 max-w-2xl mx-auto w-full pb-24 overflow-y-auto">
-                {/* Profile Header with Mesh Gradient Glow */}
-                <section className="relative flex p-8 flex-col items-center gap-4 bg-base-100 border-b border-base-200 shadow-sm rounded-b-[40px] overflow-hidden">
-                    {/* Decorative Background Elements */}
-                    <div className="absolute top-[-50px] left-[-50px] size-64 bg-primary/10 rounded-full blur-3xl"></div>
-                    <div className="absolute bottom-[-50px] right-[-50px] size-64 bg-secondary/10 rounded-full blur-3xl"></div>
+                {/* Profile Header */}
+                <section className="relative flex flex-col items-center bg-base-100 border-b border-base-200 shadow-sm rounded-b-[40px]">
+                    {/* Cover Image — full width, sits in flow */}
+                    <div className="relative w-full h-44">
+                        {coverUrl ? (
+                            <img src={coverUrl} alt="Cover" className="w-full h-full object-cover rounded-t-[0px] rounded-b-none" />
+                        ) : (
+                            <div className="w-full h-full overflow-hidden">
+                                <div className="absolute top-[-50px] left-[-50px] size-64 bg-primary/10 rounded-full blur-3xl"></div>
+                                <div className="absolute bottom-[-50px] right-[-50px] size-64 bg-secondary/10 rounded-full blur-3xl"></div>
+                            </div>
+                        )}
+                        {/* Gradient fade */}
+                        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-base-100 to-transparent" />
+                        {isEditing && (
+                            <button
+                                onClick={() => coverInputRef.current?.click()}
+                                disabled={uploadingCover}
+                                className="absolute bottom-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-sm text-white text-xs font-bold hover:bg-black/70 transition-all"
+                            >
+                                {uploadingCover
+                                    ? <span className="loading loading-spinner loading-xs" />
+                                    : <span className="material-symbols-outlined text-[16px]">add_photo_alternate</span>
+                                }
+                                {uploadingCover ? 'Uploading...' : 'Edit Cover'}
+                            </button>
+                        )}
+                        <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
+                    </div>
+
+                    {/* Avatar overlapping the cover */}
+                    <div className="-mt-16 pb-8 px-8 flex flex-col items-center gap-4 w-full">
 
                     <div className="relative z-10 group">
                         <div
@@ -255,6 +315,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                             </>
                         )}
                     </div>
+                    </div>{/* end -mt-16 wrapper */}
                 </section>
 
                 {/* Floating Stats Section Cards */}
@@ -307,7 +368,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                                 <span className="material-symbols-outlined text-base-content/20 group-hover:text-secondary transition-colors">chevron_right</span>
                             </button>
 
-                            <button className="flex w-full items-center gap-4 p-4 rounded-2xl hover:bg-base-200 transition-all group">
+                            <button onClick={onNotifications} className="flex w-full items-center gap-4 p-4 rounded-2xl hover:bg-base-200 transition-all group">
                                 <div className="size-12 rounded-2xl bg-accent/10 text-accent flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
                                     <span className="material-symbols-outlined text-[26px]">notifications_active</span>
                                 </div>
@@ -316,6 +377,17 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                                     <p className="text-[11px] text-base-content/50 font-medium">Stay updated with reviews and likes</p>
                                 </div>
                                 <span className="material-symbols-outlined text-base-content/20 group-hover:text-accent transition-colors">chevron_right</span>
+                            </button>
+
+                            <button onClick={onMealPlan} className="flex w-full items-center gap-4 p-4 rounded-2xl hover:bg-base-200 transition-all group">
+                                <div className="size-12 rounded-2xl bg-warning/10 text-warning flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+                                    <span className="material-symbols-outlined text-[26px]">calendar_today</span>
+                                </div>
+                                <div className="flex-1 text-left">
+                                    <p className="font-black text-base-content">Weekly Meal Planner</p>
+                                    <p className="text-[11px] text-base-content/50 font-medium">Organize your cooking schedule</p>
+                                </div>
+                                <span className="material-symbols-outlined text-base-content/20 group-hover:text-warning transition-colors">chevron_right</span>
                             </button>
                         </div>
                     </div>
@@ -339,7 +411,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                                 />
                             </div>
 
-                            <button className="flex w-full items-center gap-4 p-4 rounded-2xl hover:bg-base-200 transition-all group">
+                            <button onClick={() => setShowHelpSheet(true)} className="flex w-full items-center gap-4 p-4 rounded-2xl hover:bg-base-200 transition-all group">
                                 <div className="size-12 rounded-2xl bg-base-200 text-base-content/40 flex items-center justify-center">
                                     <span className="material-symbols-outlined text-[26px]">help</span>
                                 </div>
@@ -353,6 +425,76 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                     </div>
                 </div>
             </main>
+
+            {/* Help & Community bottom sheet */}
+            {showHelpSheet && (
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowHelpSheet(false)}>
+                    <div className="bg-base-100 rounded-t-3xl w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+                        {/* Handle */}
+                        <div className="flex justify-center pt-3 pb-1">
+                            <div className="w-10 h-1 rounded-full bg-base-300" />
+                        </div>
+
+                        <div className="px-5 pt-3 pb-24">
+                            <h3 className="text-[17px] font-bold mb-1">Help & Community</h3>
+                            <p className="text-xs text-base-content/40 mb-5">What can we help you with?</p>
+
+                            <div className="space-y-2">
+                                <a
+                                    href="https://t.me/letemcooksuppport"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-4 p-4 rounded-2xl bg-base-200/50 hover:bg-base-200 transition-colors"
+                                >
+                                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">
+                                        <span className="material-symbols-outlined text-blue-500 text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>forum</span>
+                                    </div>
+                                    <div>
+                                        <p className="text-[14px] font-semibold">Join Community</p>
+                                        <p className="text-[11px] text-base-content/40">Chat with other cooks on Telegram</p>
+                                    </div>
+                                </a>
+
+                                <a
+                                    href="mailto:aimancapik@gmail.com"
+                                    className="flex items-center gap-4 p-4 rounded-2xl bg-base-200/50 hover:bg-base-200 transition-colors"
+                                >
+                                    <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center shrink-0">
+                                        <span className="material-symbols-outlined text-success text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>mail</span>
+                                    </div>
+                                    <div>
+                                        <p className="text-[14px] font-semibold">Contact Dev</p>
+                                        <p className="text-[11px] text-base-content/40">aimancapik@gmail.com</p>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Sign out confirmation */}
+            {showSignOutConfirm && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm" onClick={() => setShowSignOutConfirm(false)}>
+                    <div className="bg-base-100 rounded-3xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <div className="w-12 h-12 rounded-2xl bg-error/10 flex items-center justify-center mb-4 mx-auto">
+                            <span className="material-symbols-outlined text-error text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>logout</span>
+                        </div>
+                        <h3 className="text-[17px] font-bold text-center mb-1.5">Sign out?</h3>
+                        <p className="text-[13px] text-base-content/50 text-center mb-6 leading-relaxed">
+                            You'll need to sign in again to access your recipes and saved items.
+                        </p>
+                        <div className="flex gap-3">
+                            <button onClick={() => setShowSignOutConfirm(false)} className="flex-1 btn btn-ghost rounded-xl font-semibold">
+                                Cancel
+                            </button>
+                            <button onClick={() => { setShowSignOutConfirm(false); handleSignOut(); }} className="flex-1 btn btn-error rounded-xl font-semibold text-white">
+                                Sign out
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <AvatarPickerModal
                 isOpen={isAvatarModalOpen}

@@ -83,8 +83,16 @@ export function useGrocery() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            // Filter out ingredients already in the list
-            const existingNames = new Set(items.map(i => i.name.toLowerCase()));
+            // Always fetch fresh data from DB to avoid stale-state duplicate check
+            // This prevents duplicates when called multiple times in quick succession
+            const { data: existing } = await supabase
+                .from('grocery_items')
+                .select('name')
+                .eq('user_id', user.id);
+
+            const existingNames = new Set(
+                (existing || []).map((i: { name: string }) => i.name.toLowerCase())
+            );
             const newIngredients = recipe.ingredients.filter(
                 ing => !existingNames.has(ing.toLowerCase())
             );
@@ -133,9 +141,92 @@ export function useGrocery() {
         }
     };
 
+    // Remove a single item
+    const removeItem = async (id: string) => {
+        // Optimistic update
+        setItems(prev => prev.filter(item => item.id !== id));
+
+        try {
+            await supabase
+                .from('grocery_items')
+                .delete()
+                .eq('id', id);
+        } catch (err) {
+            console.error('useGrocery removeItem error:', err);
+            fetchItems(); // revert on error
+        }
+    };
+
+    // Update item name/quantity
+    const updateItem = async (id: string, name: string) => {
+        // Optimistic update
+        setItems(prev => prev.map(item =>
+            item.id === id ? { ...item, name } : item
+        ));
+
+        try {
+            await supabase
+                .from('grocery_items')
+                .update({ name })
+                .eq('id', id);
+        } catch (err) {
+            console.error('useGrocery updateItem error:', err);
+            fetchItems(); // revert on error
+        }
+    };
+
+    // Add a single manual item
+    const addItem = async (name: string) => {
+        if (!name.trim()) return;
+        
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { error } = await supabase
+                .from('grocery_items')
+                .insert([{
+                    user_id: user.id,
+                    name: name.trim(),
+                    checked: false,
+                    recipe_title: 'Manual Entry',
+                    recipe_image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=200', // default grocery icon/image
+                }])
+                .select()
+                .single();
+
+            if (error) throw error;
+            
+            // Re-fetch to keep state in sync
+            await fetchItems();
+        } catch (err) {
+            console.error('useGrocery addItem error:', err);
+        }
+    };
+
+    const clearAll = async () => {
+        // Optimistic update
+        setItems([]);
+
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { error } = await supabase
+                .from('grocery_items')
+                .delete()
+                .eq('user_id', user.id);
+
+            if (error) throw error;
+        } catch (err) {
+            console.error('useGrocery clearAll error:', err);
+            fetchItems(); // revert on error
+        }
+    };
+
     useEffect(() => {
         fetchItems();
     }, [fetchItems]);
 
-    return { items, loading, toggleItem, addFromRecipe, clearChecked, fetchItems };
+    return { items, loading, toggleItem, addItem, addFromRecipe, clearChecked, clearAll, removeItem, updateItem, fetchItems };
 }

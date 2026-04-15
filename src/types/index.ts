@@ -17,7 +17,8 @@ export enum Screen {
     REVIEW = 'review',
     COOKING_MODE = 'cooking_mode',
     BITES = 'bites',
-    NOTIFICATION = 'notification'
+    NOTIFICATION = 'notification',
+    MEAL_PLAN = 'meal_plan'
 }
 
 export interface Direction {
@@ -64,4 +65,18 @@ export interface GroceryItem {
     checked: boolean;
     recipeTitle: string;
     recipeImage: string;
+}
+
+export type MealDay = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
+export type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
+
+export interface MealSlot {
+    id: string;
+    day: MealDay;
+    mealType: MealType;
+    recipeId: string;
+    recipeTitle: string;
+    recipeImage: string;
+    recipeKcal: string;
+    recipePrepTime: string;
 }

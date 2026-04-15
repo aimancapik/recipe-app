@@ -7,6 +7,7 @@ import { useRecipes } from '@/hooks/useRecipes';
 import RecipeMasonryGrid from '@/components/RecipeMasonryGrid';
 import { useAuth } from '@/hooks/useAuth';
 import FollowersModal from '@/components/FollowersModal';
+import { getAvatarUrl } from '@/data/avatars';
 
 interface PublicProfileScreenProps {
     userId: string;
@@ -20,6 +21,7 @@ interface Profile {
     id: string;
     full_name: string;
     avatar_url: string;
+    cover_url?: string;
     bio: string;
     location?: string;
 }
@@ -164,30 +166,35 @@ const PublicProfileScreen: React.FC<PublicProfileScreenProps> = ({ userId, onBac
 
             <main className="flex-1 max-w-2xl mx-auto w-full pb-24">
                 {/* Profile Header Summary */}
-                <section className="flex p-8 flex-col items-center gap-4 bg-base-100 border-b border-base-200 shadow-sm rounded-b-[40px]">
-                    <div className="relative">
-                        {profile.avatar_url ? (
-                            <img
-                                src={profile.avatar_url}
-                                alt={profile.full_name}
-                                className="size-28 rounded-full border-4 border-primary object-cover shadow-xl"
-                                onError={(e) => {
-                                    // Replace broken image with default avatar
-                                    (e.target as HTMLImageElement).style.display = 'none';
-                                    const parent = (e.target as HTMLImageElement).parentElement;
-                                    if (parent && !parent.querySelector('.default-avatar-profile')) {
-                                        const fallback = document.createElement('div');
-                                        fallback.className = 'size-28 rounded-full border-4 border-primary bg-base-200 flex items-center justify-center shadow-xl default-avatar-profile';
-                                        fallback.innerHTML = '<span class="material-symbols-outlined text-5xl text-base-content/40">person</span>';
-                                        parent.insertBefore(fallback, parent.lastElementChild);
-                                    }
-                                }}
-                            />
+                <section className="flex flex-col items-center bg-base-100 border-b border-base-200 shadow-sm rounded-b-[40px]">
+                    {/* Cover Image — in flow, full width */}
+                    <div className="relative w-full h-44">
+                        {profile.cover_url ? (
+                            <img src={profile.cover_url} alt="Cover" className="w-full h-full object-cover" />
                         ) : (
-                            <div className="size-28 rounded-full border-4 border-primary bg-base-200 flex items-center justify-center shadow-xl">
-                                <span className="material-symbols-outlined text-5xl text-base-content/40">person</span>
+                            <div className="w-full h-full overflow-hidden">
+                                <div className="absolute top-[-50px] left-[-50px] size-64 bg-primary/10 rounded-full blur-3xl" />
+                                <div className="absolute bottom-[-50px] right-[-50px] size-64 bg-secondary/10 rounded-full blur-3xl" />
                             </div>
                         )}
+                        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-base-100 to-transparent" />
+                    </div>
+
+                    <div className="-mt-16 pb-8 px-8 flex flex-col items-center gap-4 w-full">
+                    <div className="relative">
+                        {(() => {
+                            const url = getAvatarUrl(profile.avatar_url);
+                            const initial = profile.full_name?.charAt(0).toUpperCase() || '?';
+                            return url ? (
+                                <div className="size-28 rounded-full ring-4 ring-primary ring-offset-4 ring-offset-base-100 bg-primary shadow-xl overflow-hidden">
+                                    <img src={url} alt={profile.full_name} className="w-full h-full object-cover" />
+                                </div>
+                            ) : (
+                                <div className="size-28 rounded-full ring-4 ring-primary ring-offset-4 ring-offset-base-100 bg-primary flex items-center justify-center shadow-xl">
+                                    <span className="text-primary-content font-black text-5xl">{initial}</span>
+                                </div>
+                            );
+                        })()}
                         <div className="absolute -bottom-1 -right-1 size-8 bg-green-500 border-4 border-base-100 rounded-full"></div>
                     </div>
 
@@ -220,6 +227,7 @@ const PublicProfileScreen: React.FC<PublicProfileScreenProps> = ({ userId, onBac
                             </div>
                         )}
                     </div>
+                    </div>{/* end -mt-16 wrapper */}
                 </section>
 
                 {/* Stats Section */}

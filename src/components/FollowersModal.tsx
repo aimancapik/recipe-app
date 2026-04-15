@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { getAvatarUrl } from '@/data/avatars';
 
 interface FollowersModalProps {
   userId: string;
@@ -143,27 +144,17 @@ const FollowersModal: React.FC<FollowersModalProps> = ({ userId, type, isOpen, o
                   }}
                   className="flex items-center gap-3 p-3 rounded-2xl hover:bg-base-200 transition-colors cursor-pointer group"
                 >
-                  {user.avatar_url ? (
-                    <img
-                      src={user.avatar_url}
-                      alt={user.full_name}
-                      className="size-12 rounded-full object-cover border-2 border-base-300"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                        const parent = (e.target as HTMLImageElement).parentElement;
-                        if (parent && !parent.querySelector('.default-avatar-follower')) {
-                          const fallback = document.createElement('div');
-                          fallback.className = 'size-12 rounded-full bg-primary/10 flex items-center justify-center default-avatar-follower';
-                          fallback.innerHTML = '<span class="material-symbols-outlined text-primary text-xl">person</span>';
-                          parent.appendChild(fallback);
-                        }
-                      }}
-                    />
-                  ) : (
-                    <div className="size-12 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="material-symbols-outlined text-primary text-xl">person</span>
-                    </div>
-                  )}
+                  {(() => {
+                    const url = getAvatarUrl(user.avatar_url);
+                    const initial = (user.full_name || '?').charAt(0).toUpperCase();
+                    return url ? (
+                      <img src={url} alt={user.full_name} className="size-12 rounded-full object-cover border-2 border-base-300" />
+                    ) : (
+                      <div className="size-12 rounded-full bg-primary flex items-center justify-center border-2 border-base-300">
+                        <span className="text-primary-content font-black text-lg">{initial}</span>
+                      </div>
+                    );
+                  })()}
 
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-base-content truncate group-hover:text-primary transition-colors">

@@ -3,6 +3,7 @@ import ReactPlayer from 'react-player';
 import { Recipe } from '@/types';
 import { isVideoUrl } from '@/utils/mediaHelpers';
 import { supabase } from '@/lib/supabase';
+import { getAvatarUrl } from '@/data/avatars';
 
 interface RecipeCardProps {
     recipe: Recipe;
@@ -23,6 +24,21 @@ interface ChefProfile {
 
 // Simple in-memory cache for chef profiles
 const profileCache = new Map<string, ChefProfile>();
+// Generation counter per userId — incremented on clear so in-flight fetches discard stale results
+const cacheGeneration = new Map<string, number>();
+const cacheListeners = new Set<() => void>();
+
+export const clearProfileCache = (userId?: string) => {
+    if (userId) {
+        profileCache.delete(userId);
+        cacheGeneration.set(userId, (cacheGeneration.get(userId) ?? 0) + 1);
+    } else {
+        profileCache.clear();
+        cacheGeneration.clear();
+    }
+    // Notify all mounted RecipeCards to re-fetch
+    cacheListeners.forEach(fn => fn());
+};
 
 const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onClick, onToggleFavorite, showCategory, index = 0, onEdit, onDelete, onUpdateStatus, onChefClick }) => {
     // Deterministic random aspect ratio for masonry effect
@@ -49,6 +65,15 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onClick, onToggleFavori
         }
     };
 
+    // Track a version counter so this effect re-runs when clearProfileCache is called
+    const [cacheVersion, setCacheVersion] = useState(0);
+
+    useEffect(() => {
+        const notify = () => setCacheVersion(v => v + 1);
+        cacheListeners.add(notify);
+        return () => { cacheListeners.delete(notify); };
+    }, []);
+
     // Fetch chef profile
     useEffect(() => {
         if (!recipe.userId) return;
@@ -59,19 +84,21 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onClick, onToggleFavori
             return;
         }
 
-        // Fetch from database
+        // Fetch from database — capture generation so a stale response won't overwrite a newer clear
+        const userId = recipe.userId;
+        const genAtFetch = cacheGeneration.get(userId) ?? 0;
         supabase
             .from('profiles')
             .select('full_name, avatar_url')
-            .eq('id', recipe.userId)
+            .eq('id', userId)
             .single()
             .then(({ data }) => {
-                if (data) {
-                    profileCache.set(recipe.userId!, data);
+                if (data && (cacheGeneration.get(userId) ?? 0) === genAtFetch) {
+                    profileCache.set(userId, data);
                     setChef(data);
                 }
             });
-    }, [recipe.userId]);
+    }, [recipe.userId, cacheVersion]);
 
     return (
         <div
@@ -173,20 +200,20 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onClick, onToggleFavori
                                 onChefClick?.(recipe.userId!);
                             }}
                         >
-                            {chef.avatar_url ? (
-                                <img
-                                    src={chef.avatar_url}
-                                    alt={chef.full_name}
-                                    className="w-4 h-4 rounded-full object-cover shrink-0 ring-1 ring-base-200"
-                                    onError={(e) => {
-                                        (e.target as HTMLImageElement).style.display = 'none';
-                                    }}
-                                />
-                            ) : (
-                                <div className="w-3.5 h-3.5 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-                                    <span className="material-symbols-outlined text-[8px] text-primary">person</span>
-                                </div>
-                            )}
+                            {(() => {
+                                const url = getAvatarUrl(chef.avatar_url);
+                                return url ? (
+                                    <div className="w-4 h-4 rounded-full bg-primary shrink-0 ring-1 ring-base-200 overflow-hidden">
+                                        <img src={url} alt={chef.full_name} className="w-full h-full object-cover" />
+                                    </div>
+                                ) : (
+                                    <div className="w-4 h-4 rounded-full bg-primary flex items-center justify-center shrink-0 ring-1 ring-base-200">
+                                        <span className="text-primary-content font-black" style={{ fontSize: '7px' }}>
+                                            {chef.full_name?.charAt(0).toUpperCase() || '?'}
+                                        </span>
+                                    </div>
+                                );
+                            })()}
                             <span className="text-[11px] text-base-content/50 line-clamp-1 font-medium">
                                 {chef.full_name}
                             </span>

@@ -72,6 +72,8 @@ export function useAuth() {
     const updateProfile = async (updates: {
         full_name?: string;
         avatar_url?: string;
+        avatar_id?: string;
+        cover_url?: string;
         bio?: string;
         socials?: {
             instagram?: string;
@@ -88,16 +90,20 @@ export function useAuth() {
         if (authError) throw authError;
 
         // 2. Sync to 'profiles' table (for public querying and uniqueness)
+        const profileUpdates: any = {
+            id: user.id,
+            updated_at: new Date().toISOString()
+        };
+        if (updates.full_name !== undefined) profileUpdates.full_name = updates.full_name;
+        if (updates.avatar_id !== undefined) profileUpdates.avatar_url = updates.avatar_id;
+        else if (updates.avatar_url !== undefined) profileUpdates.avatar_url = updates.avatar_url;
+        if (updates.cover_url !== undefined) profileUpdates.cover_url = updates.cover_url;
+        if (updates.bio !== undefined) profileUpdates.bio = updates.bio;
+        if (updates.socials !== undefined) profileUpdates.socials = updates.socials;
+
         const { error: profileError } = await supabase
             .from('profiles')
-            .upsert({
-                id: user.id,
-                full_name: updates.full_name,
-                avatar_url: updates.avatar_url,
-                bio: updates.bio,
-                socials: updates.socials,
-                updated_at: new Date().toISOString()
-            });
+            .upsert(profileUpdates);
 
         if (profileError) {
             // If it's a unique constraint violation

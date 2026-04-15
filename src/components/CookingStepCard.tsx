@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Direction } from '@/types';
 import { isVideoUrl } from '@/utils/mediaHelpers';
 
@@ -8,8 +8,8 @@ interface CookingStepCardProps {
   totalSteps: number;
   fallbackImage?: string;
   onStartTimer?: (seconds: number) => void;
-  note?: string;
-  onNoteChange?: (note: string) => void;
+  isTimerActive?: boolean;
+  isCompleted?: boolean;
 }
 
 const CookingStepCard: React.FC<CookingStepCardProps> = ({
@@ -18,17 +18,14 @@ const CookingStepCard: React.FC<CookingStepCardProps> = ({
   totalSteps,
   fallbackImage,
   onStartTimer,
-  note,
-  onNoteChange,
+  isTimerActive,
+  isCompleted,
 }) => {
   const hasMedia = step.image && step.image.trim() !== '';
   const mediaUrl = hasMedia ? step.image : fallbackImage;
   const isVideo = mediaUrl ? isVideoUrl(mediaUrl) : false;
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoPaused, setVideoPaused] = useState(false);
-  const [editingNote, setEditingNote] = useState(false);
-  const [noteText, setNoteText] = useState(note || '');
-
   const toggleVideo = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!videoRef.current) return;
@@ -41,146 +38,106 @@ const CookingStepCard: React.FC<CookingStepCardProps> = ({
     }
   };
 
-  const handleSaveNote = () => {
-    onNoteChange?.(noteText.trim());
-    setEditingNote(false);
-  };
+  const timerLabel = step.timer
+    ? step.timer >= 3600
+      ? `${Math.floor(step.timer / 3600)}h ${Math.floor((step.timer % 3600) / 60)}m`
+      : step.timer >= 60
+      ? `${Math.floor(step.timer / 60)}m ${step.timer % 60 > 0 ? `${step.timer % 60}s` : ''}`
+      : `${step.timer}s`
+    : '';
 
   return (
-    <div className="h-full w-full flex flex-col bg-base-100">
-      {/* Media Section (45%) */}
-      <div className="relative h-[45%] w-full bg-base-200 flex-shrink-0">
+    <div className="h-full w-full flex flex-col overflow-hidden">
+      {/* Hero Media */}
+      <div className="relative w-full flex-shrink-0" style={{ height: '42%' }}>
         {mediaUrl ? (
           isVideo ? (
             <div className="w-full h-full relative" onClick={toggleVideo}>
               <video
                 ref={videoRef}
-                src={mediaUrl!}
+                src={mediaUrl}
                 className="w-full h-full object-cover"
                 autoPlay
                 muted
                 loop
                 playsInline
               />
-              {/* Play/Pause overlay */}
               {videoPaused && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                  <div className="bg-black/50 rounded-full p-4 backdrop-blur-sm">
-                    <span className="material-symbols-outlined text-white text-4xl">play_arrow</span>
+                <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                  <div className="size-16 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center">
+                    <span className="material-symbols-outlined text-white text-4xl fill-1">play_arrow</span>
                   </div>
                 </div>
               )}
             </div>
           ) : (
-            <img
-              src={mediaUrl!}
-              alt={step.title}
-              className="w-full h-full object-cover"
-            />
+            <img src={mediaUrl} alt={step.title} className="w-full h-full object-cover" />
           )
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <span className="material-symbols-outlined text-9xl text-base-content/20">
-              restaurant
-            </span>
+          <div className="w-full h-full bg-gradient-to-br from-primary/20 via-base-200 to-secondary/10 flex items-center justify-center">
+            <span className="material-symbols-outlined text-8xl text-base-content/10">cooking</span>
           </div>
         )}
 
-        {/* Step Counter Badge */}
-        <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md text-white px-4 py-2 rounded-full text-sm font-bold">
-          Step {stepNumber} of {totalSteps}
-        </div>
+        {/* Bottom fade into content */}
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-base-100 to-transparent" />
+
+        {/* Completed overlay */}
+        {isCompleted && (
+          <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+            <div className="size-20 rounded-full bg-primary/90 backdrop-blur-sm flex items-center justify-center shadow-2xl shadow-primary/40">
+              <span className="material-symbols-outlined text-primary-content text-4xl fill-1">check</span>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Content Section (55%) */}
-      <div className="flex-1 flex flex-col p-6 overflow-y-auto">
-        {/* Step Title */}
-        {step.title && (
-          <h2 className="text-2xl font-bold text-base-content mb-3 leading-tight">
-            {step.title}
-          </h2>
-        )}
+      {/* Content — stop touch events so swipe/tap handlers don't fire from here */}
+      <div
+        className="flex-1 flex flex-col px-6 pb-4 overflow-y-auto -mt-6 relative z-10"
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Step pill + title */}
+        <div className="flex items-center gap-3 mb-3">
+          <div className={`shrink-0 size-9 rounded-full flex items-center justify-center text-sm font-black shadow-md ${isCompleted ? 'bg-primary text-primary-content' : 'bg-base-content text-base-100'}`}>
+            {isCompleted ? <span className="material-symbols-outlined text-[18px] fill-1">check</span> : stepNumber}
+          </div>
+          {step.title && (
+            <h2 className="text-xl font-bold text-base-content leading-tight">{step.title}</h2>
+          )}
+        </div>
 
-        {/* Step Description */}
-        <p className="text-lg text-base-content/80 leading-relaxed mb-4 flex-1">
+        {/* Description */}
+        <p className="text-base text-base-content/75 leading-relaxed mb-5 flex-1">
           {step.description}
         </p>
 
-        {/* Personal Note */}
-        {onNoteChange && (
-          <div className="mb-4">
-            {editingNote ? (
-              <div className="space-y-2">
-                <textarea
-                  value={noteText}
-                  onChange={(e) => setNoteText(e.target.value)}
-                  placeholder="Add a personal note for this step..."
-                  className="textarea textarea-bordered w-full text-sm h-20 resize-none"
-                  autoFocus
-                  onClick={(e) => e.stopPropagation()}
-                  onTouchStart={(e) => e.stopPropagation()}
-                />
-                <div className="flex gap-2 justify-end">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setEditingNote(false); setNoteText(note || ''); }}
-                    className="btn btn-ghost btn-xs"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleSaveNote(); }}
-                    className="btn btn-primary btn-xs"
-                  >
-                    Save Note
-                  </button>
-                </div>
-              </div>
-            ) : note ? (
-              <div
-                onClick={(e) => { e.stopPropagation(); setNoteText(note); setEditingNote(true); }}
-                className="bg-warning/10 border border-warning/20 rounded-lg p-3 cursor-pointer hover:bg-warning/15 transition-colors"
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="material-symbols-outlined text-warning text-sm">edit_note</span>
-                  <span className="text-xs font-semibold text-warning uppercase tracking-wider">Your Note</span>
-                </div>
-                <p className="text-sm text-base-content/70">{note}</p>
-              </div>
-            ) : (
-              <button
-                onClick={(e) => { e.stopPropagation(); setEditingNote(true); }}
-                className="btn btn-ghost btn-sm gap-2 text-base-content/40 hover:text-base-content/60"
-              >
-                <span className="material-symbols-outlined text-sm">add_notes</span>
-                Add Note
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Timer Button */}
-        {step.timer && step.timer > 0 && (
+        {/* Timer button — hide when timer is already running */}
+        {step.timer && step.timer > 0 && !isTimerActive && (
           <button
             onClick={(e) => { e.stopPropagation(); onStartTimer?.(step.timer!); }}
-            className="btn btn-primary btn-lg w-full gap-3 mb-4"
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+            className="flex items-center gap-3 w-full p-4 rounded-2xl bg-primary/10 border border-primary/20 hover:bg-primary/20 active:scale-95 transition-all mb-4 group"
           >
-            <span className="material-symbols-outlined text-2xl">timer</span>
-            <span>Start {step.timer >= 60 ? `${Math.floor(step.timer / 60)}m` : `${step.timer}s`} Timer</span>
+            <div className="size-10 rounded-xl bg-primary flex items-center justify-center shrink-0 shadow-md shadow-primary/30 group-hover:scale-110 transition-transform">
+              <span className="material-symbols-outlined text-primary-content text-xl">timer</span>
+            </div>
+            <div className="flex-1 text-left">
+              <p className="font-bold text-base-content text-sm">Start Timer</p>
+              <p className="text-primary font-black text-lg leading-none">{timerLabel}</p>
+            </div>
+            <span className="material-symbols-outlined text-primary/60">chevron_right</span>
           </button>
         )}
 
-        {/* Swipe Hint */}
-        {stepNumber < totalSteps && (
-          <div className="text-center text-base-content/40 text-sm flex items-center justify-center gap-2">
-            <span className="material-symbols-outlined text-lg">swipe_up</span>
-            <span>Swipe up for next step</span>
-          </div>
-        )}
-
-        {stepNumber === totalSteps && (
-          <div className="text-center text-success text-sm font-medium flex items-center justify-center gap-2">
-            <span className="material-symbols-outlined text-lg">check_circle</span>
-            <span>Last step - You're almost done!</span>
+        {/* Last step indicator */}
+        {stepNumber === totalSteps && !isCompleted && (
+          <div className="mt-3 flex items-center justify-center gap-2 text-success text-sm font-semibold">
+            <span className="material-symbols-outlined text-[18px]">emoji_events</span>
+            Almost done — last step!
           </div>
         )}
       </div>

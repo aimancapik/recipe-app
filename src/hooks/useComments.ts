@@ -5,12 +5,14 @@ export interface Comment {
     id: string;
     recipe_id: string;
     user_id: string;
-    content: string;
+    parent_id: string | null;
+    text: string;
     created_at: string;
     user?: {
         full_name: string;
         avatar_url: string;
     };
+    replies?: Comment[];
 }
 
 export function useComments(recipeId?: string) {
@@ -28,22 +30,41 @@ export function useComments(recipeId?: string) {
         try {
             const { data, error: fetchError } = await supabase
                 .from('comments')
-                .select(`
-                    *,
-                    user:profiles!user_id(full_name, avatar_url)
-                `)
+                .select('*')
                 .eq('recipe_id', id)
-                .order('created_at', { ascending: true }); // Chronological order
+                .order('created_at', { ascending: true });
 
             if (fetchError) throw fetchError;
 
-            // In case of multiple profiles returned by postgREST, handle array
-            const formattedData = (data || []).map(item => ({
+            const rawComments = data || [];
+
+            // Fetch profiles for all unique user_ids
+            const userIds = [...new Set(rawComments.map(c => c.user_id))];
+            let profileMap: Record<string, { full_name: string; avatar_url: string }> = {};
+            if (userIds.length > 0) {
+                const { data: profiles } = await supabase
+                    .from('profiles')
+                    .select('id, full_name, avatar_url')
+                    .in('id', userIds);
+                (profiles || []).forEach(p => { profileMap[p.id] = p; });
+            }
+
+            const withProfiles: Comment[] = rawComments.map(item => ({
                 ...item,
-                user: Array.isArray(item.user) ? item.user[0] : item.user
+                user: profileMap[item.user_id] || null,
+                replies: []
             }));
 
-            setComments(formattedData);
+            // Build threaded structure: top-level comments with nested replies
+            const topLevel = withProfiles.filter(c => !c.parent_id);
+            const replyMap: Record<string, Comment[]> = {};
+            withProfiles.filter(c => c.parent_id).forEach(r => {
+                if (!replyMap[r.parent_id!]) replyMap[r.parent_id!] = [];
+                replyMap[r.parent_id!].push(r);
+            });
+            topLevel.forEach(c => { c.replies = replyMap[c.id] || []; });
+
+            setComments(topLevel);
         } catch (err) {
             console.error('Error fetching comments:', err);
             setError(err instanceof Error ? err.message : 'Failed to fetch comments');
@@ -52,7 +73,7 @@ export function useComments(recipeId?: string) {
         }
     }, [recipeId]);
 
-    const addComment = async (targetRecipeId: string, content: string): Promise<Comment | null> => {
+    const addComment = async (targetRecipeId: string, content: string, parentId?: string): Promise<Comment | null> => {
         setError(null);
 
         try {
@@ -64,24 +85,39 @@ export function useComments(recipeId?: string) {
                 .insert({
                     recipe_id: targetRecipeId,
                     user_id: user.id,
-                    content: content.trim()
+                    text: content.trim(),
+                    ...(parentId ? { parent_id: parentId } : {})
                 })
-                .select(`
-                    *,
-                    user:profiles!user_id(full_name, avatar_url)
-                `)
+                .select('*')
                 .single();
 
             if (insertError) throw insertError;
 
-            const formattedData = {
+            // Fetch the commenter's profile
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('full_name, avatar_url')
+                .eq('id', user.id)
+                .single();
+
+            const formattedData: Comment = {
                 ...data,
-                user: Array.isArray(data.user) ? data.user[0] : data.user
+                user: profile || null,
+                replies: []
             };
 
             // Update local state if this is the current recipe
             if (targetRecipeId === recipeId) {
-                setComments(prev => [...prev, formattedData]);
+                if (parentId) {
+                    // Append reply under the parent comment
+                    setComments(prev => prev.map(c =>
+                        c.id === parentId
+                            ? { ...c, replies: [...(c.replies || []), formattedData] }
+                            : c
+                    ));
+                } else {
+                    setComments(prev => [...prev, formattedData]);
+                }
             }
 
             return formattedData;
@@ -92,7 +128,7 @@ export function useComments(recipeId?: string) {
         }
     };
 
-    const deleteComment = async (commentId: string): Promise<boolean> => {
+    const deleteComment = async (commentId: string, parentId?: string): Promise<boolean> => {
         setError(null);
 
         try {
@@ -103,8 +139,16 @@ export function useComments(recipeId?: string) {
 
             if (deleteError) throw deleteError;
 
-            // Update local state
-            setComments(prev => prev.filter(c => c.id !== commentId));
+            setComments(prev => {
+                if (parentId) {
+                    return prev.map(c =>
+                        c.id === parentId
+                            ? { ...c, replies: (c.replies || []).filter(r => r.id !== commentId) }
+                            : c
+                    );
+                }
+                return prev.filter(c => c.id !== commentId);
+            });
 
             return true;
         } catch (err) {

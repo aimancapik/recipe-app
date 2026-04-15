@@ -9,6 +9,7 @@ import { shareRecipe } from '@/lib/shareHelpers';
 import { useCollections } from '@/hooks/useCollections';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
+import { getAvatarUrl } from '@/data/avatars';
 
 interface RecipeDetailScreenProps {
     recipe: Recipe;
@@ -41,6 +42,8 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
     const [showCollectionModal, setShowCollectionModal] = useState(false);
     const [recipeCollections, setRecipeCollections] = useState<Set<string>>(new Set());
     const [isSaving, setIsSaving] = useState(false);
+    const [activeStepTimers, setActiveStepTimers] = useState<Set<number>>(new Set());
+    const [stepImageViewer, setStepImageViewer] = useState<string | null>(null);
 
     // Handle initial scroll when gallery opens
     useEffect(() => {
@@ -261,28 +264,19 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                         className="flex items-center gap-3 mb-8 p-3 rounded-2xl bg-base-200 border border-base-300 cursor-pointer hover:bg-base-300/50 transition-all active:scale-[0.98] group"
                     >
                         <div className="relative">
-                            {chef?.avatar_url ? (
-                                <img
-                                    src={chef.avatar_url}
-                                    alt={chef.full_name}
-                                    className="size-11 rounded-full object-cover border-2 border-primary"
-                                    onError={(e) => {
-                                        // Replace broken image with default avatar
-                                        (e.target as HTMLImageElement).style.display = 'none';
-                                        const parent = (e.target as HTMLImageElement).parentElement;
-                                        if (parent && !parent.querySelector('.default-avatar-large')) {
-                                            const fallback = document.createElement('div');
-                                            fallback.className = 'size-11 rounded-full bg-primary/10 flex items-center justify-center text-primary border-2 border-primary/20 default-avatar-large';
-                                            fallback.innerHTML = '<span class="material-symbols-outlined text-xl">person</span>';
-                                            parent.insertBefore(fallback, parent.lastElementChild);
-                                        }
-                                    }}
-                                />
-                            ) : (
-                                <div className="size-11 rounded-full bg-primary/10 flex items-center justify-center text-primary border-2 border-primary/20">
-                                    <span className="material-symbols-outlined text-xl">person</span>
-                                </div>
-                            )}
+                            {(() => {
+                                const url = getAvatarUrl(chef?.avatar_url);
+                                const initial = (chef?.full_name || '?').charAt(0).toUpperCase();
+                                return url ? (
+                                    <div className="size-11 rounded-full ring-2 ring-primary ring-offset-2 ring-offset-base-200 bg-primary overflow-hidden">
+                                        <img src={url} alt={chef?.full_name} className="w-full h-full object-cover" />
+                                    </div>
+                                ) : (
+                                    <div className="size-11 rounded-full ring-2 ring-primary ring-offset-2 ring-offset-base-200 bg-primary flex items-center justify-center">
+                                        <span className="text-primary-content font-black text-lg">{initial}</span>
+                                    </div>
+                                );
+                            })()}
                             <div className="absolute -bottom-0.5 -right-0.5 size-3.5 bg-green-500 border-2 border-base-100 rounded-full"></div>
                         </div>
                         <div className="flex flex-col flex-1">
@@ -309,8 +303,8 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                     ))}
                 </div>
 
-                {/* Rate Action Section */}
-                {!onPublish && (
+                {/* Rate Action Section — hidden for recipe owner */}
+                {!onPublish && user?.id !== recipe.userId && (
                     <div className="mb-10 p-5 rounded-3xl bg-primary/5 border border-primary/10 flex items-center justify-between group overflow-hidden relative">
                         <div className="absolute -right-4 -top-4 size-24 bg-primary/10 rounded-full blur-2xl group-hover:bg-primary/20 transition-all duration-500"></div>
                         <div className="flex flex-col gap-1 relative z-10">
@@ -389,11 +383,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                                     {dir.image && (
                                         <div
                                             className="w-full aspect-video rounded-2xl overflow-hidden mb-3 border border-base-200 shadow-sm relative group cursor-zoom-in"
-                                            onClick={() => {
-                                                const stepImageIdx = galleryItems.indexOf(dir.image!);
-                                                if (stepImageIdx !== -1) setViewMediaIndex(stepImageIdx);
-                                                else setViewMediaIndex(0); // Fallback to start if not in gallery
-                                            }}
+                                            onClick={() => setStepImageViewer(dir.image!)}
                                         >
                                             {dir.mediaType === 'video' ? (
                                                 <div className="w-full h-full pointer-events-none">
@@ -431,7 +421,37 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
 
                                     {dir.timer && (
                                         <div className="max-w-xs">
-                                            <StepTimer seconds={dir.timer} label="Cooking Timer" />
+                                            {activeStepTimers.has(idx) ? (
+                                                <StepTimer
+                                                    seconds={dir.timer}
+                                                    label={`Step ${idx + 1}`}
+                                                    onClose={() => setActiveStepTimers(prev => {
+                                                        const next = new Set(prev);
+                                                        next.delete(idx);
+                                                        return next;
+                                                    })}
+                                                />
+                                            ) : (
+                                                <button
+                                                    onClick={() => setActiveStepTimers(prev => new Set([...prev, idx]))}
+                                                    className="flex items-center gap-3 w-full p-3 rounded-2xl bg-primary/10 border border-primary/20 hover:bg-primary/20 active:scale-95 transition-all group"
+                                                >
+                                                    <div className="size-9 rounded-xl bg-primary flex items-center justify-center shrink-0 shadow-md shadow-primary/30 group-hover:scale-110 transition-transform">
+                                                        <span className="material-symbols-outlined text-primary-content text-lg">timer</span>
+                                                    </div>
+                                                    <div className="flex-1 text-left">
+                                                        <p className="font-bold text-base-content text-xs">Start Timer</p>
+                                                        <p className="text-primary font-black text-sm leading-none">
+                                                            {dir.timer >= 3600
+                                                                ? `${Math.floor(dir.timer / 3600)}h ${Math.floor((dir.timer % 3600) / 60)}m`
+                                                                : dir.timer >= 60
+                                                                ? `${Math.floor(dir.timer / 60)}m${dir.timer % 60 > 0 ? ` ${dir.timer % 60}s` : ''}`
+                                                                : `${dir.timer}s`}
+                                                        </p>
+                                                    </div>
+                                                    <span className="material-symbols-outlined text-primary/60 text-sm">chevron_right</span>
+                                                </button>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -445,7 +465,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                     <div className="mb-8 space-y-8">
                         <ReviewsSection recipeId={recipe.id} />
                         <hr className="border-base-200" />
-                        <CommentsSection recipeId={recipe.id} />
+                        <CommentsSection recipeId={recipe.id} recipeOwnerId={recipe.userId} />
                     </div>
                 )}
             </div>
@@ -564,6 +584,27 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
             )}
 
             {/* Share Toast Notification */}
+            {/* Step Image Lightbox */}
+            {stepImageViewer && (
+                <div
+                    className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
+                    onClick={() => setStepImageViewer(null)}
+                >
+                    <button
+                        className="absolute top-4 right-4 size-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                        onClick={() => setStepImageViewer(null)}
+                    >
+                        <span className="material-symbols-outlined text-white">close</span>
+                    </button>
+                    <img
+                        src={stepImageViewer}
+                        alt="Step"
+                        className="max-w-full max-h-full rounded-2xl object-contain"
+                        onClick={e => e.stopPropagation()}
+                    />
+                </div>
+            )}
+
             {shareToast.show && (
                 <div className="toast toast-top toast-center z-[200]">
                     <div className="alert alert-success shadow-lg">

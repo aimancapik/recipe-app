@@ -1,15 +1,58 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 
-/**
- * Hook for text-to-speech using the browser's SpeechSynthesis API.
- * Enables hands-free step reading during cooking mode.
- */
+export interface SpeechSettings {
+  rate: number;
+  pitch: number;
+  voiceURI: string;
+}
+
+const DEFAULT_SETTINGS: SpeechSettings = {
+  rate: 0.9,
+  pitch: 1,
+  voiceURI: '',
+};
+
+function loadSpeechSettings(): SpeechSettings {
+  try {
+    const data = localStorage.getItem('cooking_speech_settings');
+    return data ? { ...DEFAULT_SETTINGS, ...JSON.parse(data) } : DEFAULT_SETTINGS;
+  } catch { return DEFAULT_SETTINGS; }
+}
+
+function saveSpeechSettings(settings: SpeechSettings) {
+  try { localStorage.setItem('cooking_speech_settings', JSON.stringify(settings)); } catch {}
+}
+
 export function useSpeech() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isEnabled, setIsEnabled] = useState(false);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [settings, setSettings] = useState<SpeechSettings>(loadSpeechSettings);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   const isSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
+
+  // Load available voices (they load async on some browsers)
+  useEffect(() => {
+    if (!isSupported) return;
+
+    const loadVoices = () => {
+      const available = window.speechSynthesis.getVoices();
+      if (available.length > 0) setVoices(available);
+    };
+
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+    return () => { window.speechSynthesis.onvoiceschanged = null; };
+  }, [isSupported]);
+
+  const updateSettings = useCallback((updates: Partial<SpeechSettings>) => {
+    setSettings(prev => {
+      const next = { ...prev, ...updates };
+      saveSpeechSettings(next);
+      return next;
+    });
+  }, []);
 
   const stop = useCallback(() => {
     if (!isSupported) return;
@@ -20,13 +63,17 @@ export function useSpeech() {
   const speak = useCallback((text: string) => {
     if (!isSupported || !text.trim()) return;
 
-    // Cancel any ongoing speech
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.9;
-    utterance.pitch = 1;
+    utterance.rate = settings.rate;
+    utterance.pitch = settings.pitch;
     utterance.volume = 1;
+
+    if (settings.voiceURI) {
+      const voice = window.speechSynthesis.getVoices().find(v => v.voiceURI === settings.voiceURI);
+      if (voice) utterance.voice = voice;
+    }
 
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
@@ -34,24 +81,17 @@ export function useSpeech() {
 
     utteranceRef.current = utterance;
     window.speechSynthesis.speak(utterance);
-  }, [isSupported]);
+  }, [isSupported, settings]);
 
   const toggle = useCallback(() => {
     setIsEnabled(prev => {
-      if (prev) {
-        stop();
-      }
+      if (prev) stop();
       return !prev;
     });
   }, [stop]);
 
-  // Cleanup on unmount
   useEffect(() => {
-    return () => {
-      if (isSupported) {
-        window.speechSynthesis.cancel();
-      }
-    };
+    return () => { if (isSupported) window.speechSynthesis.cancel(); };
   }, [isSupported]);
 
   return {
@@ -62,5 +102,8 @@ export function useSpeech() {
     isEnabled,
     setIsEnabled,
     isSupported,
+    voices,
+    settings,
+    updateSettings,
   };
 }

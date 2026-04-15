@@ -54,7 +54,7 @@ export const useCollections = () => {
         }
     }, [user]);
 
-    const createCollection = async (name: string, description?: string, isPublic = false) => {
+    const createCollection = useCallback(async (name: string, description?: string, isPublic = false) => {
         if (!user) throw new Error('Must be logged in to create a collection');
 
         try {
@@ -80,9 +80,9 @@ export const useCollections = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [user]);
 
-    const updateCollection = async (id: string, updates: Partial<Pick<Collection, 'name' | 'description' | 'cover_image' | 'is_public'>>) => {
+    const updateCollection = useCallback(async (id: string, updates: Partial<Pick<Collection, 'name' | 'description' | 'cover_image' | 'is_public'>>) => {
         try {
             const { data, error: updateError } = await supabase
                 .from('collections')
@@ -99,9 +99,9 @@ export const useCollections = () => {
             console.error('Error updating collection:', err.message);
             throw err;
         }
-    };
+    }, []);
 
-    const deleteCollection = async (id: string) => {
+    const deleteCollection = useCallback(async (id: string) => {
         try {
             const { error: deleteError } = await supabase
                 .from('collections')
@@ -115,9 +115,9 @@ export const useCollections = () => {
             console.error('Error deleting collection:', err.message);
             throw err;
         }
-    };
+    }, []);
 
-    const addRecipeToCollection = async (collectionId: string, recipeId: string) => {
+    const addRecipeToCollection = useCallback(async (collectionId: string, recipeId: string) => {
         try {
             const { error: addError } = await supabase
                 .from('collection_recipes')
@@ -135,9 +135,9 @@ export const useCollections = () => {
             console.error('Error adding recipe to collection:', err.message);
             throw err;
         }
-    };
+    }, []);
 
-    const removeRecipeFromCollection = async (collectionId: string, recipeId: string) => {
+    const removeRecipeFromCollection = useCallback(async (collectionId: string, recipeId: string) => {
         try {
             const { error: removeError } = await supabase
                 .from('collection_recipes')
@@ -154,9 +154,9 @@ export const useCollections = () => {
             console.error('Error removing recipe from collection:', err.message);
             throw err;
         }
-    };
+    }, []);
 
-    const isRecipeInCollection = async (collectionId: string, recipeId: string): Promise<boolean> => {
+    const isRecipeInCollection = useCallback(async (collectionId: string, recipeId: string): Promise<boolean> => {
         try {
             const { data, error } = await supabase
                 .from('collection_recipes')
@@ -170,9 +170,9 @@ export const useCollections = () => {
             console.error('Error checking recipe in collection:', err);
             return false;
         }
-    };
+    }, []);
 
-    const fetchCollectionRecipes = async (collectionId: string): Promise<Recipe[]> => {
+    const fetchCollectionRecipes = useCallback(async (collectionId: string): Promise<Recipe[]> => {
         try {
             setLoading(true);
             const { data, error } = await supabase
@@ -192,7 +192,7 @@ export const useCollections = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     return {
         collections,

@@ -14,8 +14,6 @@ interface SavedRecipesScreenProps {
 
 const SavedRecipesScreen: React.FC<SavedRecipesScreenProps> = ({ recipes, onRecipeClick, onToggleFavorite, onBack }) => {
     const [activeTab, setActiveTab] = useState<'saved' | 'collections'>('saved');
-    const [filter, setFilter] = useState('All');
-    const [search, setSearch] = useState('');
 
     // Collections state
     const { collections, fetchCollections, createCollection, fetchCollectionRecipes, loading } = useCollections();
@@ -55,16 +53,6 @@ const SavedRecipesScreen: React.FC<SavedRecipesScreenProps> = ({ recipes, onReci
     };
 
     const savedRecipes = recipes.filter(r => r.isFavorite);
-    const filtered = savedRecipes.filter(r => {
-        const matchesFilter = filter === 'All' || r.category.toLowerCase() === filter.toLowerCase();
-        const query = search.toLowerCase().trim();
-        const isSearchActive = query.length >= 3;
-        const matchesSearch = !isSearchActive || r.title.toLowerCase().includes(query);
-        return matchesFilter && matchesSearch;
-    });
-
-    const filterChips = ['All', 'Breakfast', 'Vegan', 'Dinner', 'Seafood'];
-    const showSearchHint = search.trim().length > 0 && search.trim().length < 3;
 
     if (activeCollection) {
         // Render Collection Detail Sub-screen (we'll expand this later, for now just a placeholder)
@@ -139,52 +127,20 @@ const SavedRecipesScreen: React.FC<SavedRecipesScreenProps> = ({ recipes, onReci
                 </div>
 
                 {activeTab === 'saved' && (
-                    <>
-                        <label className="input input-bordered flex items-center gap-2 mb-2">
-                            <span className="material-symbols-outlined text-base-content/40">search</span>
-                            <input
-                                className="grow"
-                                placeholder="Search your bookmarks..."
-                                type="text"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                            />
-                        </label>
-
-                        {showSearchHint && (
-                            <p className="text-[10px] font-bold text-primary mb-2 animate-pulse uppercase tracking-wider">
-                                Type at least 3 characters to search...
-                            </p>
-                        )}
-
-                        <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-                            {filterChips.map(chip => (
-                                <button
-                                    key={chip}
-                                    onClick={() => setFilter(chip)}
-                                    className={`btn btn-sm rounded-full ${filter === chip
-                                        ? 'btn-primary'
-                                        : 'btn-ghost bg-base-200'
-                                        }`}
-                                >
-                                    {chip}
-                                </button>
-                            ))}
-                        </div>
-                    </>
+                    <div className="mb-2"></div>
                 )}
             </header>
 
             <main className="flex-1 px-4 py-4 pb-32">
                 {activeTab === 'saved' ? (
-                    filtered.length > 0 ? (
+                    savedRecipes.length > 0 ? (
                         <RecipeMasonryGrid
-                            recipes={filtered}
+                            recipes={savedRecipes}
                             onRecipeClick={onRecipeClick}
                             onToggleFavorite={onToggleFavorite}
                             showCategory={true}
                         />
-                    ) : savedRecipes.length === 0 ? (
+                    ) : (
                         <div className="flex flex-col items-center justify-center py-20 text-center">
                             <div className="text-8xl mb-6">📌</div>
                             <h3 className="text-xl font-bold text-base-content mb-2">No saved recipes yet</h3>
@@ -197,17 +153,6 @@ const SavedRecipesScreen: React.FC<SavedRecipesScreenProps> = ({ recipes, onReci
                             >
                                 <span className="material-symbols-outlined">explore</span>
                                 Explore Recipes
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col items-center justify-center py-20 text-base-content/40 text-center">
-                            <span className="material-symbols-outlined text-6xl mb-4">search_off</span>
-                            <p className="text-lg font-medium">No saved recipes match your search.</p>
-                            <button
-                                onClick={() => { setSearch(''); setFilter('All'); }}
-                                className="btn btn-primary btn-sm mt-6"
-                            >
-                                Clear filters
                             </button>
                         </div>
                     )

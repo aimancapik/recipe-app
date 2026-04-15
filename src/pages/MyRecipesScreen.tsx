@@ -69,7 +69,8 @@ const MyRecipesScreen: React.FC<MyRecipesScreenProps> = ({
                         <input
                             type="text"
                             placeholder="Search your recipes..."
-                            className="input input-bordered input-sm w-full bg-base-100"
+                            className="no-focus-ring input input-bordered input-sm w-full bg-base-100 focus:outline-none focus:border-base-300 focus:ring-0 !outline-none appearance-none"
+                            style={{ outline: "none", boxShadow: "none" }}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
