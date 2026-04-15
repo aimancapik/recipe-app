@@ -145,13 +145,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                         </div>
                     </div>
                     <div className="flex items-center gap-1.5">
-                        <button
-                            onClick={onToggleTheme}
-                            className="btn btn-ghost btn-circle btn-sm hover:bg-base-200"
-                            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-                        >
-                            <span className="material-symbols-outlined text-xl">{isDark ? 'light_mode' : 'dark_mode'}</span>
-                        </button>
                         <button onClick={onOpenNotifications} className="btn btn-ghost btn-circle btn-sm indicator hover:bg-base-200" title="Notifications">
                             {unreadCount > 0 && <span className="indicator-item badge badge-primary badge-xs scale-75"></span>}
                             <span className="material-symbols-outlined text-xl">notifications</span>
@@ -223,7 +216,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
             </div>
 
             {/* Categories */}
-            <div className="pb-2">
+            <div className="pb-2 hidden">
                 <div className="flex gap-3 overflow-x-auto px-5 no-scrollbar pb-3">
                     {CATEGORIES.map((cat) => (
                         <button

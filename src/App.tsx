@@ -522,6 +522,7 @@ const App: React.FC = () => {
                         onRecipeClick={(r) => navigateTo(Screen.DETAIL, r)}
                         onToggleFavorite={handleToggleFavorite}
                         onOpenFilter={() => navigateTo(Screen.FILTER)}
+                        onClearFilters={() => setFilters({ sortBy: 'popular', cookingTime: null, dietary: [], difficulty: null })}
                         filters={filters}
                         onRefresh={handleRefresh}
                         loading={loading}

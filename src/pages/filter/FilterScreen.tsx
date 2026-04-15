@@ -37,6 +37,8 @@ const FilterScreen: React.FC<FilterScreenProps> = ({
 
     const handleClearAll = () => {
         setFilters(defaultFilters);
+        onApply(defaultFilters);
+        onClose();
     };
 
     const toggleDietary = (diet: Dietary) => {
@@ -67,7 +69,7 @@ const FilterScreen: React.FC<FilterScreenProps> = ({
                 </div>
                 <div className="navbar-end">
                     <button onClick={handleClearAll} className="btn btn-ghost btn-sm text-base-content/60">
-                        Clear
+                        Clear Filters
                     </button>
                 </div>
             </div>

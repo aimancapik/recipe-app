@@ -14,6 +14,7 @@ interface ExploreScreenProps {
 
     onToggleFavorite: (id: string) => void;
     onOpenFilter: () => void;
+    onClearFilters: () => void;
     filters: FilterOptions;
     onRefresh: (search: string, category: string, feed?: 'forYou' | 'following', followerId?: string, ingredients?: string[]) => void;
     loading?: boolean;
@@ -27,6 +28,7 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
 
     onToggleFavorite,
     onOpenFilter,
+    onClearFilters,
     filters,
     onRefresh,
     loading = false,
@@ -85,7 +87,7 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
         return result;
     }, [recipes, filters]);
 
-    const hasActiveFilters = filters.cookingTime || filters.dietary.length > 0 || filters.difficulty;
+    const hasActiveFilters = filters.cookingTime || filters.dietary.length > 0 || filters.difficulty || filters.sortBy !== 'popular';
     const isSearching = search.trim().length >= 2;
     const showHint = search.trim().length === 1;
 
@@ -199,10 +201,10 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
                     </div>
                     {(isSearching || selectedCategory !== 'all' || hasActiveFilters) && (
                         <button
-                            onClick={() => { setSearch(''); setSelectedCategory('all'); }}
+                            onClick={() => { setSearch(''); setSelectedCategory('all'); onClearFilters(); }}
                             className="btn btn-ghost btn-xs text-primary font-bold"
                         >
-                            Clear all
+                            Clear Filters
                         </button>
                     )}
                 </div>
