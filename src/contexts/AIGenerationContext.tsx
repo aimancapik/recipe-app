@@ -1,8 +1,8 @@
 
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { Recipe } from '@/types';
-import { generateRecipeFromIngredients } from '@/api/aiRecipe';
-import { useRecipes } from '@/hooks/useRecipes';
+import { generateRecipeFromIngredients } from '@/services/aiRecipe';
+import { useRecipes } from '@/hooks/recipe/useRecipes';
 
 export type TaskStatus = 'idle' | 'loading' | 'completed' | 'failed' | 'background';
 

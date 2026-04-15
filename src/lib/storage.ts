@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { autoCompressIfNeeded, formatBytes } from '@/lib/imageOptimization';
+import { autoCompressIfNeeded, formatBytes } from '@/utils/imageOptimization';
 
 const BUCKET = 'recipe-images';
 
