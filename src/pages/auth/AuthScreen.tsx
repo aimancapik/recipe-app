@@ -98,20 +98,12 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
 
             {/* Top branding */}
             <div className="relative z-10 flex-1 flex flex-col items-center justify-center pt-16 pb-8 px-6 text-center">
-                <div
-                    className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5 shadow-xl"
-                    style={{ background: 'rgba(244,226,37,1)', boxShadow: '0 8px 32px rgba(244,226,37,0.35)' }}
-                >
-                    <span className="material-symbols-outlined text-3xl" style={{ color: '#1a1a0a', fontVariationSettings: "'FILL' 1" }}>
-                        restaurant_menu
-                    </span>
-                </div>
-                <h1 className="text-white text-[32px] font-black tracking-tight leading-tight">
-                    Let Em Cook
-                </h1>
-                <p className="text-white/50 text-sm mt-2 font-medium">
-                    Discover, cook & share recipes
-                </p>
+                <img
+                    src="/logo.png"
+                    alt="Let Em Cook"
+                    className="w-96 max-w-md object-contain"
+                    style={{ filter: 'drop-shadow(0 12px 40px rgba(0,0,0,0.6)) drop-shadow(0 4px 16px rgba(0,0,0,0.4))' }}
+                />
             </div>
 
             {/* Bottom sheet */}
