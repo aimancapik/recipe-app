@@ -79,6 +79,7 @@ export function useRecipes() {
     const loadedCountRef = useRef(0);
     const isFetchingRef = useRef(false);
     const hasMoreRef = useRef(true);
+    const fetchGenRef = useRef(0); // incremented on each new fetch; stale results are discarded
     const filtersRef = useRef({ search: '', category: '', feed: 'forYou' as 'forYou' | 'following', followerId: '' as string, ingredients: [] as string[] });
 
     const fetchRecipesByIds = useCallback(async (ids: string[]) => {
@@ -110,7 +111,9 @@ export function useRecipes() {
 
     // Fetch recipes with pagination — stable callback (no state deps)
     const fetchRecipes = useCallback(async (isLoadMore = false, search = '', category = '', feed: 'forYou' | 'following' = 'forYou', followerId = '', ingredients: string[] = []) => {
-        if (isFetchingRef.current) return;
+        if (isLoadMore && isFetchingRef.current) return;
+        // Increment generation — any in-flight fetch with an older generation will discard its result
+        const gen = ++fetchGenRef.current;
         isFetchingRef.current = true;
 
         try {
@@ -162,6 +165,12 @@ export function useRecipes() {
             }
 
             const { data, count, error: fetchError } = await fetchPromise;
+
+            // A newer fetch has started — discard this stale result
+            if (gen !== fetchGenRef.current) {
+                isFetchingRef.current = false;
+                return;
+            }
 
             if (fetchError) throw fetchError;
 

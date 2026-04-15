@@ -68,6 +68,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     // Handle server-side filtering with debouncing
     React.useEffect(() => {
         const timer = setTimeout(() => {
+            // Don't fetch following feed for unauthenticated users
+            if (feedType === 'following' && !user) return;
             const query = searchValue.trim();
             // Category 'all' maps to empty string for the RPC
             const category = activeCategory === 'all' ? '' : activeCategory;
@@ -209,7 +211,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                         For You
                     </button>
                     <button
-                        onClick={() => { setFeedType('following'); setSwitching(true); }}
+                        onClick={() => { setFeedType('following'); if (user) setSwitching(true); }}
                         className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${feedType === 'following'
                             ? 'bg-primary text-primary-content shadow-md shadow-primary/25'
                             : 'text-base-content/50 hover:text-base-content'
@@ -245,7 +247,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 
             {/* Recipes Section */}
             <div className="flex-1 px-4 py-2 min-h-[400px]">
-                <div className="flex items-center justify-between mb-4 px-1">
+                {!(feedType === 'following' && !user) && <div className="flex items-center justify-between mb-4 px-1">
                     <div>
                         <h3 className="text-lg font-bold text-base-content">
                             {isSearching
@@ -256,7 +258,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                             {filteredRecipes.length} recipe{filteredRecipes.length !== 1 ? 's' : ''} found
                         </p>
                     </div>
-                    {!isSearching && (
+                    {!isSearching && feedType !== 'following' && (
                         <button
                             onClick={() => onSeeAll(activeCategory === 'all' ? undefined : activeCategory)}
                             className="text-sm font-semibold text-primary flex items-center gap-1 hover:gap-2 transition-all"
@@ -265,9 +267,25 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                             <span className="material-symbols-outlined text-sm">chevron_right</span>
                         </button>
                     )}
-                </div>
+                </div>}
 
-                {(loading || switching) && (recipes.length === 0 || switching) ? (
+                {feedType === 'following' && !user ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-base-content/40">
+                        <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                            <span className="material-symbols-outlined text-4xl text-primary">login</span>
+                        </div>
+                        <p className="text-lg font-semibold text-base-content/60 mb-2">Join the Community</p>
+                        <p className="text-sm text-center mb-6 px-10 text-base-content/40">
+                            Please login to see recipes from chefs you follow!
+                        </p>
+                        <button
+                            onClick={onLoginClick}
+                            className="btn btn-primary rounded-2xl px-8 shadow-lg shadow-primary/25"
+                        >
+                            Login to Account
+                        </button>
+                    </div>
+                ) : (loading || switching) && (recipes.length === 0 || switching) ? (
                     <div className="columns-2 gap-4 space-y-4">
                         <SkeletonGrid count={8} />
                     </div>
@@ -352,11 +370,17 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                 ) : null}
 
                 {/* Loading Sentinel */}
-                <div ref={observerTarget} className="flex flex-col items-center justify-center min-h-[100px] py-8 opacity-60">
+                <div ref={observerTarget} className="flex flex-col items-center justify-center min-h-[100px] py-8 opacity-60"
+                    style={{ display: feedType === 'following' && !user ? 'none' : undefined }}>
                     {(loading || loadingMore) ? (
-                        <div className="flex flex-col items-center gap-3">
-                            <LoadingAnimation size={50} />
-                            {loading && <p className="text-xs font-bold uppercase tracking-widest text-base-content/40">Gathering Ingredients...</p>}
+                        <div className="flex items-center gap-2">
+                            {[0, 1, 2].map(i => (
+                                <div
+                                    key={i}
+                                    className="w-2 h-2 rounded-full bg-base-content/30"
+                                    style={{ animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite` }}
+                                />
+                            ))}
                         </div>
                     ) : (
                         !hasMore && recipes.length > 0 && (
