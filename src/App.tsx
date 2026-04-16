@@ -249,15 +249,15 @@ const App: React.FC = () => {
         return () => clearTimeout(timer);
     }, []);
 
-    // Deep linking support for shared recipes
+    // Deep linking support for shared recipes and profiles
     React.useEffect(() => {
-        const path = window.location.pathname;
-        const recipeMatch = path.match(/\/recipe\/([0-9a-fA-F-]+)/); // UUID or friendly ID
+        const handleDeepLink = async (path: string, search: string) => {
+            const params = new URLSearchParams(search);
+            const recipeMatch = path.match(/\/recipe\/([0-9a-fA-F-]+)/); // UUID or friendly ID
+            const sharedUserId = params.get('user');
 
-        if (recipeMatch && recipeMatch[1]) {
-            const recipeId = recipeMatch[1];
-
-            const handleDeepLink = async () => {
+            if (recipeMatch && recipeMatch[1]) {
+                const recipeId = recipeMatch[1];
                 try {
                     const fetchedRecipes = await fetchRecipesByIds([recipeId]);
                     if (fetchedRecipes.length > 0) {
@@ -267,10 +267,35 @@ const App: React.FC = () => {
                 } catch (err) {
                     console.error('Deep link failed:', err);
                 }
-            };
+            } else if (sharedUserId) {
+                setCurrentChefId(sharedUserId);
+                setCurrentScreen(Screen.PUBLIC_PROFILE);
+            }
+        };
 
-            handleDeepLink();
+        // 1. Check web parameters on mount
+        if (window.location.pathname.includes('/recipe/') || window.location.search.includes('user=')) {
+            handleDeepLink(window.location.pathname, window.location.search);
         }
+
+        // 2. Add Capacitor Listener setup dynamically to avoid breaking web
+        let listener: any = null;
+        import('@capacitor/app').then(({ App: CapApp }) => {
+            listener = CapApp.addListener('appUrlOpen', (event) => {
+                try {
+                    const url = new URL(event.url);
+                    handleDeepLink(url.pathname, url.search);
+                } catch (e) {
+                    console.error('Failed to parse app url', e);
+                }
+            });
+        }).catch(() => { /* not running in capacitor or module missing */ });
+
+        return () => {
+            if (listener && typeof listener.remove === 'function') {
+                listener.remove();
+            }
+        };
     }, [fetchRecipesByIds]);
 
     const handleSignIn = async (email: string, password: string) => {
