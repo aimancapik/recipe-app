@@ -10,10 +10,11 @@ interface SavedRecipesScreenProps {
     onRecipeClick: (recipe: Recipe) => void;
     onToggleFavorite: (id: string) => void;
     onBack: () => void;
+    initialTab?: 'saved' | 'collections';
 }
 
-const SavedRecipesScreen: React.FC<SavedRecipesScreenProps> = ({ recipes, onRecipeClick, onToggleFavorite, onBack }) => {
-    const [activeTab, setActiveTab] = useState<'saved' | 'collections'>('saved');
+const SavedRecipesScreen: React.FC<SavedRecipesScreenProps> = ({ recipes, onRecipeClick, onToggleFavorite, onBack, initialTab = 'saved' }) => {
+    const [activeTab, setActiveTab] = useState<'saved' | 'collections'>(initialTab);
 
     // Collections state
     const { collections, fetchCollections, createCollection, fetchCollectionRecipes, loading } = useCollections();

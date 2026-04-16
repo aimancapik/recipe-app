@@ -14,6 +14,7 @@ import { useGrocery } from '@/hooks/grocery/useGrocery';
 import { useMealPlan } from '@/hooks/meal-plan/useMealPlan';
 import { useAuth } from '@/hooks/auth/useAuth';
 import { useFollows } from '@/hooks/social/useFollows';
+import { useChat } from '@/hooks/social/useChat';
 import { AIGenerationProvider } from '@/contexts/AIGenerationContext';
 
 // Lazy load screens for better performance
@@ -35,6 +36,8 @@ const BitesScreen = lazy(() => import('@/pages/bites/BitesScreen'));
 const OnboardingScreen = lazy(() => import('@/pages/onboarding/OnboardingScreen'));
 const NotificationScreen = lazy(() => import('@/pages/notifications/NotificationScreen'));
 const MealPlanScreen = lazy(() => import('@/pages/meal-plan/MealPlanScreen'));
+const MessagesScreen = lazy(() => import('@/pages/messages/MessagesScreen'));
+const ChatScreen = lazy(() => import('@/pages/messages/ChatScreen'));
 
 const App: React.FC = () => {
     const { isDark, toggleTheme } = useTheme();
@@ -62,6 +65,18 @@ const App: React.FC = () => {
         updateProfile
     } = useAuth();
     const { followingIds } = useFollows(user?.id);
+    const {
+        conversations,
+        messages,
+        loadingConvos,
+        loadingMessages,
+        totalUnread,
+        fetchConversations,
+        openConversation,
+        sendMessage,
+        deleteConversation,
+        getOrCreateConversation,
+    } = useChat(user?.id);
 
     const [currentScreen, setCurrentScreen] = useState<Screen>(Screen.HOME);
     const [showSplash, setShowSplash] = useState(true);
@@ -84,6 +99,8 @@ const App: React.FC = () => {
     const [currentChefId, setCurrentChefId] = useState<string | null>(null);
     const [subScreenReturnTo, setSubScreenReturnTo] = useState<Screen>(Screen.HOME);
     const [bitesActiveIndex, setBitesActiveIndex] = useState(0);
+    const [savedInitialTab, setSavedInitialTab] = useState<'saved' | 'collections'>('saved');
+    const [activeConversation, setActiveConversation] = useState<import('@/hooks/social/useChat').Conversation | null>(null);
 
     const [showOnboarding, setShowOnboarding] = useState(() => {
         return localStorage.getItem('recipe_app_onboarded') !== 'true';
@@ -572,7 +589,8 @@ const App: React.FC = () => {
                         recipes={allSavedRecipes}
                         onRecipeClick={(r) => navigateTo(Screen.DETAIL, r)}
                         onToggleFavorite={handleToggleFavorite}
-                        onBack={() => setCurrentScreen(Screen.HOME)}
+                        initialTab={savedInitialTab}
+                        onBack={() => setCurrentScreen(subScreenReturnTo ?? Screen.HOME)}
                     />
                 );
             case Screen.PROFILE:
@@ -596,6 +614,8 @@ const App: React.FC = () => {
                         }}
                         onFavorites={() => {
                             if (!hasFetchedFavoritesRef.current) { hasFetchedFavoritesRef.current = true; refreshFavorites(); }
+                            setSavedInitialTab('saved');
+                            setSubScreenReturnTo(Screen.PROFILE);
                             setCurrentScreen(Screen.SAVED);
                         }}
                         onGroceryList={() => {
@@ -609,6 +629,12 @@ const App: React.FC = () => {
                         onNotifications={() => {
                             setSubScreenReturnTo(Screen.PROFILE);
                             setCurrentScreen(Screen.NOTIFICATION);
+                        }}
+                        onCollections={() => {
+                            if (!hasFetchedFavoritesRef.current) { hasFetchedFavoritesRef.current = true; refreshFavorites(); }
+                            setSubScreenReturnTo(Screen.PROFILE);
+                            setSavedInitialTab('collections');
+                            setCurrentScreen(Screen.SAVED);
                         }}
                     />
                 );
@@ -688,6 +714,34 @@ const App: React.FC = () => {
                         }}
                         toggleFavorite={handleToggleFavorite}
                         onUserClick={(clickedUserId) => navigateTo(Screen.PUBLIC_PROFILE, undefined, clickedUserId)}
+                        onMessageClick={(otherUserId, otherName, otherAvatar) => {
+                            requireAuth(async () => {
+                                try {
+                                    const convoId = await getOrCreateConversation(otherUserId);
+                                    // Always use the name/avatar passed directly from the profile screen
+                                    const existingConvo = conversations.find(c => c.id === convoId);
+                                    const convo = {
+                                        ...(existingConvo ?? {
+                                            last_message: null,
+                                            last_message_at: null,
+                                            unread_count: 0,
+                                        }),
+                                        id: convoId,
+                                        other_user: {
+                                            id: otherUserId,
+                                            full_name: otherName,
+                                            avatar_url: otherAvatar,
+                                        },
+                                    };
+                                    setActiveConversation(convo);
+                                    await openConversation(convoId);
+                                    setSubScreenReturnTo(Screen.PUBLIC_PROFILE);
+                                    setCurrentScreen(Screen.CHAT);
+                                } catch (err) {
+                                    console.error('Failed to open chat:', err);
+                                }
+                            }, Screen.PUBLIC_PROFILE);
+                        }}
                     />
                 ) : null;
             case Screen.REVIEW:
@@ -725,6 +779,34 @@ const App: React.FC = () => {
                         }}
                     />
                 ) : null;
+            case Screen.MESSAGES:
+                return (
+                    <MessagesScreen
+                        conversations={conversations}
+                        loading={loadingConvos}
+                        onBack={() => setCurrentScreen(subScreenReturnTo)}
+                        onDeleteConversation={deleteConversation}
+                        onOpenChat={(convo) => {
+                            setActiveConversation(convo);
+                            openConversation(convo.id);
+                            setCurrentScreen(Screen.CHAT);
+                        }}
+                    />
+                );
+            case Screen.CHAT:
+                return activeConversation && user ? (
+                    <ChatScreen
+                        conversation={activeConversation}
+                        messages={messages}
+                        loading={loadingMessages}
+                        currentUserId={user.id}
+                        onBack={() => {
+                            fetchConversations();
+                            setCurrentScreen(Screen.MESSAGES);
+                        }}
+                        onSend={(content) => sendMessage(activeConversation.id, content)}
+                    />
+                ) : null;
             case Screen.MEAL_PLAN:
                 return (
                     <MealPlanScreen
@@ -751,7 +833,7 @@ const App: React.FC = () => {
         }
     };
 
-    const showBottomNav = !isNavHidden && ![Screen.DETAIL, Screen.AI_GENERATE, Screen.FILTER, Screen.GROCERY, Screen.PUBLISH, Screen.LOGIN, Screen.SIGNUP, Screen.MY_RECIPES, Screen.PUBLIC_PROFILE, Screen.REVIEW, Screen.COOKING_MODE, Screen.MEAL_PLAN, Screen.BITES, Screen.NOTIFICATION].includes(currentScreen);
+    const showBottomNav = !isNavHidden && ![Screen.DETAIL, Screen.AI_GENERATE, Screen.FILTER, Screen.GROCERY, Screen.PUBLISH, Screen.LOGIN, Screen.SIGNUP, Screen.MY_RECIPES, Screen.PUBLIC_PROFILE, Screen.REVIEW, Screen.COOKING_MODE, Screen.MEAL_PLAN, Screen.BITES, Screen.NOTIFICATION, Screen.MESSAGES, Screen.CHAT].includes(currentScreen);
 
     if (showSplash) {
         return <SplashScreen />;
@@ -777,6 +859,7 @@ const App: React.FC = () => {
                             if (screen === Screen.SAVED || screen === Screen.PROFILE) {
                                 requireAuth(() => {
                                     if ((screen === Screen.SAVED) && !hasFetchedFavoritesRef.current) { hasFetchedFavoritesRef.current = true; refreshFavorites(); }
+                                    if (screen === Screen.SAVED) { setSavedInitialTab('saved'); setSubScreenReturnTo(Screen.HOME); }
                                     if ((screen === Screen.PROFILE) && !hasFetchedFavoritesRef.current) { hasFetchedFavoritesRef.current = true; refreshFavorites(); }
                                     if ((screen === Screen.PROFILE) && !hasFetchedUserRecipesRef.current) { hasFetchedUserRecipesRef.current = true; refreshUserRecipes(); }
                                     setCurrentScreen(screen);
@@ -786,6 +869,7 @@ const App: React.FC = () => {
                             }
                         }}
                         onQuickAction={() => setQuickActionsOpen(true)}
+                        unreadMessages={totalUnread}
                     />
                 )}
                 <QuickActionsOverlay

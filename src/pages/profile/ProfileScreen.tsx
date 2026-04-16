@@ -1,9 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import AvatarPickerModal from '@/components/user/AvatarPickerModal';
 import { getAvatarUrl } from '@/constants/avatars';
 import { clearProfileCache } from '@/components/recipe/RecipeCard';
 import { uploadOptimizedImage } from '@/lib/storage';
+import { useCollections } from '@/hooks/recipe/useCollections';
 
 interface ProfileScreenProps {
     onBack: () => void;
@@ -28,6 +29,7 @@ interface ProfileScreenProps {
     onModalToggle?: (hidden: boolean) => void;
     onMyRecipes?: () => void;
     onFavorites?: () => void;
+    onCollections?: () => void;
     onGroceryList?: () => void;
     onMealPlan?: () => void;
     onNotifications?: () => void;
@@ -46,6 +48,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
     onModalToggle,
     onMyRecipes,
     onFavorites,
+    onCollections,
     onGroceryList,
     onMealPlan,
     onNotifications
@@ -64,6 +67,15 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
     const [saving, setSaving] = useState(false);
     const [showHelpSheet, setShowHelpSheet] = useState(false);
     const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+    const [collectionCount, setCollectionCount] = useState(0);
+    const { fetchCollections } = useCollections();
+
+    useEffect(() => {
+        if (user?.id) {
+            fetchCollections(user.id).then(result => setCollectionCount(result?.length || 0));
+        }
+    }, [user?.id]);
+    const [copiedLink, setCopiedLink] = useState(false);
     const coverInputRef = useRef<HTMLInputElement>(null);
 
     const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Guest';
@@ -72,6 +84,24 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
     const avatarUrl = avatarId ? getAvatarUrl(avatarId) : null;
     const coverUrl = user?.user_metadata?.cover_url || null;
     const initial = displayName.charAt(0).toUpperCase();
+
+    const handleShareProfile = async () => {
+        const url = `${window.location.origin}${window.location.pathname}?user=${user?.id}`;
+        const text = `Hey, check out my profile on Let Em Cook! 👨‍🍳\n${url}`;
+        try {
+            if (navigator.share) {
+                await navigator.share({ title: `Chef ${displayName}`, text });
+            } else {
+                await navigator.clipboard.writeText(text);
+                setCopiedLink(true);
+                setTimeout(() => setCopiedLink(false), 2000);
+            }
+        } catch {
+            await navigator.clipboard.writeText(text);
+            setCopiedLink(true);
+            setTimeout(() => setCopiedLink(false), 2000);
+        }
+    };
 
     const handleSignOut = async () => {
         try {
@@ -142,7 +172,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
     };
 
     return (
-        <div className="bg-base-200 text-base-content min-h-screen flex flex-col w-full font-display">
+        <div className="bg-base-100 text-base-content min-h-screen flex flex-col w-full font-display">
             {/* Top Navigation Bar with Glassmorphism */}
             <header className="sticky top-0 z-50 bg-base-100/80 backdrop-blur-md border-b border-base-200">
                 <div className="flex items-center p-4 justify-between max-w-2xl mx-auto w-full">
@@ -167,8 +197,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                                 <span className="material-symbols-outlined filled-icon">edit</span>
                             </button>
                         )}
-                        <button onClick={() => setShowSignOutConfirm(true)} className="flex size-10 items-center justify-center rounded-full hover:bg-red-500/10 transition-colors text-error">
-                            <span className="material-symbols-outlined">logout</span>
+                        <button onClick={handleShareProfile} className="flex size-10 items-center justify-center rounded-full hover:bg-base-300 transition-colors text-primary">
+                            <span className="material-symbols-outlined">share</span>
                         </button>
                     </div>
                 </div>
@@ -182,9 +212,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                         {coverUrl ? (
                             <img src={coverUrl} alt="Cover" className="w-full h-full object-cover rounded-t-[0px] rounded-b-none" />
                         ) : (
-                            <div className="w-full h-full overflow-hidden">
-                                <div className="absolute top-[-50px] left-[-50px] size-64 bg-primary/10 rounded-full blur-3xl"></div>
-                                <div className="absolute bottom-[-50px] right-[-50px] size-64 bg-secondary/10 rounded-full blur-3xl"></div>
+                            <div className="w-full h-full bg-gradient-to-br from-primary/80 via-secondary/60 to-accent/40 overflow-hidden">
+                                <span className="material-symbols-outlined absolute top-4 left-6 text-white/10 text-[80px] rotate-[-15deg]" style={{ fontVariationSettings: "'FILL' 1" }}>restaurant</span>
+                                <span className="material-symbols-outlined absolute bottom-2 right-8 text-white/10 text-[64px] rotate-[10deg]" style={{ fontVariationSettings: "'FILL' 1" }}>local_dining</span>
+                                <span className="material-symbols-outlined absolute top-6 right-24 text-white/10 text-[48px] rotate-[20deg]" style={{ fontVariationSettings: "'FILL' 1" }}>egg</span>
                             </div>
                         )}
                         {/* Gradient fade */}
@@ -206,7 +237,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                     </div>
 
                     {/* Avatar overlapping the cover */}
-                    <div className="-mt-16 pb-8 px-8 flex flex-col items-center gap-4 w-full">
+                    <div className="-mt-16 pb-8 px-8 flex flex-col items-center gap-4 w-full drop-shadow-2xl">
 
                     <div className="relative z-10 group">
                         <div
@@ -321,17 +352,17 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 {/* Floating Stats Section Cards */}
                 <section className="flex px-4 -mt-8 gap-3 z-20 relative">
                     {[
-                        { label: 'Recipes', val: recipeCount || 0, icon: 'restaurant_menu', color: 'bg-primary/10 text-primary', onClick: onMyRecipes },
-                        { label: 'Favorites', val: favoriteCount || 0, icon: 'favorite', color: 'bg-red-500/10 text-red-500', onClick: onFavorites },
-                        { label: 'Saved Lists', val: groceryCount || 0, icon: 'shopping_bag', color: 'bg-amber-500/10 text-amber-500', onClick: onGroceryList }
+                        { label: 'Recipes', val: recipeCount || 0, icon: 'restaurant_menu', color: 'bg-primary/20 text-primary', onClick: onMyRecipes },
+                        { label: 'Favorites', val: favoriteCount || 0, icon: 'favorite', color: 'bg-red-500/20 text-red-400', onClick: onFavorites },
+                        { label: 'Collections', val: collectionCount, icon: 'collections_bookmark', color: 'bg-amber-500/20 text-amber-400', onClick: onCollections }
                     ].map(stat => (
                         <div
                             key={stat.label}
                             onClick={stat.onClick}
-                            className="flex flex-1 flex-col gap-2 rounded-[32px] bg-base-100 border border-base-200 p-5 items-center shadow-xl shadow-black/5 hover:translate-y-[-4px] active:scale-95 transition-all cursor-pointer group"
+                            className="flex flex-1 flex-col gap-2 rounded-[32px] bg-base-200 border border-base-300 p-5 items-center shadow-xl shadow-black/5 hover:translate-y-[-4px] active:scale-95 transition-all cursor-pointer group"
                         >
                             <div className={`size-10 rounded-2xl ${stat.color} flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                                <span className="material-symbols-outlined text-[22px]">{stat.icon}</span>
+                                <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>{stat.icon}</span>
                             </div>
                             <div className="text-center">
                                 <p className="text-base-content text-2xl font-black">{stat.val}</p>
@@ -345,8 +376,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 <div className="mt-10 px-4 space-y-8">
                     <div>
                         <h3 className="px-2 text-xs font-black text-base-content/30 uppercase tracking-[0.2em] mb-4">Chef Dashboard</h3>
-                        <div className="bg-base-100 rounded-[32px] border border-base-200 p-3 shadow-sm space-y-1">
-                            <button onClick={onMyRecipes} className="flex w-full items-center gap-4 p-4 rounded-2xl hover:bg-base-200 transition-all group">
+                        <div className="bg-base-200 rounded-[32px] border border-base-300 p-3 shadow-sm space-y-1">
+                            <button onClick={onMyRecipes} className="flex w-full items-center gap-4 p-4 rounded-2xl hover:bg-base-300 transition-all group">
                                 <div className="size-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
                                     <span className="material-symbols-outlined text-[26px]">menu_book</span>
                                 </div>
@@ -357,18 +388,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                                 <span className="material-symbols-outlined text-base-content/20 group-hover:text-primary transition-colors">chevron_right</span>
                             </button>
 
-                            <button onClick={onFavorites} className="flex w-full items-center gap-4 p-4 rounded-2xl hover:bg-base-200 transition-all group">
-                                <div className="size-12 rounded-2xl bg-secondary/10 text-secondary flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
-                                    <span className="material-symbols-outlined text-[26px]">stars</span>
-                                </div>
-                                <div className="flex-1 text-left">
-                                    <p className="font-black text-base-content">Favorite Collections</p>
-                                    <p className="text-[11px] text-base-content/50 font-medium">Your most loved discoveries</p>
-                                </div>
-                                <span className="material-symbols-outlined text-base-content/20 group-hover:text-secondary transition-colors">chevron_right</span>
-                            </button>
 
-                            <button onClick={onNotifications} className="flex w-full items-center gap-4 p-4 rounded-2xl hover:bg-base-200 transition-all group">
+                            <button onClick={onNotifications} className="flex w-full items-center gap-4 p-4 rounded-2xl hover:bg-base-300 transition-all group">
                                 <div className="size-12 rounded-2xl bg-accent/10 text-accent flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
                                     <span className="material-symbols-outlined text-[26px]">notifications_active</span>
                                 </div>
@@ -379,7 +400,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                                 <span className="material-symbols-outlined text-base-content/20 group-hover:text-accent transition-colors">chevron_right</span>
                             </button>
 
-                            <button onClick={onMealPlan} className="flex w-full items-center gap-4 p-4 rounded-2xl hover:bg-base-200 transition-all group">
+                            <button onClick={onMealPlan} className="flex w-full items-center gap-4 p-4 rounded-2xl hover:bg-base-300 transition-all group">
                                 <div className="size-12 rounded-2xl bg-warning/10 text-warning flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
                                     <span className="material-symbols-outlined text-[26px]">calendar_today</span>
                                 </div>
@@ -394,7 +415,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
                     <div>
                         <h3 className="px-2 text-xs font-black text-base-content/30 uppercase tracking-[0.2em] mb-4">Settings & Support</h3>
-                        <div className="bg-base-100 rounded-[32px] border border-base-200 p-3 shadow-sm space-y-1">
+                        <div className="bg-base-200 rounded-[32px] border border-base-300 p-3 shadow-sm space-y-1">
                             <div className="flex items-center gap-4 p-4 rounded-2xl">
                                 <div className="size-12 rounded-2xl bg-base-200 text-base-content/40 flex items-center justify-center">
                                     <span className="material-symbols-outlined text-[26px]">{isDark ? 'dark_mode' : 'light_mode'}</span>
@@ -411,7 +432,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                                 />
                             </div>
 
-                            <button onClick={() => setShowHelpSheet(true)} className="flex w-full items-center gap-4 p-4 rounded-2xl hover:bg-base-200 transition-all group">
+                            <button onClick={() => setShowHelpSheet(true)} className="flex w-full items-center gap-4 p-4 rounded-2xl hover:bg-base-300 transition-all group">
                                 <div className="size-12 rounded-2xl bg-base-200 text-base-content/40 flex items-center justify-center">
                                     <span className="material-symbols-outlined text-[26px]">help</span>
                                 </div>
@@ -420,6 +441,16 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                                     <p className="text-[11px] text-base-content/50 font-medium">Get support or report an issue</p>
                                 </div>
                                 <span className="material-symbols-outlined text-base-content/20 group-hover:text-base-content/60 transition-colors">chevron_right</span>
+                            </button>
+
+                            <button onClick={() => setShowSignOutConfirm(true)} className="flex w-full items-center gap-4 p-4 rounded-2xl hover:bg-red-500/10 transition-all group">
+                                <div className="size-12 rounded-2xl bg-error/10 text-error flex items-center justify-center group-hover:scale-110 transition-transform">
+                                    <span className="material-symbols-outlined text-[26px]">logout</span>
+                                </div>
+                                <div className="flex-1 text-left">
+                                    <p className="font-black text-error">Sign Out</p>
+                                    <p className="text-[11px] text-base-content/50 font-medium">Log out of your account</p>
+                                </div>
                             </button>
                         </div>
                     </div>
@@ -492,6 +523,15 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                                 Sign out
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {copiedLink && (
+                <div className="toast toast-top toast-center z-[200]">
+                    <div className="alert alert-success shadow-lg rounded-2xl">
+                        <span className="material-symbols-outlined">check_circle</span>
+                        <span className="font-bold">Link copied!</span>
                     </div>
                 </div>
             )}

@@ -18,7 +18,9 @@ export enum Screen {
     COOKING_MODE = 'cooking_mode',
     BITES = 'bites',
     NOTIFICATION = 'notification',
-    MEAL_PLAN = 'meal_plan'
+    MEAL_PLAN = 'meal_plan',
+    MESSAGES = 'messages',
+    CHAT = 'chat'
 }
 
 export interface Direction {
