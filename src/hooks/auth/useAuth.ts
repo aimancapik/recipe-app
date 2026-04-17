@@ -22,9 +22,20 @@ export function useAuth() {
         });
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            (_event, session) => {
+            (event, session) => {
                 setSession(session);
                 setUser(session?.user ?? null);
+                setLoading(false);
+                if (event === 'SIGNED_IN') {
+                    const returnTo = sessionStorage.getItem('auth_return_screen');
+                    if (returnTo) {
+                        sessionStorage.removeItem('auth_return_screen');
+                        // Small delay so React state settles
+                        setTimeout(() => {
+                            window.dispatchEvent(new CustomEvent('auth:signed_in', { detail: { returnTo } }));
+                        }, 100);
+                    }
+                }
             }
         );
 

@@ -71,7 +71,7 @@ const App: React.FC = () => {
 
     const { slots: mealSlots, loading: mealPlanLoading, addSlot, removeSlot, clearDay } = useMealPlan();
 
-    const { user, signIn, signUp, signInWithGoogle, signInWithFacebook, resetPassword, signOut, updateProfile } = useAuth();
+    const { user, loading: authLoading, signIn, signUp, signInWithGoogle, signInWithFacebook, resetPassword, signOut, updateProfile } = useAuth();
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { followingIds } = useFollows(user?.id);
@@ -145,9 +145,15 @@ const App: React.FC = () => {
 
     // ── Auth helpers ──────────────────────────────────────────────────────────
     const requireAuth = useCallback((action: () => void, returnTo: Screen = Screen.HOME) => {
+        if (authLoading) return; // wait for session to resolve
         if (user) { action(); }
-        else { setPendingAction(() => action); setReturnScreen(returnTo); setCurrentScreen(Screen.LOGIN); }
-    }, [user]);
+        else {
+            sessionStorage.setItem('auth_return_screen', returnTo);
+            setPendingAction(() => action);
+            setReturnScreen(returnTo);
+            setCurrentScreen(Screen.LOGIN);
+        }
+    }, [user, authLoading]);
 
     const handleAuthSuccess = useCallback(() => {
         if (pendingAction) { pendingAction(); setPendingAction(null); }
@@ -250,6 +256,30 @@ const App: React.FC = () => {
     };
 
     // ── Effects ───────────────────────────────────────────────────────────────
+
+    // Handle OAuth redirect: listen for SIGNED_IN event dispatched by useAuth
+    React.useEffect(() => {
+        const handler = (e: Event) => {
+            const { returnTo } = (e as CustomEvent).detail;
+            if (returnTo === Screen.PROFILE) {
+                if (!hasFetchedFavoritesRef.current) { hasFetchedFavoritesRef.current = true; refreshFavorites(); }
+                if (!hasFetchedUserRecipesRef.current) { hasFetchedUserRecipesRef.current = true; refreshUserRecipes(); }
+            }
+            setCurrentScreen(returnTo as Screen);
+        };
+        window.addEventListener('auth:signed_in', handler);
+        return () => window.removeEventListener('auth:signed_in', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Fallback: email/password sign-in on LOGIN screen
+    React.useEffect(() => {
+        if (!authLoading && user && (currentScreen === Screen.LOGIN || currentScreen === Screen.SIGNUP)) {
+            handleAuthSuccess();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user, authLoading]);
+
     React.useEffect(() => {
         const timer = setTimeout(() => setShowSplash(false), 2500);
         return () => clearTimeout(timer);
