@@ -4,6 +4,7 @@ import ReactPlayer from 'react-player';
 import { uploadOptimizedImage, UploadProgress } from '@/lib/storage';
 import { videoToGif } from '@/utils/videoToGif';
 import { compressVideo, shouldCompressVideo, formatFileSize } from '@/utils/videoCompression';
+import { getNormalizedVideoUrl } from '@/utils/mediaHelpers';
 import LoadingAnimation from '@/components/common/LoadingAnimation';
 import { Recipe } from '@/types';
 import { CATEGORIES } from '@/constants/constants';
@@ -120,6 +121,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({
     const [uploadProgress, setUploadProgress] = useState<number>(0);
     const [compressionStatus, setCompressionStatus] = useState<string>('');
     const [showExitModal, setShowExitModal] = useState(false);
+    const [showYouTubeOnlyModal, setShowYouTubeOnlyModal] = useState(false);
 
     // Helper function to detect if URL is likely a video
     const isVideoUrl = (url: string): boolean => {
@@ -496,7 +498,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({
                                         <div className="w-full h-full bg-base-300 flex items-center justify-center relative">
                                             <div className="w-full h-full pointer-events-none">
                                                 <ReactPlayer
-                                                    src={src}
+                                                    src={getNormalizedVideoUrl(src)}
                                                     playing={false}
                                                     muted
                                                     playsInline
@@ -602,11 +604,14 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({
                             <div className="flex-1 relative">
                                 <input
                                     type="text"
-                                    placeholder="Paste video URL..."
+                                    placeholder="Paste YouTube URL..."
                                     className="input input-sm border-base-300 w-full rounded-lg pl-3 pr-16 bg-base-100 text-sm focus:border-base-content/30"
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                                            setCoverImages(prev => [...prev, e.currentTarget.value.trim()]);
+                                            const val = e.currentTarget.value.trim();
+                                            const isYT = val.includes('youtube.com') || val.includes('youtu.be');
+                                            if (!isYT) { setShowYouTubeOnlyModal(true); return; }
+                                            setCoverImages(prev => [...prev, val]);
                                             e.currentTarget.value = '';
                                         }
                                     }}
@@ -615,10 +620,12 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({
                                     className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 text-[11px] font-medium text-base-content/60 hover:text-base-content transition-colors"
                                     onClick={(e) => {
                                         const input = (e.currentTarget.previousElementSibling as HTMLInputElement);
-                                        if (input.value.trim()) {
-                                            setCoverImages(prev => [...prev, input.value.trim()]);
-                                            input.value = '';
-                                        }
+                                        const val = input.value.trim();
+                                        if (!val) return;
+                                        const isYT = val.includes('youtube.com') || val.includes('youtu.be');
+                                        if (!isYT) { setShowYouTubeOnlyModal(true); return; }
+                                        setCoverImages(prev => [...prev, val]);
+                                        input.value = '';
                                     }}
                                 >
                                     Add
@@ -626,7 +633,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({
                             </div>
                         </div>
                         <p className="text-[10px] text-base-content/40 px-1">
-                            Video will autoplay if set as main cover
+                            YouTube URLs only · autoplays as main cover
                         </p>
                     </div>
 
@@ -901,7 +908,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({
                                     {inst.image ? (
                                         <div className="relative w-full aspect-video rounded-lg border border-base-200 overflow-hidden">
                                             {inst.mediaType === 'video' ? (
-                                                <video src={inst.image} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+                                                <video src={getNormalizedVideoUrl(inst.image!)} autoPlay loop muted playsInline className="w-full h-full object-cover" />
                                             ) : (
                                                 <div className="w-full h-full bg-cover bg-center" style={{ backgroundImage: `url('${inst.image}')` }} />
                                             )}
@@ -943,12 +950,15 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({
                                                         <span className="material-symbols-outlined text-sm text-base-content/40">link</span>
                                                         <input
                                                             type="text"
-                                                            placeholder="Video URL (mp4, mov...)"
+                                                            placeholder="YouTube URL only"
                                                             className="bg-transparent text-[10px] w-full focus:outline-none"
                                                             onClick={(e) => e.stopPropagation()}
                                                             onKeyDown={(e) => {
                                                                 if (e.key === 'Enter') {
-                                                                    handleStepVideoUrl(inst.id, e.currentTarget.value);
+                                                                    const val = e.currentTarget.value.trim();
+                                                                    const isYT = val.includes('youtube.com') || val.includes('youtu.be');
+                                                                    if (!isYT) { setShowYouTubeOnlyModal(true); return; }
+                                                                    handleStepVideoUrl(inst.id, val);
                                                                 }
                                                             }}
                                                         />
@@ -1053,7 +1063,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({
                                 return isVideo ? (
                                     <video
                                         key={idx}
-                                        src={src}
+                                        src={getNormalizedVideoUrl(src)}
                                         autoPlay={idx === 0}
                                         muted
                                         loop
@@ -1170,7 +1180,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({
                                         {inst.image && (
                                             <div className="relative aspect-video overflow-hidden">
                                                 {inst.mediaType === 'video' ? (
-                                                    <video src={inst.image} autoPlay loop muted playsInline className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                                                    <video src={getNormalizedVideoUrl(inst.image!)} autoPlay loop muted playsInline className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                                                 ) : (
                                                     <img src={inst.image} alt={`Step ${idx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                                                 )}
@@ -1359,6 +1369,32 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({
             </div>
 
             {/* Exit Confirmation Modal */}
+            {showYouTubeOnlyModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-base-100 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl">
+                        <div className="p-8 pb-6 text-center">
+                            <div className="size-16 rounded-2xl bg-error/15 text-error flex items-center justify-center mx-auto mb-4">
+                                <span className="material-symbols-outlined text-4xl">play_circle</span>
+                            </div>
+                            <h3 className="text-xl font-bold mb-2">YouTube Only</h3>
+                            <p className="text-sm text-base-content/60 leading-relaxed">
+                                Only YouTube video URLs are supported.<br />
+                                Paste a link like:<br />
+                                <span className="font-mono text-xs text-base-content/40">youtube.com/watch?v=...</span>
+                            </p>
+                        </div>
+                        <div className="p-6 pt-0">
+                            <button
+                                onClick={() => setShowYouTubeOnlyModal(false)}
+                                className="btn btn-primary btn-lg w-full rounded-2xl"
+                            >
+                                Got it
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {showExitModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
                     <div className="bg-base-100 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-scale-up">

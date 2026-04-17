@@ -9,6 +9,8 @@ import { SkeletonGrid } from '@/components/common/SkeletonCard';
 import { getAvatarUrl } from '@/constants/avatars';
 import PullToRefresh from '@/components/common/PullToRefresh';
 import { useNotifications } from '@/hooks/social/useNotifications';
+import { useTrending } from '@/hooks/recipe/useTrending';
+import TrendingSection from '@/components/home/TrendingSection';
 
 interface HomeScreenProps {
     recipes: Recipe[];
@@ -48,6 +50,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     onPullRefresh
 }) => {
     const { unreadCount } = useNotifications();
+    const { trending, loading: trendingLoading } = useTrending();
+
     const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Chef';
     const avatarId = user?.user_metadata?.avatar_id;
     const googleAvatar = user?.user_metadata?.avatar_url;
@@ -214,6 +218,27 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                     </button>
                 </div>
             </div>
+
+            {/* Trending This Week */}
+            {!isSearching && feedType === 'forYou' && (trendingLoading ? (
+                <div className="mb-5">
+                    <div className="flex items-center gap-2 px-5 mb-3">
+                        <div className="w-6 h-6 rounded-full bg-base-200 animate-pulse" />
+                        <div className="w-36 h-4 rounded-full bg-base-200 animate-pulse" />
+                    </div>
+                    <div className="flex gap-3 overflow-x-auto no-scrollbar px-5 pb-1">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                            <div key={i} className="flex-shrink-0 w-40">
+                                <div className="w-40 h-44 rounded-2xl bg-base-200 animate-pulse" />
+                                <div className="mt-2 w-28 h-3 rounded-full bg-base-200 animate-pulse" />
+                                <div className="mt-1 w-16 h-2.5 rounded-full bg-base-200 animate-pulse" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ) : trending.length > 0 && (
+                <TrendingSection recipes={trending} onRecipeClick={onRecipeClick} />
+            ))}
 
             {/* Categories */}
             <div className="pb-2 hidden">

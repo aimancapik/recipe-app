@@ -33,6 +33,43 @@ export function isVideoUrl(url: string): boolean {
 }
 
 /**
+ * Normalizes a video URL, converting YouTube shorts to standard watch URLs
+ * to ensure better compatibility with video players like ReactPlayer.
+ * @param url - The original URL
+ * @returns The normalized URL
+ */
+export function getNormalizedVideoUrl(url: string): string {
+  if (!url) return '';
+  
+  // Convert YouTube shorts to regular watch URLs
+  const shortsMatch = url.match(/(?:youtube\.com\/shorts\/)([^&?/]+)/);
+  if (shortsMatch) {
+    return `https://www.youtube.com/watch?v=${shortsMatch[1]}`;
+  }
+  
+  // Encode spaces in URLs (fixes issues with Supabase storage URLs in ReactPlayer)
+  return url.replace(/ /g, '%20');
+}
+
+/**
+ * Checks if a URL is a YouTube URL
+ */
+export function isYouTubeUrl(url: string): boolean {
+  if (!url) return false;
+  return /(?:youtube\.com|youtu\.be)/i.test(url);
+}
+
+/**
+ * Extracts the thumbnail image URL from a YouTube URL
+ */
+export function getYouTubeThumbnail(url: string): string | null {
+  if (!url) return null;
+  const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([^&?/]+)/);
+  if (ytMatch) return `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
+  return null;
+}
+
+/**
  * Checks if a File object is a video based on MIME type
  * @param file - The File object to check
  * @returns true if the file is a video

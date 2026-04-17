@@ -82,3 +82,29 @@ export interface MealSlot {
     recipeKcal: string;
     recipePrepTime: string;
 }
+
+export interface MadeIt {
+    id: string;
+    recipe_id: string;
+    user_id: string;
+    photo_url: string | null;
+    created_at: string;
+    profile?: { full_name: string; avatar_url: string | null };
+}
+
+export interface CookStreak {
+    current_streak: number;
+    longest_streak: number;
+    last_cook_date: string | null;
+    total_made: number;
+}
+
+export interface Challenge {
+    id: string;
+    title: string;
+    description: string;
+    emoji: string;
+    start_date: string;
+    end_date: string;
+    participant_count: number;
+}

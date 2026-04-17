@@ -68,10 +68,10 @@ export const useChat = (currentUserId: string | undefined) => {
 
             if (profileError) throw profileError;
 
-            // Get last message per conversation
+            // Get last message per conversation + all unread messages from others
             const { data: lastMessages, error: msgError } = await supabase
                 .from('messages')
-                .select('conversation_id, content, created_at')
+                .select('conversation_id, content, created_at, sender_id')
                 .in('conversation_id', convoIds)
                 .order('created_at', { ascending: false });
 
@@ -84,10 +84,12 @@ export const useChat = (currentUserId: string | undefined) => {
                 const myMemberRow = memberRows.find(r => r.conversation_id === convoId);
                 const lastMsg = (lastMessages || []).find(m => m.conversation_id === convoId);
 
+                // Count messages from others that arrived after last_read_at
                 const unreadCount = (lastMessages || []).filter(m =>
                     m.conversation_id === convoId &&
-                    myMemberRow?.last_read_at &&
-                    new Date(m.created_at) > new Date(myMemberRow.last_read_at)
+                    m.sender_id !== currentUserId &&
+                    (!myMemberRow?.last_read_at ||
+                        new Date(m.created_at) > new Date(myMemberRow.last_read_at))
                 ).length;
 
                 return {

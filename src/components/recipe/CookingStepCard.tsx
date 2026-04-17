@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Direction } from '@/types';
-import { isVideoUrl } from '@/utils/mediaHelpers';
+import { isVideoUrl, getNormalizedVideoUrl } from '@/utils/mediaHelpers';
 
 interface CookingStepCardProps {
   step: Direction;
@@ -55,7 +55,7 @@ const CookingStepCard: React.FC<CookingStepCardProps> = ({
             <div className="w-full h-full relative" onClick={toggleVideo}>
               <video
                 ref={videoRef}
-                src={mediaUrl}
+                src={getNormalizedVideoUrl(mediaUrl)}
                 className="w-full h-full object-cover"
                 autoPlay
                 muted

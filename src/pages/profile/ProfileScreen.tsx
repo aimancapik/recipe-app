@@ -5,6 +5,8 @@ import { getAvatarUrl } from '@/constants/avatars';
 import { clearProfileCache } from '@/components/recipe/RecipeCard';
 import { uploadOptimizedImage } from '@/lib/storage';
 import { useCollections } from '@/hooks/recipe/useCollections';
+import { useCookStreak } from '@/hooks/cooking/useCookStreak';
+import CookStreakCard from '@/components/profile/CookStreakCard';
 
 interface ProfileScreenProps {
     onBack: () => void;
@@ -69,6 +71,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
     const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
     const [collectionCount, setCollectionCount] = useState(0);
     const { fetchCollections } = useCollections();
+    const cookStreak = useCookStreak(user?.id);
 
     useEffect(() => {
         if (user?.id) {
@@ -371,6 +374,11 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                         </div>
                     ))}
                 </section>
+
+                {/* Cook Streak */}
+                <div className="px-4 mt-4">
+                    <CookStreakCard streak={cookStreak} />
+                </div>
 
                 {/* Menu Section with Premium Cards */}
                 <div className="mt-10 px-4 space-y-8">

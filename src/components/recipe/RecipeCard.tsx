@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactPlayer from 'react-player';
 import { Recipe } from '@/types';
-import { isVideoUrl } from '@/utils/mediaHelpers';
+import { isVideoUrl, getNormalizedVideoUrl, isYouTubeUrl, getYouTubeThumbnail } from '@/utils/mediaHelpers';
 import { supabase } from '@/lib/supabase';
 import { getAvatarUrl } from '@/constants/avatars';
 
@@ -113,18 +113,27 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onClick, onToggleFavori
             <figure className={`relative w-full ${aspectClass} overflow-hidden`}>
                 {isVideoUrl(recipe.image) ? (
                     <div className="w-full h-full pointer-events-none">
-                        <ReactPlayer
-                            src={recipe.image}
-                            playing={isHovered}
-                            muted
-                            loop
-                            playsInline
-                            width="100%"
-                            height="100%"
-                            className="absolute top-0 left-0 object-cover"
-                        />
+                        {isYouTubeUrl(recipe.image) ? (
+                            <img
+                                src={getYouTubeThumbnail(recipe.image) || recipe.image}
+                                alt={recipe.title}
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                onError={() => setImgError(true)}
+                            />
+                        ) : (
+                            <ReactPlayer
+                                src={getNormalizedVideoUrl(recipe.image)}
+                                playing={isHovered}
+                                muted
+                                loop
+                                playsInline
+                                width="100%"
+                                height="100%"
+                                className="absolute top-0 left-0 object-cover"
+                            />
+                        )}
                         {/* Video indicator */}
-                        <div className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded-full bg-black/50 backdrop-blur-sm">
+                        <div className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded-full bg-black/50 backdrop-blur-sm z-10">
                             <span className="material-symbols-outlined text-white text-xs fill-1">play_arrow</span>
                             <span className="text-[10px] text-white font-semibold">VIDEO</span>
                         </div>

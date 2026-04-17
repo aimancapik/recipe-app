@@ -10,6 +10,10 @@ import { useCollections } from '@/hooks/recipe/useCollections';
 import { useAuth } from '@/hooks/auth/useAuth';
 import { supabase } from '@/lib/supabase';
 import { getAvatarUrl } from '@/constants/avatars';
+import MadeItSection from '@/components/recipe/MadeItSection';
+import ShareableCard from '@/components/recipe/ShareableCard';
+import { getNormalizedVideoUrl } from '@/utils/mediaHelpers';
+import { useRecipeView } from '@/hooks/recipe/useRecipeView';
 
 interface RecipeDetailScreenProps {
     recipe: Recipe;
@@ -31,15 +35,18 @@ interface ChefProfile {
 
 const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack, onToggleFavorite, onAddToGrocery, onOpenGrocery, onPublish, onEdit, onChefClick, onRate, onStartCooking }) => {
     const { user } = useAuth();
+    useRecipeView(recipe.id);
     const { collections, fetchCollections, addRecipeToCollection, removeRecipeFromCollection, isRecipeInCollection } = useCollections();
     const [publishing, setPublishing] = useState(false);
     const [chef, setChef] = useState<ChefProfile | null>(null);
     const [viewMediaIndex, setViewMediaIndex] = useState<number | null>(null);
     const [shareToast, setShareToast] = useState<{ show: boolean; message: string }>({ show: false, message: '' });
     const carouselRef = useRef<HTMLDivElement>(null);
+    const dragState = useRef<{ active: boolean; startX: number; scrollLeft: number }>({ active: false, startX: 0, scrollLeft: 0 });
     const baseServes = parseInt(recipe.serves.replace(/[^0-9]/g, '')) || 1;
     const [currentServes, setCurrentServes] = useState(baseServes);
     const [showCollectionModal, setShowCollectionModal] = useState(false);
+    const [showShareCard, setShowShareCard] = useState(false);
     const [recipeCollections, setRecipeCollections] = useState<Set<string>>(new Set());
     const [isSaving, setIsSaving] = useState(false);
     const [activeStepTimers, setActiveStepTimers] = useState<Set<number>>(new Set());
@@ -53,7 +60,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                 behavior: 'auto'
             });
         }
-    }, [viewMediaIndex === null]); // Only run when it transition from null to non-null
+    }, [viewMediaIndex]);
     const galleryItems = (recipe.images && recipe.images.length > 0) ? recipe.images : (recipe.image ? [recipe.image] : []);
 
     const isVideo = (url: string) => {
@@ -146,6 +153,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
     };
 
     return (
+        <>
         <div className={`relative flex min-h-screen w-full flex-col bg-base-100 ${onPublish ? 'pb-24' : ''}`}>
             {/* Header Image & Overlay Nav */}
             <div className="relative w-full h-80 bg-base-200">
@@ -160,7 +168,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                                 {isVideo(src) ? (
                                     <div className="w-full h-full pointer-events-none">
                                         <ReactPlayer
-                                            src={src}
+                                            src={getNormalizedVideoUrl(src)}
                                             playing={idx === 0}
                                             muted
                                             loop
@@ -388,7 +396,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                                             {dir.mediaType === 'video' ? (
                                                 <div className="w-full h-full pointer-events-none">
                                                     <ReactPlayer
-                                                        src={dir.image}
+                                                        src={getNormalizedVideoUrl(dir.image)}
                                                         playing
                                                         loop
                                                         muted
@@ -460,6 +468,31 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                     </div>
                 </div>
 
+                {/* Made It */}
+                {!onPublish && (
+                    <MadeItSection
+                        recipeId={recipe.id}
+                        userId={user?.id}
+                        onRequireAuth={(action) => {
+                            if (user) action();
+                            else alert('Sign in to mark recipes as made!');
+                        }}
+                    />
+                )}
+
+                {/* Share Recipe Card */}
+                {!onPublish && (
+                    <div className="px-5 pb-4">
+                        <button
+                            onClick={() => setShowShareCard(true)}
+                            className="w-full btn btn-outline rounded-2xl gap-2 border-2"
+                        >
+                            <span className="material-symbols-outlined">share</span>
+                            Share Recipe Card
+                        </button>
+                    </div>
+                )}
+
                 {/* Reviews Section */}
                 {!onPublish && (
                     <div className="mb-8 space-y-8">
@@ -527,11 +560,33 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                     <div className="flex-1 flex items-center justify-center relative overflow-hidden">
                         <div
                             ref={carouselRef}
-                            className="w-full h-full flex overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth"
+                            className="w-full h-full flex overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth cursor-grab active:cursor-grabbing"
                             onScroll={(e) => {
                                 const target = e.currentTarget;
                                 const index = Math.round(target.scrollLeft / target.clientWidth);
                                 if (index !== viewMediaIndex) setViewMediaIndex(index);
+                            }}
+                            onMouseDown={(e) => {
+                                const el = carouselRef.current;
+                                if (!el) return;
+                                dragState.current = { active: true, startX: e.pageX - el.offsetLeft, scrollLeft: el.scrollLeft };
+                                el.style.scrollBehavior = 'auto';
+                            }}
+                            onMouseMove={(e) => {
+                                const ds = dragState.current;
+                                const el = carouselRef.current;
+                                if (!ds.active || !el) return;
+                                e.preventDefault();
+                                const x = e.pageX - el.offsetLeft;
+                                el.scrollLeft = ds.scrollLeft - (x - ds.startX);
+                            }}
+                            onMouseUp={() => {
+                                dragState.current.active = false;
+                                if (carouselRef.current) carouselRef.current.style.scrollBehavior = '';
+                            }}
+                            onMouseLeave={() => {
+                                dragState.current.active = false;
+                                if (carouselRef.current) carouselRef.current.style.scrollBehavior = '';
                             }}>
                             {galleryItems.map((src, idx) => (
                                 <div key={idx} className="w-screen h-full flex-none snap-center flex items-center justify-center p-4" onClick={e => e.stopPropagation()}>
@@ -539,7 +594,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                                         {isVideo(src) ? (
                                             <div className="w-full max-w-full aspect-video rounded-2xl overflow-hidden shadow-2xl">
                                                 <ReactPlayer
-                                                    src={src}
+                                                    src={getNormalizedVideoUrl(src)}
                                                     controls
                                                     playing
                                                     width="100%"
@@ -551,7 +606,8 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                                             <img
                                                 src={src}
                                                 alt={`View ${idx + 1}`}
-                                                className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
+                                                className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl select-none"
+                                                draggable={false}
                                             />
                                         )}
                                     </div>
@@ -665,6 +721,11 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                 </form>
             </dialog>
         </div>
+
+        {showShareCard && (
+            <ShareableCard recipe={recipe} onClose={() => setShowShareCard(false)} />
+        )}
+        </>
     );
 };
 

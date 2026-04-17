@@ -5,6 +5,7 @@ import { Recipe } from '@/types';
 import { FilterOptions } from '@/pages/filter/FilterScreen';
 import RecipeMasonryGrid from '@/components/recipe/RecipeMasonryGrid';
 import { SkeletonGrid } from '@/components/common/SkeletonCard';
+import FridgeSearch from '@/components/explore/FridgeSearch';
 
 interface ExploreScreenProps {
     recipes: Recipe[];
@@ -38,18 +39,48 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
     const [isFocused, setIsFocused] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
+    const [showFridgeSearch, setShowFridgeSearch] = useState(false);
+    const [fridgeIngredients, setFridgeIngredients] = useState<string[]>(() => {
+        try { return JSON.parse(localStorage.getItem('recipe_fridge_ingredients') || '[]'); } catch { return []; }
+    });
+
+    useEffect(() => {
+        localStorage.setItem('recipe_fridge_ingredients', JSON.stringify(fridgeIngredients));
+    }, [fridgeIngredients]);
+
+    const [searchHistory, setSearchHistory] = useState<string[]>(() => {
+        try { return JSON.parse(localStorage.getItem('recipe_search_history') || '[]'); } catch { return []; }
+    });
+
+    const saveSearchToHistory = (term: string) => {
+        if (!term.trim() || term.trim().length < 2) return;
+        setSearchHistory(prev => {
+            const updated = [term.trim(), ...prev.filter(h => h !== term.trim())].slice(0, 5);
+            localStorage.setItem('recipe_search_history', JSON.stringify(updated));
+            return updated;
+        });
+    };
+
+    const clearSearchHistory = () => {
+        setSearchHistory([]);
+        localStorage.removeItem('recipe_search_history');
+    };
+
     // Sync with parent-passed initial values
     useEffect(() => { setSearch(initialSearch); }, [initialSearch]);
     useEffect(() => { setSelectedCategory(initialCategory || 'all'); }, [initialCategory]);
 
-    // Debounced server-side refresh
+    // Debounced server-side refresh + save to history
     useEffect(() => {
         const timer = setTimeout(() => {
             const cat = selectedCategory === 'all' ? '' : selectedCategory;
-            onRefresh(search.trim(), cat, 'forYou');
+            const ings = fridgeIngredients.length > 0 ? fridgeIngredients : undefined;
+            onRefresh(search.trim(), cat, 'forYou', undefined, ings);
+            if (search.trim().length >= 2) saveSearchToHistory(search.trim());
         }, 400);
         return () => clearTimeout(timer);
-    }, [search, selectedCategory, onRefresh]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [search, selectedCategory, fridgeIngredients, onRefresh]);
 
     const parsePrepTime = (timeStr: string): number => {
         const num = parseInt(timeStr.replace(/[^0-9]/g, ''));
@@ -88,6 +119,7 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
     }, [recipes, filters]);
 
     const hasActiveFilters = filters.cookingTime || filters.dietary.length > 0 || filters.difficulty || filters.sortBy !== 'popular';
+    const hasFridgeFilter = fridgeIngredients.length > 0;
     const isSearching = search.trim().length >= 2;
     const showHint = search.trim().length === 1;
 
@@ -106,12 +138,26 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
             {/* Sticky Header */}
             <div className="sticky top-0 z-10 bg-base-100/95 backdrop-blur-md px-5 pt-8 pb-3 border-b border-base-200/60">
                 {/* Title row */}
-                <div className="mb-4">
-                    <p className="text-xs font-bold text-base-content/40 uppercase tracking-widest">Discover</p>
-                    <h1 className="text-3xl font-black tracking-tight text-base-content">Explore</h1>
+                <div className="flex items-center justify-between mb-4">
+                    <div>
+                        <p className="text-xs font-bold text-base-content/40 uppercase tracking-widest">Discover</p>
+                        <h1 className="text-3xl font-black tracking-tight text-base-content">Explore</h1>
+                    </div>
+                    <button
+                        onClick={() => setShowFridgeSearch(true)}
+                        className={`relative flex items-center gap-1.5 px-3 py-2 rounded-2xl transition-colors ${
+                            hasFridgeFilter ? 'bg-primary/10 border border-primary/30' : 'bg-base-200 hover:bg-base-300'
+                        }`}
+                    >
+                        <span className="text-lg">🧊</span>
+                        <span className={`text-xs font-bold ${hasFridgeFilter ? 'text-primary' : 'text-base-content/70'}`}>
+                            Fridge{hasFridgeFilter ? ` (${fridgeIngredients.length})` : ''}
+                        </span>
+                    </button>
                 </div>
 
                 {/* Search bar */}
+                <div className="relative w-full">
                 <label
                     className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 transition-all duration-300 ${
                         isFocused ? 'bg-base-100 shadow-lg shadow-primary/10 ring-1 ring-primary/20' : 'bg-base-200/70'
@@ -153,6 +199,27 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
                         </button>
                     </div>
                 </label>
+
+                {/* Search history dropdown */}
+                {isFocused && !search && searchHistory.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-base-100 rounded-2xl shadow-xl border border-base-200 z-30 overflow-hidden">
+                        <div className="flex items-center justify-between px-4 pt-3 pb-1">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-base-content/40">Recent</span>
+                            <button onMouseDown={clearSearchHistory} className="text-[10px] text-error font-semibold">Clear</button>
+                        </div>
+                        {searchHistory.map(h => (
+                            <button
+                                key={h}
+                                onMouseDown={() => setSearch(h)}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-base-200 transition-colors text-left"
+                            >
+                                <span className="material-symbols-outlined text-base-content/30 text-lg">history</span>
+                                <span className="text-sm text-base-content/80">{h}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
+                </div>
 
                 {showHint && (
                     <p className="text-[10px] font-bold text-primary mt-2 px-1 animate-pulse uppercase tracking-wider">
@@ -199,15 +266,43 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
                             </p>
                         )}
                     </div>
-                    {(isSearching || selectedCategory !== 'all' || hasActiveFilters) && (
+                    {(isSearching || selectedCategory !== 'all' || hasActiveFilters || hasFridgeFilter) && (
                         <button
-                            onClick={() => { setSearch(''); setSelectedCategory('all'); onClearFilters(); }}
+                            onClick={() => { setSearch(''); setSelectedCategory('all'); setFridgeIngredients([]); onClearFilters(); }}
                             className="btn btn-ghost btn-xs text-primary font-bold"
                         >
                             Clear Filters
                         </button>
                     )}
                 </div>
+
+                {/* Active fridge filter chips */}
+                {hasFridgeFilter && (
+                    <div className="mb-4 p-3 bg-primary/5 border border-primary/20 rounded-2xl">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-primary">🧊 Fridge filter</span>
+                            <button
+                                onClick={() => setFridgeIngredients([])}
+                                className="text-[10px] text-error font-semibold uppercase tracking-wider"
+                            >
+                                Clear
+                            </button>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                            {fridgeIngredients.map(ing => (
+                                <span key={ing} className="flex items-center gap-1 bg-primary/10 text-primary border border-primary/20 rounded-full px-2.5 py-1 text-xs font-semibold">
+                                    {ing}
+                                    <button
+                                        onClick={() => setFridgeIngredients(prev => prev.filter(i => i !== ing))}
+                                        className="text-primary/60 hover:text-primary"
+                                    >
+                                        <span className="material-symbols-outlined text-sm leading-none">close</span>
+                                    </button>
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Skeleton loading */}
                 {loading && recipes.length === 0 ? (
@@ -236,7 +331,7 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
                             Try a different keyword or adjust your filters.
                         </p>
                         <button
-                            onClick={() => { setSearch(''); setSelectedCategory('all'); }}
+                            onClick={() => { setSearch(''); setSelectedCategory('all'); setFridgeIngredients([]); onClearFilters(); }}
                             className="btn btn-outline btn-primary rounded-xl h-10 px-6 font-semibold"
                         >
                             Reset Search &amp; Filters
@@ -244,6 +339,18 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
                     </div>
                 )}
             </main>
+
+            {showFridgeSearch && (
+                <FridgeSearch
+                    ingredients={fridgeIngredients}
+                    onIngredientsChange={setFridgeIngredients}
+                    onSearch={(ingredients) => {
+                        setFridgeIngredients(ingredients);
+                        setShowFridgeSearch(false);
+                    }}
+                    onClose={() => setShowFridgeSearch(false)}
+                />
+            )}
         </div>
     );
 };

@@ -1,5 +1,5 @@
 import { Recipe } from '@/types';
-import { getFoodImage } from '@/services/foodImages';
+import { getFoodImage } from '@/services/foodImageService';
 
 // Environment variables
 const API_URL = import.meta.env.VITE_LLAMA_API_URL || 'http://localhost:3000/api/chat/completions';

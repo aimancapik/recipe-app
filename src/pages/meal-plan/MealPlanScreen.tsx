@@ -70,7 +70,9 @@ const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
     const [query, setQuery] = useState('');
 
     const filtered = useMemo(() =>
-        recipes.filter(r => r.title.toLowerCase().includes(query.toLowerCase())),
+        recipes
+            .filter(r => r.title.toLowerCase().includes(query.toLowerCase()))
+            .slice(0, 60),
         [recipes, query],
     );
 

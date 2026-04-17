@@ -55,8 +55,8 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentScreen, onNavigate, onQuic
                                     <span className={`material-symbols-outlined text-xl transition-all ${isActive ? 'fill-icon scale-110' : ''}`}>
                                         {item.icon}
                                     </span>
-                                    {false && unreadMessages > 0 && (
-                                        <span className="absolute -top-1 -right-1 size-4 bg-primary text-primary-content text-[9px] font-bold rounded-full flex items-center justify-center">
+                                    {unreadMessages > 0 && item.screen === Screen.PROFILE && (
+                                        <span className="absolute -top-1 -right-1 size-4 bg-error text-error-content text-[9px] font-bold rounded-full flex items-center justify-center">
                                             {unreadMessages > 9 ? '9+' : unreadMessages}
                                         </span>
                                     )}

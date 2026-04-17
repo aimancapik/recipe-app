@@ -40,6 +40,7 @@ const PublicProfileScreen: React.FC<PublicProfileScreenProps> = ({ userId, onBac
     const [recipes, setRecipes] = useState<Recipe[]>([]);
     const [loading, setLoading] = useState(true);
     const [isFollowing, setIsFollowing] = useState(false);
+    const [isFollowPending, setIsFollowPending] = useState(false);
     const [socialStats, setSocialStats] = useState<SocialStats>({ followers: 0, following: 0, recipes: 0 });
     const { fetchRecipesByUserId } = useRecipes();
     const [activeTab, setActiveTab] = useState<'recipes' | 'collections' | 'about'>('recipes');
@@ -107,11 +108,12 @@ const PublicProfileScreen: React.FC<PublicProfileScreenProps> = ({ userId, onBac
             alert('Please sign in to follow chefs!');
             return;
         }
+        if (isFollowPending) return;
 
         const prevFollowing = isFollowing;
         const newFollowing = !isFollowing;
 
-        // Optimistic update
+        setIsFollowPending(true);
         setIsFollowing(newFollowing);
         setSocialStats(prev => ({
             ...prev,
@@ -123,12 +125,13 @@ const PublicProfileScreen: React.FC<PublicProfileScreenProps> = ({ userId, onBac
             if (error) throw error;
         } catch (err) {
             console.error('Error toggling follow:', err);
-            // Revert
             setIsFollowing(prevFollowing);
             setSocialStats(prev => ({
                 ...prev,
                 followers: prevFollowing ? prev.followers + 1 : prev.followers - 1
             }));
+        } finally {
+            setIsFollowPending(false);
         }
     };
 

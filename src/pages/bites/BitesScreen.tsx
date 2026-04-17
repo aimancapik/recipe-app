@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useCollections } from '@/hooks/recipe/useCollections';
 import { useAuth } from '@/hooks/auth/useAuth';
 import { getAvatarUrl } from '@/constants/avatars';
+import { getNormalizedVideoUrl } from '@/utils/mediaHelpers';
 import CommentsSection from '@/components/social/CommentsSection';
 
 interface BitesScreenProps {
@@ -29,7 +30,8 @@ const isVideoUrl = (url?: string | null): boolean => {
     VIDEO_EXTS.some(ext => low.includes(ext)) ||
     low.includes('youtube.com') ||
     low.includes('youtu.be') ||
-    low.includes('vimeo.com')
+    low.includes('vimeo.com') ||
+    low.includes('tiktok.com')
   );
 };
 
@@ -50,6 +52,12 @@ const extractYouTubeId = (url: string): string | null => {
   return null;
 };
 
+// TikTok: only full URLs with /video/ID are embeddable; vm.tiktok.com short links are not
+const extractTikTokId = (url: string): string | null => {
+  const match = url.match(/tiktok\.com\/@[^/]+\/video\/(\d+)/i);
+  return match?.[1] ?? null;
+};
+
 // ─── sub-components ────────────────────────────────────────────────────────────
 
 interface VideoSlideProps {
@@ -68,6 +76,25 @@ interface VideoSlideProps {
   commentCount?: number;
 }
 
+// Load YouTube IFrame API once
+function loadYTApi(): Promise<void> {
+  if ((window as any).YT?.Player) return Promise.resolve();
+  return new Promise(resolve => {
+    if (document.getElementById('yt-api-script')) {
+      // Script already injected, wait for it
+      const interval = setInterval(() => {
+        if ((window as any).YT?.Player) { clearInterval(interval); resolve(); }
+      }, 100);
+      return;
+    }
+    (window as any).onYouTubeIframeAPIReady = resolve;
+    const s = document.createElement('script');
+    s.id = 'yt-api-script';
+    s.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(s);
+  });
+}
+
 const VideoSlide: React.FC<VideoSlideProps> = ({
   recipe,
   isActive,
@@ -84,6 +111,8 @@ const VideoSlide: React.FC<VideoSlideProps> = ({
   commentCount,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const ytPlayerRef = useRef<any>(null);
+  const ytContainerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPausedByUser, setIsPausedByUser] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -92,11 +121,63 @@ const VideoSlide: React.FC<VideoSlideProps> = ({
 
   const videoUrl = getVideoUrl(recipe) || '';
   const isYouTube = videoUrl.toLowerCase().includes('youtube.com') || videoUrl.toLowerCase().includes('youtu.be');
+  const isTikTok = videoUrl.toLowerCase().includes('tiktok.com');
   const youtubeId = isYouTube ? extractYouTubeId(videoUrl) : null;
+  const tiktokId = isTikTok ? extractTikTokId(videoUrl) : null;
   const isActualVideo = isVideoUrl(videoUrl);
+
+  const [tiktokThumb, setTiktokThumb] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isTikTok || !videoUrl) return;
+    fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(videoUrl)}`)
+      .then(r => r.json())
+      .then(d => { if (d.thumbnail_url) setTiktokThumb(d.thumbnail_url); })
+      .catch(() => {});
+  }, [isTikTok, videoUrl]);
+
+  // Init YouTube IFrame API player
+  useEffect(() => {
+    if (!youtubeId || !ytContainerRef.current) return;
+    let destroyed = false;
+    loadYTApi().then(() => {
+      if (destroyed || !ytContainerRef.current) return;
+      ytPlayerRef.current = new (window as any).YT.Player(ytContainerRef.current, {
+        videoId: youtubeId,
+        playerVars: {
+          autoplay: 0,
+          mute: 1,
+          loop: 1,
+          controls: 0,
+          modestbranding: 1,
+          rel: 0,
+          playlist: youtubeId,
+        },
+        events: {
+          onReady: (e: any) => {
+            if (isMuted) e.target.mute(); else e.target.unMute();
+            if (isActive) e.target.playVideo();
+          },
+        },
+      });
+    });
+    return () => {
+      destroyed = true;
+      ytPlayerRef.current?.destroy?.();
+      ytPlayerRef.current = null;
+    };
+  // Only create player once per youtubeId
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [youtubeId]);
 
   // Auto play/pause on active state
   useEffect(() => {
+    if (youtubeId) {
+      const p = ytPlayerRef.current;
+      if (!p?.playVideo) return;
+      if (isActive) p.playVideo();
+      else p.pauseVideo();
+      return;
+    }
     const vid = videoRef.current;
     if (!vid) return;
 
@@ -111,12 +192,18 @@ const VideoSlide: React.FC<VideoSlideProps> = ({
       setIsPlaying(false);
       setProgress(0);
     }
-  }, [isActive]);
+  }, [isActive, youtubeId]);
 
-  // Sync mute
+  // Sync mute — YouTube via API, native via ref
   useEffect(() => {
+    if (youtubeId) {
+      const p = ytPlayerRef.current;
+      if (!p?.mute) return;
+      if (isMuted) p.mute(); else p.unMute();
+      return;
+    }
     if (videoRef.current) videoRef.current.muted = isMuted;
-  }, [isMuted]);
+  }, [isMuted, youtubeId]);
 
   const handleTimeUpdate = () => {
     if (videoRef.current && videoRef.current.duration) {
@@ -177,20 +264,32 @@ const VideoSlide: React.FC<VideoSlideProps> = ({
         aria-label="Tap to play/pause, double tap to like"
       >
         {isActualVideo && youtubeId ? (
-          <div className="w-full h-full flex items-center justify-center">
-            <iframe
-              className="w-full h-full"
-              src={`https://www.youtube.com/embed/${youtubeId}?autoplay=${isActive ? 1 : 0}&mute=1&loop=1&controls=0&modestbranding=1&rel=0&playlist=${youtubeId}`}
-              title={recipe.title}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              style={{ border: 'none', pointerEvents: 'none' }}
-            />
+          <div className="w-full h-full">
+            <div ref={ytContainerRef} className="w-full h-full" />
+          </div>
+        ) : isActualVideo && isTikTok ? (
+          <div className="w-full h-full relative bg-black flex items-center justify-center">
+            {tiktokThumb
+              ? <img src={tiktokThumb} alt={recipe.title} className="w-full h-full object-cover" />
+              : <span className="material-symbols-outlined text-white/20" style={{ fontSize: 72 }}>tiktok</span>
+            }
+            {/* Dark overlay */}
+            <div className="absolute inset-0 bg-black/40" />
+            {/* Open in TikTok button */}
+            <button
+              onClick={(e) => { e.stopPropagation(); window.open(videoUrl, '_blank'); }}
+              className="absolute flex flex-col items-center gap-2 z-10"
+            >
+              <div className="w-20 h-20 rounded-full bg-black/60 backdrop-blur-sm border border-white/20 flex items-center justify-center">
+                <span className="material-symbols-outlined text-white" style={{ fontSize: 40 }}>play_circle</span>
+              </div>
+              <span className="text-white text-xs font-semibold bg-black/50 px-3 py-1 rounded-full backdrop-blur-sm">Watch on TikTok</span>
+            </button>
           </div>
         ) : isActualVideo ? (
           <video
             ref={videoRef}
-            src={videoUrl}
+            src={getNormalizedVideoUrl(videoUrl)}
             className="w-full h-full object-cover"
             loop
             playsInline
@@ -422,7 +521,7 @@ const BitesScreen: React.FC<BitesScreenProps> = ({
   const { collections, fetchCollections, addRecipeToCollection, removeRecipeFromCollection, isRecipeInCollection } = useCollections();
 
   const [activeIndex, setActiveIndex] = useState(initialIndex);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const [chefProfiles, setChefProfiles] = useState<Record<string, { full_name: string; avatar_url: string }>>({});
   const [showCollectionModal, setShowCollectionModal] = useState(false);
   const [commentRecipeId, setCommentRecipeId] = useState<string | null>(null);
