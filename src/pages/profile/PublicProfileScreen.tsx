@@ -8,6 +8,7 @@ import RecipeMasonryGrid from '@/components/recipe/RecipeMasonryGrid';
 import { useAuth } from '@/hooks/auth/useAuth';
 import FollowersModal from '@/components/social/FollowersModal';
 import { getAvatarUrl } from '@/constants/avatars';
+import { isVideoUrl, isYouTubeUrl, getYouTubeThumbnail } from '@/utils/mediaHelpers';
 import { useCollections, Collection } from '@/hooks/recipe/useCollections';
 
 interface PublicProfileScreenProps {
@@ -466,7 +467,17 @@ const PublicProfileScreen: React.FC<PublicProfileScreenProps> = ({ userId, onBac
                                                 onClick={() => { setOpenCollection(null); onRecipeClick(recipe); }}
                                                 className="flex items-center gap-3 w-full bg-base-200 rounded-2xl p-3 text-left active:scale-95 transition-transform hover:bg-base-300"
                                             >
-                                                <img src={recipe.image} alt={recipe.title} className="size-16 rounded-xl object-cover shrink-0" />
+                                                {isVideoUrl(recipe.image) ? (
+                                                    isYouTubeUrl(recipe.image) && getYouTubeThumbnail(recipe.image) ? (
+                                                        <img src={getYouTubeThumbnail(recipe.image)!} alt={recipe.title} className="size-16 rounded-xl object-cover shrink-0" />
+                                                    ) : (
+                                                        <div className="size-16 rounded-xl bg-base-300 flex items-center justify-center shrink-0">
+                                                            <span className="material-symbols-outlined text-2xl text-base-content/40">play_circle</span>
+                                                        </div>
+                                                    )
+                                                ) : (
+                                                    <img src={recipe.image} alt={recipe.title} className="size-16 rounded-xl object-cover shrink-0" />
+                                                )}
                                                 <div className="flex-1 min-w-0">
                                                     <p className="font-bold text-sm truncate">{recipe.title}</p>
                                                     <p className="text-xs text-base-content/40 mt-0.5">{recipe.prepTime} · {recipe.level}</p>
