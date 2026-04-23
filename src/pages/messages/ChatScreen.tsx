@@ -6,8 +6,10 @@ interface ChatScreenProps {
     messages: ChatMessage[];
     loading: boolean;
     currentUserId: string;
+    isOtherUserTyping?: boolean;
     onBack: () => void;
     onSend: (content: string) => Promise<void>;
+    onTyping?: (typing: boolean) => void;
 }
 
 function formatTime(dateStr: string): string {
@@ -25,21 +27,35 @@ function formatDateLabel(dateStr: string): string {
     return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, messages, loading, currentUserId, onBack, onSend }) => {
+const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, messages, loading, currentUserId, isOtherUserTyping, onBack, onSend, onTyping }) => {
     const [input, setInput] = useState('');
     const [sending, setSending] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
+    }, [messages, isOtherUserTyping]);
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setInput(e.target.value);
+        if (onTyping) {
+            onTyping(true);
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = setTimeout(() => onTyping(false), 2000);
+        }
+    };
 
     const handleSend = async () => {
         const text = input.trim();
         if (!text || sending) return;
         setInput('');
         setSending(true);
+        if (onTyping) {
+            onTyping(false);
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        }
         try {
             await onSend(text);
         } catch (err) {
@@ -142,6 +158,15 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, messages, loading
                         </div>
                     ))
                 )}
+                {isOtherUserTyping && (
+                    <div className="flex items-start mb-2">
+                        <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-base-200 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-base-content/40 animate-bounce" style={{ animationDelay: '0ms' }} />
+                            <span className="w-1.5 h-1.5 rounded-full bg-base-content/40 animate-bounce" style={{ animationDelay: '150ms' }} />
+                            <span className="w-1.5 h-1.5 rounded-full bg-base-content/40 animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
+                    </div>
+                )}
                 <div ref={bottomRef} />
             </main>
 
@@ -152,10 +177,11 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, messages, loading
                         ref={inputRef}
                         type="text"
                         value={input}
-                        onChange={e => setInput(e.target.value)}
+                        onChange={handleInputChange}
                         onKeyDown={handleKeyDown}
                         placeholder="Message..."
-                        className="flex-1 bg-base-200 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30 transition-all"
+                        className="flex-1 bg-base-200 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/30 transition-all"
+                        style={{ fontSize: '16px' }}
                     />
                     <button
                         onClick={handleSend}

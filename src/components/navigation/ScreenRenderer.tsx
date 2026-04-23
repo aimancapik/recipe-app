@@ -93,7 +93,7 @@ export interface AppCtx {
     // ── Meal plan ─────────────────────────────────────────────────────────────
     mealSlots: any[];
     mealPlanLoading: boolean;
-    addSlot: (slot: any) => Promise<void>;
+    addSlot: (day: any, mealType: any, recipe: any) => Promise<void>;
     removeSlot: (id: string) => Promise<void>;
     clearDay: (day: string) => Promise<void>;
     addFromRecipe: (recipe: Recipe) => void;
@@ -117,6 +117,9 @@ export interface AppCtx {
     fetchConversations: () => void;
     openConversation: (id: string) => void;
     sendMessage: (convoId: string, content: string) => Promise<void>;
+    sendTyping: (typing: boolean) => void;
+    isOtherUserTyping: boolean;
+    totalUnread: number;
     deleteConversation: (id: string) => Promise<void>;
     getOrCreateConversation: (userId: string) => Promise<string>;
 
@@ -155,7 +158,7 @@ const ScreenRenderer: React.FC<Props> = ({ ctx }) => {
         searchQuery, initialCategory, filters, setFilters,
         conversations, messages, loadingConvos, loadingMessages,
         activeConversation, setActiveConversation,
-        fetchConversations, openConversation, sendMessage,
+        fetchConversations, openConversation, sendMessage, sendTyping, isOtherUserTyping, totalUnread,
         deleteConversation, getOrCreateConversation,
         favoriteIds, hasFetchedFavoritesRef, hasFetchedUserRecipesRef,
         refreshFavorites,
@@ -326,11 +329,31 @@ const ScreenRenderer: React.FC<Props> = ({ ctx }) => {
                     onGroceryList={() => { setSubScreenReturnTo(Screen.PROFILE); setCurrentScreen(Screen.GROCERY); }}
                     onMealPlan={() => { setSubScreenReturnTo(Screen.PROFILE); setCurrentScreen(Screen.MEAL_PLAN); }}
                     onNotifications={() => { setSubScreenReturnTo(Screen.PROFILE); setCurrentScreen(Screen.NOTIFICATION); }}
+                    onMessages={() => { setSubScreenReturnTo(Screen.PROFILE); setCurrentScreen(Screen.MESSAGES); }}
+                    totalUnreadMessages={totalUnread}
                     onCollections={() => {
                         if (!hasFetchedFavoritesRef.current) { hasFetchedFavoritesRef.current = true; refreshFavorites(); }
                         setSubScreenReturnTo(Screen.PROFILE);
                         setSavedInitialTab('collections');
                         setCurrentScreen(Screen.SAVED);
+                    }}
+                    onMessageClick={(otherUserId, otherName, otherAvatar) => {
+                        requireAuth(async () => {
+                            try {
+                                const convoId = await getOrCreateConversation(otherUserId);
+                                const existingConvo = conversations.find(c => c.id === convoId);
+                                setActiveConversation({
+                                    ...(existingConvo ?? { last_message: null, last_message_at: null, unread_count: 0 }),
+                                    id: convoId,
+                                    other_user: { id: otherUserId, full_name: otherName, avatar_url: otherAvatar },
+                                });
+                                await openConversation(convoId);
+                                setSubScreenReturnTo(Screen.PROFILE);
+                                setCurrentScreen(Screen.CHAT);
+                            } catch (err) {
+                                console.error('Failed to open chat:', err);
+                            }
+                        }, Screen.PROFILE);
                     }}
                 />
             );
@@ -477,8 +500,10 @@ const ScreenRenderer: React.FC<Props> = ({ ctx }) => {
                     messages={messages}
                     loading={loadingMessages}
                     currentUserId={user.id}
+                    isOtherUserTyping={isOtherUserTyping}
                     onBack={() => { fetchConversations(); setCurrentScreen(Screen.MESSAGES); }}
                     onSend={(content) => sendMessage(activeConversation.id, content)}
+                    onTyping={sendTyping}
                 />
             ) : null;
 

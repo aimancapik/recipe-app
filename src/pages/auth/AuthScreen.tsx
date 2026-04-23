@@ -167,7 +167,8 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
                             value={email}
                             onChange={e => setEmail(e.target.value)}
                             placeholder="Email address"
-                            className="flex-1 bg-transparent outline-none text-white text-[15px] placeholder:text-white/25 no-focus-ring"
+                            className="flex-1 bg-transparent outline-none text-white placeholder:text-white/25 no-focus-ring"
+                            style={{ fontSize: '16px' }}
                             autoComplete="email"
                         />
                     </div>
@@ -184,7 +185,8 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
                                 value={password}
                                 onChange={e => setPassword(e.target.value)}
                                 placeholder="Password"
-                                className="flex-1 bg-transparent outline-none text-white text-[15px] placeholder:text-white/25 no-focus-ring"
+                                className="flex-1 bg-transparent outline-none text-white placeholder:text-white/25 no-focus-ring"
+                                style={{ fontSize: '16px' }}
                                 autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                             />
                             <button type="button" onClick={() => setShowPassword(!showPassword)} className="flex items-center justify-center text-white/25 hover:text-white/60 transition-colors">
@@ -205,7 +207,8 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
                                 value={confirmPassword}
                                 onChange={e => setConfirmPassword(e.target.value)}
                                 placeholder="Confirm password"
-                                className="flex-1 bg-transparent outline-none text-white text-[15px] placeholder:text-white/25 no-focus-ring"
+                                className="flex-1 bg-transparent outline-none text-white placeholder:text-white/25 no-focus-ring"
+                                style={{ fontSize: '16px' }}
                                 autoComplete="new-password"
                             />
                             <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="flex items-center justify-center text-white/25 hover:text-white/60 transition-colors">

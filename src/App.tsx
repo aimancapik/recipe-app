@@ -78,9 +78,11 @@ const App: React.FC = () => {
 
     const {
         conversations, messages, loadingConvos, loadingMessages, totalUnread,
-        fetchConversations, openConversation, sendMessage,
+        fetchConversations, openConversation, sendMessage, sendTyping, isOtherUserTyping,
         deleteConversation, getOrCreateConversation,
-    } = useChat(user?.id);
+    } = useChat(user?.id, (msg, senderName) => {
+        showToast(`${senderName}: ${msg.content.length > 40 ? msg.content.slice(0, 40) + '…' : msg.content}`, 'info');
+    });
 
     // ── Navigation state ──────────────────────────────────────────────────────
     const [currentScreen, setCurrentScreen] = useState<Screen>(Screen.HOME);
@@ -347,7 +349,7 @@ const App: React.FC = () => {
         searchQuery, initialCategory, filters, setFilters,
         conversations, messages, loadingConvos, loadingMessages,
         activeConversation, setActiveConversation,
-        fetchConversations, openConversation, sendMessage,
+        fetchConversations, openConversation, sendMessage, sendTyping, isOtherUserTyping, totalUnread,
         deleteConversation, getOrCreateConversation,
         favoriteIds, hasFetchedFavoritesRef, hasFetchedUserRecipesRef,
         refreshFavorites,

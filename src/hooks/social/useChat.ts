@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getAvatarUrl } from '@/constants/avatars';
 
+type TypingPresence = { user_id: string; typing: boolean };
+
 export interface ChatMessage {
     id: string;
     conversation_id: string;
@@ -22,13 +24,17 @@ export interface Conversation {
     unread_count: number;
 }
 
-export const useChat = (currentUserId: string | undefined) => {
+export const useChat = (currentUserId: string | undefined, onNewMessage?: (msg: ChatMessage, senderName: string) => void) => {
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [loadingConvos, setLoadingConvos] = useState(false);
     const [loadingMessages, setLoadingMessages] = useState(false);
     const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+    const [isOtherUserTyping, setIsOtherUserTyping] = useState(false);
     const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+    const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const onNewMessageRef = useRef(onNewMessage);
+    useEffect(() => { onNewMessageRef.current = onNewMessage; }, [onNewMessage]);
 
     const fetchConversations = useCallback(async () => {
         if (!currentUserId) return;
@@ -156,7 +162,7 @@ export const useChat = (currentUserId: string | undefined) => {
             supabase.removeChannel(channelRef.current);
         }
 
-        // Subscribe to new messages in real-time
+        // Subscribe to new messages + typing presence in real-time
         const channel = supabase
             .channel(`messages:${conversationId}`)
             .on('postgres_changes', {
@@ -167,17 +173,38 @@ export const useChat = (currentUserId: string | undefined) => {
             }, (payload) => {
                 const incoming = payload.new as ChatMessage;
                 setMessages(prev => {
-                    // Avoid duplicate if optimistic message already added it
                     if (prev.some(m => m.id === incoming.id)) return prev;
                     return [...prev, incoming];
                 });
-                // Mark as read immediately if we're looking at this convo
+                if (incoming.sender_id !== currentUserId) {
+                    setIsOtherUserTyping(false);
+                    // Fire notification callback
+                    if (onNewMessageRef.current) {
+                        setConversations(convos => {
+                            const convo = convos.find(c => c.id === incoming.conversation_id);
+                            const name = convo?.other_user.full_name || 'Someone';
+                            onNewMessageRef.current!(incoming, name);
+                            return convos;
+                        });
+                    }
+                }
                 if (currentUserId) {
                     supabase
                         .from('conversation_members')
                         .update({ last_read_at: new Date().toISOString() })
                         .eq('conversation_id', conversationId)
                         .eq('user_id', currentUserId);
+                }
+            })
+            .on('broadcast', { event: 'typing' }, (payload) => {
+                const data = payload.payload as TypingPresence;
+                if (data.user_id !== currentUserId) {
+                    setIsOtherUserTyping(data.typing);
+                    // Auto-clear after 3s in case stop event missed
+                    if (data.typing) {
+                        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+                        typingTimeoutRef.current = setTimeout(() => setIsOtherUserTyping(false), 3000);
+                    }
                 }
             })
             .subscribe();
@@ -218,6 +245,15 @@ export const useChat = (currentUserId: string | undefined) => {
         fetchConversations();
     }, [currentUserId, fetchConversations]);
 
+    const sendTyping = useCallback((typing: boolean) => {
+        if (!channelRef.current || !currentUserId) return;
+        channelRef.current.send({
+            type: 'broadcast',
+            event: 'typing',
+            payload: { user_id: currentUserId, typing },
+        });
+    }, [currentUserId]);
+
     const deleteConversation = useCallback(async (conversationId: string) => {
         // Remove current user from conversation (effectively leaves it)
         await supabase
@@ -248,6 +284,9 @@ export const useChat = (currentUserId: string | undefined) => {
             if (channelRef.current) {
                 supabase.removeChannel(channelRef.current);
             }
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+            }
         };
     }, []);
 
@@ -257,10 +296,12 @@ export const useChat = (currentUserId: string | undefined) => {
         loadingConvos,
         loadingMessages,
         activeConversationId,
+        isOtherUserTyping,
         totalUnread,
         fetchConversations,
         openConversation,
         sendMessage,
+        sendTyping,
         deleteConversation,
         getOrCreateConversation,
     };

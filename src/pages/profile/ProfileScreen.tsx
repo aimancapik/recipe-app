@@ -7,6 +7,8 @@ import { uploadOptimizedImage } from '@/lib/storage';
 import { useCollections } from '@/hooks/recipe/useCollections';
 import { useCookStreak } from '@/hooks/cooking/useCookStreak';
 import CookStreakCard from '@/components/profile/CookStreakCard';
+import FollowersModal from '@/components/social/FollowersModal';
+import { supabase } from '@/lib/supabase';
 
 interface ProfileScreenProps {
     onBack: () => void;
@@ -35,6 +37,9 @@ interface ProfileScreenProps {
     onGroceryList?: () => void;
     onMealPlan?: () => void;
     onNotifications?: () => void;
+    onMessages?: () => void;
+    totalUnreadMessages?: number;
+    onMessageClick?: (userId: string, name: string, avatarUrl: string | null) => void;
 }
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({
@@ -53,7 +58,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
     onCollections,
     onGroceryList,
     onMealPlan,
-    onNotifications
+    onNotifications,
+    onMessages,
+    totalUnreadMessages = 0,
+    onMessageClick,
 }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
@@ -72,10 +80,18 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
     const [collectionCount, setCollectionCount] = useState(0);
     const { fetchCollections } = useCollections();
     const cookStreak = useCookStreak(user?.id);
+    const [socialStats, setSocialStats] = useState({ followers: 0, following: 0 });
+    const [followersModal, setFollowersModal] = useState<{ isOpen: boolean; type: 'followers' | 'following' }>({ isOpen: false, type: 'followers' });
 
     useEffect(() => {
         if (user?.id) {
             fetchCollections(user.id).then(result => setCollectionCount(result?.length || 0));
+            Promise.all([
+                supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', user.id),
+                supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', user.id),
+            ]).then(([followersRes, followingRes]) => {
+                setSocialStats({ followers: followersRes.count || 0, following: followingRes.count || 0 });
+            });
         }
     }, [user?.id]);
     const [copiedLink, setCopiedLink] = useState(false);
@@ -200,6 +216,16 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                                 <span className="material-symbols-outlined filled-icon">edit</span>
                             </button>
                         )}
+                        {onMessages && (
+                            <button onClick={onMessages} className="flex size-10 items-center justify-center rounded-full hover:bg-base-300 transition-colors text-primary relative">
+                                <span className="material-symbols-outlined">chat_bubble</span>
+                                {totalUnreadMessages > 0 && (
+                                    <span className="absolute top-1 right-1 size-4 bg-error text-error-content text-[9px] font-bold rounded-full flex items-center justify-center">
+                                        {totalUnreadMessages > 9 ? '9+' : totalUnreadMessages}
+                                    </span>
+                                )}
+                            </button>
+                        )}
                         <button onClick={handleShareProfile} className="flex size-10 items-center justify-center rounded-full hover:bg-base-300 transition-colors text-primary">
                             <span className="material-symbols-outlined">share</span>
                         </button>
@@ -222,20 +248,18 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                             </div>
                         )}
                         {/* Gradient fade */}
-                        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-base-100 to-transparent" />
-                        {isEditing && (
-                            <button
-                                onClick={() => coverInputRef.current?.click()}
-                                disabled={uploadingCover}
-                                className="absolute bottom-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-sm text-white text-xs font-bold hover:bg-black/70 transition-all"
-                            >
-                                {uploadingCover
-                                    ? <span className="loading loading-spinner loading-xs" />
-                                    : <span className="material-symbols-outlined text-[16px]">add_photo_alternate</span>
-                                }
-                                {uploadingCover ? 'Uploading...' : 'Edit Cover'}
-                            </button>
-                        )}
+                        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-base-100 to-transparent pointer-events-none" />
+                        <button
+                            onClick={() => coverInputRef.current?.click()}
+                            disabled={uploadingCover}
+                            className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-sm text-white text-xs font-bold hover:bg-black/70 transition-all"
+                        >
+                            {uploadingCover
+                                ? <span className="loading loading-spinner loading-xs" />
+                                : <span className="material-symbols-outlined text-[16px]">add_photo_alternate</span>
+                            }
+                            {uploadingCover ? 'Uploading...' : 'Edit Cover'}
+                        </button>
                         <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
                     </div>
 
@@ -372,6 +396,26 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                                 <p className="text-base-content/40 text-[9px] uppercase tracking-widest font-black">{stat.label}</p>
                             </div>
                         </div>
+                    ))}
+                </section>
+
+                {/* Followers / Following row */}
+                <section className="flex px-4 mt-3 gap-3 z-20 relative">
+                    {[
+                        { label: 'Followers', val: socialStats.followers, type: 'followers' as const },
+                        { label: 'Following', val: socialStats.following, type: 'following' as const },
+                    ].map(stat => (
+                        <button
+                            key={stat.label}
+                            onClick={() => setFollowersModal({ isOpen: true, type: stat.type })}
+                            className="flex flex-1 items-center justify-center gap-3 rounded-2xl bg-base-200 border border-base-300 py-3 px-4 hover:bg-base-300 active:scale-95 transition-all"
+                        >
+                            <span className="text-base-content text-lg font-black">
+                                {stat.val > 999 ? (stat.val / 1000).toFixed(1) + 'k' : stat.val}
+                            </span>
+                            <span className="text-base-content/50 text-xs font-bold uppercase tracking-wider">{stat.label}</span>
+                            <span className="material-symbols-outlined text-base-content/30 text-[16px]">chevron_right</span>
+                        </button>
                     ))}
                 </section>
 
@@ -553,6 +597,20 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 }}
                 onSelect={handleAvatarSelect}
             />
+
+            {user?.id && (
+                <FollowersModal
+                    userId={user.id}
+                    type={followersModal.type}
+                    isOpen={followersModal.isOpen}
+                    onClose={() => setFollowersModal(prev => ({ ...prev, isOpen: false }))}
+                    onUserClick={(uid) => {
+                        setFollowersModal(prev => ({ ...prev, isOpen: false }));
+                        onModalToggle?.(false);
+                    }}
+                    onMessageClick={onMessageClick}
+                />
+            )}
         </div>
     );
 };

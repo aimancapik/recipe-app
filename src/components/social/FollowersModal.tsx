@@ -8,6 +8,7 @@ interface FollowersModalProps {
   isOpen: boolean;
   onClose: () => void;
   onUserClick?: (userId: string) => void;
+  onMessageClick?: (userId: string, name: string, avatarUrl: string | null) => void;
 }
 
 interface UserProfile {
@@ -19,7 +20,7 @@ interface UserProfile {
 
 const PAGE_SIZE = 50;
 
-const FollowersModal: React.FC<FollowersModalProps> = ({ userId, type, isOpen, onClose, onUserClick }) => {
+const FollowersModal: React.FC<FollowersModalProps> = ({ userId, type, isOpen, onClose, onUserClick, onMessageClick }) => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
@@ -167,9 +168,23 @@ const FollowersModal: React.FC<FollowersModalProps> = ({ userId, type, isOpen, o
                     )}
                   </div>
 
-                  <span className="material-symbols-outlined text-base-content/30 group-hover:text-primary transition-colors">
-                    chevron_right
-                  </span>
+                  <div className="flex items-center gap-1">
+                    {onMessageClick && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onMessageClick(user.id, user.full_name, getAvatarUrl(user.avatar_url));
+                          onClose();
+                        }}
+                        className="flex size-9 items-center justify-center rounded-xl bg-base-200 hover:bg-primary hover:text-primary-content transition-all active:scale-90"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">chat_bubble</span>
+                      </button>
+                    )}
+                    <span className="material-symbols-outlined text-base-content/30 group-hover:text-primary transition-colors">
+                      chevron_right
+                    </span>
+                  </div>
                 </div>
               ))}
               {hasMore && (
