@@ -40,6 +40,7 @@ interface ProfileScreenProps {
     onMessages?: () => void;
     totalUnreadMessages?: number;
     onMessageClick?: (userId: string, name: string, avatarUrl: string | null) => void;
+    onViewProfile?: (userId: string) => void;
 }
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({
@@ -62,6 +63,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
     onMessages,
     totalUnreadMessages = 0,
     onMessageClick,
+    onViewProfile,
 }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
@@ -607,6 +609,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                     onUserClick={(uid) => {
                         setFollowersModal(prev => ({ ...prev, isOpen: false }));
                         onModalToggle?.(false);
+                        onViewProfile?.(uid);
                     }}
                     onMessageClick={onMessageClick}
                 />

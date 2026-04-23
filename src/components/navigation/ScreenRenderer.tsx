@@ -332,6 +332,7 @@ const ScreenRenderer: React.FC<Props> = ({ ctx }) => {
                     onNotifications={() => { setSubScreenReturnTo(Screen.PROFILE); setCurrentScreen(Screen.NOTIFICATION); }}
                     onMessages={() => { setSubScreenReturnTo(Screen.PROFILE); setCurrentScreen(Screen.MESSAGES); }}
                     totalUnreadMessages={totalUnread}
+                    onViewProfile={(uid) => { setSubScreenReturnTo(Screen.PROFILE); navigateTo(Screen.PUBLIC_PROFILE, undefined, uid); }}
                     onCollections={() => {
                         if (!hasFetchedFavoritesRef.current) { hasFetchedFavoritesRef.current = true; refreshFavorites(); }
                         setSubScreenReturnTo(Screen.PROFILE);

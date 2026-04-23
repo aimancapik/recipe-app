@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Conversation } from '@/hooks/social/useChat';
+import { Conversation, isRecipeMessage, decodeRecipeMessage } from '@/hooks/social/useChat';
 
 interface MessagesScreenProps {
     conversations: Conversation[];
@@ -119,7 +119,11 @@ const SwipeItem: React.FC<SwipeItemProps> = ({ convo, onOpen, onDeleteRequest })
                             )}
                         </div>
                         <p className={`text-sm truncate mt-0.5 ${convo.unread_count > 0 ? 'font-semibold text-base-content' : 'text-base-content/50'}`}>
-                            {convo.last_message || 'No messages yet'}
+                            {convo.last_message
+                                ? isRecipeMessage(convo.last_message)
+                                    ? `🍽️ ${decodeRecipeMessage(convo.last_message)?.title ?? 'Shared a recipe'}`
+                                    : convo.last_message
+                                : 'No messages yet'}
                         </p>
                     </div>
                 </button>
