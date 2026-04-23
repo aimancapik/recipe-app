@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { AppNotification, useNotifications } from '@/hooks/social/useNotifications';
+import { getAvatarUrl } from '@/constants/avatars';
 
 interface NotificationScreenProps {
     onBack: () => void;
@@ -119,8 +120,27 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({
                                     <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-primary" />
                                 )}
 
-                                <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center ${getBgColorForType(notification.type)}`}>
-                                    {getIconForType(notification.type)}
+                                <div className="relative flex-shrink-0">
+                                    {notification.source_user ? (() => {
+                                        const url = getAvatarUrl(notification.source_user.avatar_url ?? '');
+                                        const initial = (notification.source_user.full_name || '?').charAt(0).toUpperCase();
+                                        return url ? (
+                                            <img src={url} alt={notification.source_user.full_name} className="w-12 h-12 rounded-full object-cover" />
+                                        ) : (
+                                            <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center">
+                                                <span className="text-primary-content font-black text-lg">{initial}</span>
+                                            </div>
+                                        );
+                                    })() : (
+                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${getBgColorForType(notification.type)}`}>
+                                            {getIconForType(notification.type)}
+                                        </div>
+                                    )}
+                                    {notification.source_user && (
+                                        <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center border-2 border-base-100 ${getBgColorForType(notification.type)}`}>
+                                            {React.cloneElement(getIconForType(notification.type) as React.ReactElement, { className: 'text-[11px]' })}
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="flex-1 min-w-0 pr-6">

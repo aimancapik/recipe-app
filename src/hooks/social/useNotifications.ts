@@ -8,6 +8,7 @@ export interface AppNotification {
     type: 'like' | 'comment' | 'follow' | 'system';
     message: string;
     source_user_id?: string;
+    source_user?: { full_name: string; avatar_url: string | null } | null;
     recipe_id?: string;
     is_read: boolean;
     created_at: string;
@@ -25,7 +26,7 @@ export const useNotifications = () => {
             setLoading(true);
             const { data, error } = await supabase
                 .from('notifications')
-                .select('*')
+                .select('*, source_user:profiles!source_user_id(full_name, avatar_url)')
                 .order('created_at', { ascending: false })
                 .limit(50);
 
