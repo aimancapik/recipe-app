@@ -4,6 +4,34 @@ import { getAvatarUrl } from '@/constants/avatars';
 
 type TypingPresence = { user_id: string; typing: boolean };
 
+const RECIPE_PREFIX = '__recipe__:';
+
+export interface SharedRecipePayload {
+    id: string;
+    title: string;
+    image: string;
+    prepTime: string;
+    level: string;
+    category: string;
+}
+
+export function encodeRecipeMessage(recipe: SharedRecipePayload): string {
+    return RECIPE_PREFIX + JSON.stringify(recipe);
+}
+
+export function decodeRecipeMessage(content: string): SharedRecipePayload | null {
+    if (!content.startsWith(RECIPE_PREFIX)) return null;
+    try {
+        return JSON.parse(content.slice(RECIPE_PREFIX.length));
+    } catch {
+        return null;
+    }
+}
+
+export function isRecipeMessage(content: string): boolean {
+    return content.startsWith(RECIPE_PREFIX);
+}
+
 export interface ChatMessage {
     id: string;
     conversation_id: string;
@@ -34,6 +62,7 @@ export const useChat = (currentUserId: string | undefined, onNewMessage?: (msg: 
     const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
     const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const onNewMessageRef = useRef(onNewMessage);
+    const fetchGenRef = useRef(0); // increments each openConversation call to cancel stale fetches
     useEffect(() => { onNewMessageRef.current = onNewMessage; }, [onNewMessage]);
 
     const fetchConversations = useCallback(async () => {
@@ -127,6 +156,7 @@ export const useChat = (currentUserId: string | undefined, onNewMessage?: (msg: 
     }, [currentUserId]);
 
     const fetchMessages = useCallback(async (conversationId: string) => {
+        const gen = ++fetchGenRef.current;
         setLoadingMessages(true);
         try {
             const { data, error } = await supabase
@@ -136,7 +166,10 @@ export const useChat = (currentUserId: string | undefined, onNewMessage?: (msg: 
                 .order('created_at', { ascending: true });
 
             if (error) throw error;
-            setMessages(data || []);
+            // Only apply if this is still the latest fetch (not superseded by a send)
+            if (gen === fetchGenRef.current) {
+                setMessages(data || []);
+            }
 
             // Mark as read
             if (currentUserId) {
@@ -207,13 +240,18 @@ export const useChat = (currentUserId: string | undefined, onNewMessage?: (msg: 
                     }
                 }
             })
-            .subscribe();
+            .subscribe((status) => {
+                console.log(`[useChat] channel status for ${conversationId}:`, status);
+            });
 
         channelRef.current = channel;
     }, [fetchMessages, currentUserId]);
 
     const sendMessage = useCallback(async (conversationId: string, content: string) => {
         if (!currentUserId || !content.trim()) return;
+
+        // Bump generation so any in-flight fetchMessages won't overwrite optimistic state
+        fetchGenRef.current++;
 
         // Optimistic update — show message immediately
         const optimisticMsg: ChatMessage = {
@@ -232,6 +270,7 @@ export const useChat = (currentUserId: string | undefined, onNewMessage?: (msg: 
         }).select().single();
 
         if (error) {
+            console.error('[useChat] sendMessage insert failed:', error);
             // Revert on failure
             setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
             throw error;
@@ -240,10 +279,17 @@ export const useChat = (currentUserId: string | undefined, onNewMessage?: (msg: 
         // Replace optimistic with real message
         if (data) {
             setMessages(prev => prev.map(m => m.id === optimisticMsg.id ? data : m));
+        } else {
+            // Insert succeeded but no data returned — keep optimistic
+            console.warn('[useChat] sendMessage: no data returned from insert');
         }
 
         fetchConversations();
     }, [currentUserId, fetchConversations]);
+
+    const sendRecipe = useCallback(async (conversationId: string, recipe: SharedRecipePayload) => {
+        await sendMessage(conversationId, encodeRecipeMessage(recipe));
+    }, [sendMessage]);
 
     const sendTyping = useCallback((typing: boolean) => {
         if (!channelRef.current || !currentUserId) return;
@@ -301,6 +347,7 @@ export const useChat = (currentUserId: string | undefined, onNewMessage?: (msg: 
         fetchConversations,
         openConversation,
         sendMessage,
+        sendRecipe,
         sendTyping,
         deleteConversation,
         getOrCreateConversation,

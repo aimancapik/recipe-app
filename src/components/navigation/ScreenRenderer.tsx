@@ -117,6 +117,7 @@ export interface AppCtx {
     fetchConversations: () => void;
     openConversation: (id: string) => void;
     sendMessage: (convoId: string, content: string) => Promise<void>;
+    sendRecipe: (convoId: string, recipe: import('@/hooks/social/useChat').SharedRecipePayload) => Promise<void>;
     sendTyping: (typing: boolean) => void;
     isOtherUserTyping: boolean;
     totalUnread: number;
@@ -158,7 +159,7 @@ const ScreenRenderer: React.FC<Props> = ({ ctx }) => {
         searchQuery, initialCategory, filters, setFilters,
         conversations, messages, loadingConvos, loadingMessages,
         activeConversation, setActiveConversation,
-        fetchConversations, openConversation, sendMessage, sendTyping, isOtherUserTyping, totalUnread,
+        fetchConversations, openConversation, sendMessage, sendRecipe, sendTyping, isOtherUserTyping, totalUnread,
         deleteConversation, getOrCreateConversation,
         favoriteIds, hasFetchedFavoritesRef, hasFetchedUserRecipesRef,
         refreshFavorites,
@@ -501,9 +502,17 @@ const ScreenRenderer: React.FC<Props> = ({ ctx }) => {
                     loading={loadingMessages}
                     currentUserId={user.id}
                     isOtherUserTyping={isOtherUserTyping}
+                    myRecipes={allMyRecipes}
+                    savedRecipes={allSavedRecipes}
                     onBack={() => { fetchConversations(); setCurrentScreen(Screen.MESSAGES); }}
                     onSend={(content) => sendMessage(activeConversation.id, content)}
+                    onSendRecipe={(recipe) => sendRecipe(activeConversation.id, recipe)}
                     onTyping={sendTyping}
+                    onRecipeClick={(recipe) => {
+                        setSelectedRecipe(recipe);
+                        setSubScreenReturnTo(Screen.CHAT);
+                        setCurrentScreen(Screen.DETAIL);
+                    }}
                 />
             ) : null;
 
