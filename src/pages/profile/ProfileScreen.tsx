@@ -218,7 +218,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                                 <span className="material-symbols-outlined filled-icon">edit</span>
                             </button>
                         )}
-                        {onMessages && (
+                        {!isEditing && onMessages && (
                             <button onClick={onMessages} className="flex size-10 items-center justify-center rounded-full hover:bg-base-300 transition-colors text-primary relative">
                                 <span className="material-symbols-outlined">chat_bubble</span>
                                 {totalUnreadMessages > 0 && (
@@ -228,9 +228,11 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                                 )}
                             </button>
                         )}
-                        <button onClick={handleShareProfile} className="flex size-10 items-center justify-center rounded-full hover:bg-base-300 transition-colors text-primary">
-                            <span className="material-symbols-outlined">share</span>
-                        </button>
+                        {!isEditing && (
+                            <button onClick={handleShareProfile} className="flex size-10 items-center justify-center rounded-full hover:bg-base-300 transition-colors text-primary">
+                                <span className="material-symbols-outlined">share</span>
+                            </button>
+                        )}
                     </div>
                 </div>
             </header>
