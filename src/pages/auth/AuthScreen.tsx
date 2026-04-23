@@ -30,6 +30,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
     const [loading, setLoading] = useState(false);
     const [forgotMode, setForgotMode] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
+    const [infoMessage, setInfoMessage] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -70,13 +71,9 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
         }
     };
 
-    const handleGoogleLogin = async () => {
-        setError('');
-        try {
-            await onGoogleSignIn();
-        } catch (err: any) {
-            setError(err.message || 'Failed to sign in with Google');
-        }
+    const handleGoogleLogin = () => {
+        setInfoMessage('Google sign-in coming soon! Use email for now.');
+        setTimeout(() => setInfoMessage(''), 3000);
     };
 
     const inputStyle = {
@@ -86,7 +83,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex flex-col overflow-hidden">
+        <div className="fixed inset-0 z-50 flex flex-col" style={{ height: '100dvh' }}>
             {/* Full screen bg */}
             <div className="absolute inset-0">
                 <div
@@ -108,12 +105,13 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
 
             {/* Bottom sheet */}
             <div
-                className="relative z-10 w-full rounded-t-[32px] px-6 pt-7 pb-10"
+                className="relative z-10 w-full rounded-t-[32px] px-6 pt-7 pb-10 overflow-y-auto"
                 style={{
                     background: 'rgba(18, 18, 20, 0.96)',
                     backdropFilter: 'blur(24px)',
                     WebkitBackdropFilter: 'blur(24px)',
                     border: '1px solid rgba(255,255,255,0.07)',
+                    maxHeight: '85dvh',
                 }}
             >
                 {/* Pull handle */}
@@ -146,6 +144,13 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
                         style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.25)' }}>
                         <span className="material-symbols-outlined text-green-400 text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
                         <span className="text-green-300 font-medium">{successMessage}</span>
+                    </div>
+                )}
+                {infoMessage && (
+                    <div className="mb-4 px-4 py-3 rounded-2xl flex items-center gap-2.5 text-sm"
+                        style={{ background: 'rgba(99,179,237,0.12)', border: '1px solid rgba(99,179,237,0.25)' }}>
+                        <span className="material-symbols-outlined text-blue-300 text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>info</span>
+                        <span className="text-blue-200 font-medium">{infoMessage}</span>
                     </div>
                 )}
 
