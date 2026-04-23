@@ -139,26 +139,22 @@ const FollowersModal: React.FC<FollowersModalProps> = ({ userId, type, isOpen, o
               {users.map((user) => (
                 <div
                   key={user.id}
-                  onClick={() => {
-                    onUserClick?.(user.id);
-                    onClose();
-                  }}
-                  className="flex items-center gap-3 p-3 rounded-2xl hover:bg-base-200 transition-colors cursor-pointer group"
+                  className="flex items-center gap-3 p-3 rounded-2xl hover:bg-base-200 transition-colors group"
                 >
                   {(() => {
                     const url = getAvatarUrl(user.avatar_url);
                     const initial = (user.full_name || '?').charAt(0).toUpperCase();
                     return url ? (
-                      <img src={url} alt={user.full_name} className="size-12 rounded-full object-cover border-2 border-base-300" />
+                      <img src={url} alt={user.full_name} className="size-12 rounded-full object-cover border-2 border-base-300 shrink-0" />
                     ) : (
-                      <div className="size-12 rounded-full bg-primary flex items-center justify-center border-2 border-base-300">
+                      <div className="size-12 rounded-full bg-primary flex items-center justify-center border-2 border-base-300 shrink-0">
                         <span className="text-primary-content font-black text-lg">{initial}</span>
                       </div>
                     );
                   })()}
 
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-base-content truncate group-hover:text-primary transition-colors">
+                    <p className="font-bold text-base-content truncate">
                       {user.full_name}
                     </p>
                     {user.bio && (
@@ -168,7 +164,7 @@ const FollowersModal: React.FC<FollowersModalProps> = ({ userId, type, isOpen, o
                     )}
                   </div>
 
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 shrink-0">
                     {onMessageClick && (
                       <button
                         onClick={(e) => {
@@ -177,13 +173,24 @@ const FollowersModal: React.FC<FollowersModalProps> = ({ userId, type, isOpen, o
                           onClose();
                         }}
                         className="flex size-9 items-center justify-center rounded-xl bg-base-200 hover:bg-primary hover:text-primary-content transition-all active:scale-90"
+                        title="Message"
                       >
                         <span className="material-symbols-outlined text-[18px]">chat_bubble</span>
                       </button>
                     )}
-                    <span className="material-symbols-outlined text-base-content/30 group-hover:text-primary transition-colors">
-                      chevron_right
-                    </span>
+                    {onUserClick && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onUserClick(user.id);
+                          onClose();
+                        }}
+                        className="flex size-9 items-center justify-center rounded-xl bg-base-200 hover:bg-base-300 transition-all active:scale-90"
+                        title="View profile"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">person</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

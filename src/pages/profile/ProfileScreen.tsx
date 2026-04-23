@@ -249,7 +249,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                         )}
                         {/* Gradient fade */}
                         <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-base-100 to-transparent pointer-events-none" />
-                        <button
+                        {isEditing && <button
                             onClick={() => coverInputRef.current?.click()}
                             disabled={uploadingCover}
                             className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-sm text-white text-xs font-bold hover:bg-black/70 transition-all"
@@ -259,7 +259,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                                 : <span className="material-symbols-outlined text-[16px]">add_photo_alternate</span>
                             }
                             {uploadingCover ? 'Uploading...' : 'Edit Cover'}
-                        </button>
+                        </button>}
                         <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
                     </div>
 
