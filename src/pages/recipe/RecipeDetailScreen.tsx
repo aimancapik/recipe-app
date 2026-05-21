@@ -14,6 +14,7 @@ import MadeItSection from '@/components/recipe/MadeItSection';
 import ShareableCard from '@/components/recipe/ShareableCard';
 import { getNormalizedVideoUrl } from '@/utils/mediaHelpers';
 import { useRecipeView } from '@/hooks/recipe/useRecipeView';
+import StickyActionBar from '@/components/ui/StickyActionBar';
 
 interface RecipeDetailScreenProps {
     recipe: Recipe;
@@ -43,7 +44,9 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
     const [shareToast, setShareToast] = useState<{ show: boolean; message: string }>({ show: false, message: '' });
     const carouselRef = useRef<HTMLDivElement>(null);
     const dragState = useRef<{ active: boolean; startX: number; scrollLeft: number }>({ active: false, startX: 0, scrollLeft: 0 });
-    const baseServes = parseInt(recipe.serves.replace(/[^0-9]/g, '')) || 1;
+    const ingredients = recipe.ingredients ?? [];
+    const directions = recipe.directions ?? [];
+    const baseServes = parseInt((recipe.serves || '1').replace(/[^0-9]/g, '')) || 1;
     const [currentServes, setCurrentServes] = useState(baseServes);
     const [showCollectionModal, setShowCollectionModal] = useState(false);
     const [showShareCard, setShowShareCard] = useState(false);
@@ -154,7 +157,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
 
     return (
         <>
-        <div className={`relative flex min-h-screen w-full flex-col bg-base-100 ${onPublish ? 'pb-24' : ''}`}>
+        <div className={`relative flex min-h-screen w-full flex-col bg-base-100 ${onPublish ? 'pb-24' : 'pb-28'}`}>
             {/* Header Image & Overlay Nav */}
             <div className="relative w-full h-80 bg-base-200">
                 <div className="absolute inset-0 flex overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth">
@@ -207,7 +210,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                 {recipe.images && recipe.images.length > 1 && (
                     <div className="absolute bottom-12 left-0 right-0 flex justify-center gap-1.5 z-10 pointer-events-none">
                         {recipe.images.map((_, idx) => (
-                            <div key={idx} className="size-1.5 rounded-full bg-white/40 ring-1 ring-black/10" />
+                            <div key={idx} className="size-1.5 rounded-full bg-base-100/40 ring-1 ring-black/10" />
                         ))}
                     </div>
                 )}
@@ -298,8 +301,8 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                 {/* Stats Bar */}
                 <div className="grid grid-cols-4 gap-2 mb-8 p-1 rounded-2xl bg-base-200/50 border border-base-200">
                     {[
-                        { label: 'Time', val: recipe.prepTime, icon: 'schedule' },
-                        { label: 'Serves', val: recipe.serves, icon: 'group' },
+                        { label: 'Time', val: recipe.prepTime || 'Quick', icon: 'schedule' },
+                        { label: 'Serves', val: currentServes.toString(), icon: 'group' },
                         { label: 'Kcal', val: recipe.kcal, icon: 'bolt' },
                         { label: 'Level', val: recipe.level, icon: 'bar_chart' }
                     ].map(stat => (
@@ -332,18 +335,39 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                 <div className="mb-10">
                     <div className="flex items-center justify-between mb-5 px-1">
                         <h2 className="text-xl font-bold flex items-center gap-2">
-                            <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                            <div className="size-8 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary">
                                 <span className="material-symbols-outlined text-[20px] fill-1">shopping_basket</span>
                             </div>
                             Ingredients
                         </h2>
-                        <span className="text-xs font-bold text-primary px-3 py-1 bg-primary/10 rounded-full">{recipe.ingredients.length} items</span>
+                        <div className="flex items-center gap-2 rounded-full bg-base-200 p-1">
+                            <button
+                                onClick={() => setCurrentServes(v => Math.max(1, v - 1))}
+                                className="flex size-7 items-center justify-center rounded-full bg-base-100 text-base-content/60"
+                                title="Decrease servings"
+                            >
+                                <span className="material-symbols-outlined text-[16px]">remove</span>
+                            </button>
+                            <span className="min-w-12 text-center text-xs font-black text-secondary">{currentServes} serve{currentServes === 1 ? '' : 's'}</span>
+                            <button
+                                onClick={() => setCurrentServes(v => Math.min(24, v + 1))}
+                                className="flex size-7 items-center justify-center rounded-full bg-secondary text-secondary-content"
+                                title="Increase servings"
+                            >
+                                <span className="material-symbols-outlined text-[16px]">add</span>
+                            </button>
+                        </div>
                     </div>
+                    {currentServes !== baseServes && (
+                        <p className="mb-3 rounded-2xl bg-secondary/10 px-4 py-2 text-xs font-bold text-secondary">
+                            Ingredient quantities are shown as written. Use {currentServes} servings as your prep target.
+                        </p>
+                    )}
                     <div className="grid grid-cols-1 gap-2.5">
-                        {recipe.ingredients.map((ing, idx) => (
+                        {ingredients.map((ing, idx) => (
                             <div key={idx} className="flex items-center gap-3 p-4 rounded-xl bg-base-100 border border-base-200 hover:border-primary/20 transition-colors shadow-sm group">
-                                <div className="size-6 rounded-full border-2 border-primary/20 flex items-center justify-center group-hover:border-primary/50 transition-colors">
-                                    <div className="size-2 rounded-full bg-primary/30" />
+                                <div className="size-6 rounded-full border-2 border-secondary/20 flex items-center justify-center group-hover:border-secondary/50 transition-colors">
+                                    <div className="size-2 rounded-full bg-secondary/40" />
                                 </div>
                                 <span className="text-sm font-medium text-base-content/80">{ing}</span>
                             </div>
@@ -351,7 +375,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                     </div>
                     <button
                         onClick={() => onAddToGrocery(recipe)}
-                        className="btn btn-primary btn-outline w-full mt-6 h-12 rounded-xl gap-2 border-primary/30 hover:bg-primary/5 hover:border-primary text-primary"
+                        className="btn btn-outline w-full mt-6 h-12 rounded-xl gap-2 border-secondary/30 hover:bg-secondary/5 hover:border-secondary text-secondary"
                     >
                         <span className="material-symbols-outlined text-[20px]">add_shopping_cart</span>
                         Add all to Shopping List
@@ -359,7 +383,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                 </div>
 
                 {/* Start Cooking Button */}
-                {onStartCooking && recipe.directions.length > 0 && (
+                {onStartCooking && directions.length > 0 && (
                     <div className="mb-10">
                         <button
                             onClick={onStartCooking}
@@ -378,7 +402,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                 <div className="mb-8">
                     <h2 className="text-xl font-bold mb-6 px-1">Directions</h2>
                     <div className="space-y-6 relative before:absolute before:left-[17px] before:top-4 before:bottom-4 before:w-0.5 before:bg-gradient-to-b before:from-primary before:to-base-300">
-                        {recipe.directions.map((dir, idx) => (
+                        {directions.map((dir, idx) => (
                             <div key={idx} className="relative pl-12 flex flex-col gap-3">
                                 {/* Number Circle */}
                                 <div className="absolute left-0 top-0 size-9 rounded-full bg-primary text-primary-content flex items-center justify-center font-black text-sm shadow-lg ring-4 ring-base-100 z-10">
@@ -534,6 +558,33 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                     </div>
                 </div>
             )}
+            {!onPublish && (
+                <StickyActionBar>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => onToggleFavorite(recipe.id)}
+                            className={`btn btn-square rounded-2xl ${recipe.isFavorite ? 'btn-primary' : 'btn-ghost bg-base-200'}`}
+                            title={recipe.isFavorite ? 'Saved' : 'Save recipe'}
+                        >
+                            <span className={`material-symbols-outlined ${recipe.isFavorite ? 'fill-icon' : ''}`}>
+                                {recipe.isFavorite ? 'favorite' : 'favorite_border'}
+                            </span>
+                        </button>
+                        <button onClick={() => onAddToGrocery(recipe)} className="btn btn-square rounded-2xl btn-ghost bg-secondary/10 text-secondary" title="Add ingredients">
+                            <span className="material-symbols-outlined">add_shopping_cart</span>
+                        </button>
+                        <button onClick={handleShare} className="btn btn-square rounded-2xl btn-ghost bg-base-200" title="Share recipe">
+                            <span className="material-symbols-outlined">share</span>
+                        </button>
+                        {onStartCooking && directions.length > 0 && (
+                            <button onClick={onStartCooking} className="btn btn-primary flex-1 rounded-2xl gap-2">
+                                <span className="material-symbols-outlined">restaurant</span>
+                                Cook
+                            </button>
+                        )}
+                    </div>
+                </StickyActionBar>
+            )}
             {/* Full-Screen Premium Media Viewer */}
             {viewMediaIndex !== null && (
                 <div
@@ -549,7 +600,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                             </span>
                         </div>
                         <button
-                            className="btn btn-circle btn-sm glass text-white border-none hover:bg-white/20"
+                            className="btn btn-circle btn-sm glass text-white border-none hover:bg-base-100/20"
                             onClick={() => setViewMediaIndex(null)}
                         >
                             <span className="material-symbols-outlined">close</span>
@@ -621,7 +672,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                                 {galleryItems.map((_, idx) => (
                                     <div
                                         key={idx}
-                                        className={`size-1.5 rounded-full transition-all duration-300 ${idx === viewMediaIndex ? 'bg-white w-4' : 'bg-white/20'}`}
+                                        className={`size-1.5 rounded-full transition-all duration-300 ${idx === viewMediaIndex ? 'bg-base-100 w-4' : 'bg-base-100/20'}`}
                                     />
                                 ))}
                             </div>
@@ -647,7 +698,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                     onClick={() => setStepImageViewer(null)}
                 >
                     <button
-                        className="absolute top-4 right-4 size-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                        className="absolute top-4 right-4 size-10 flex items-center justify-center rounded-full bg-base-100/10 hover:bg-base-100/20 transition-colors"
                         onClick={() => setStepImageViewer(null)}
                     >
                         <span className="material-symbols-outlined text-white">close</span>

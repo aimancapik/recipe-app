@@ -20,17 +20,17 @@ const SkeletonCard: React.FC<SkeletonCardProps> = ({ index = 0 }) => {
       {/* Content Skeleton */}
       <div className="absolute bottom-0 left-0 right-0 p-3 pt-6 space-y-2 z-10 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
         {/* Title Skeleton */}
-        <div className="h-4 bg-white/20 rounded w-3/4 backdrop-blur-sm" />
+        <div className="h-4 bg-base-100/20 rounded w-3/4 backdrop-blur-sm" />
 
         {/* Info Row Skeleton */}
         <div className="flex items-center justify-between mt-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-5 h-5 bg-white/20 rounded-full backdrop-blur-sm" />
-            <div className="h-3 bg-white/20 rounded w-16 backdrop-blur-sm" />
+            <div className="w-5 h-5 bg-base-100/20 rounded-full backdrop-blur-sm" />
+            <div className="h-3 bg-base-100/20 rounded w-16 backdrop-blur-sm" />
           </div>
           <div className="flex items-center gap-1.5 bg-black/30 px-2 py-1 rounded-full backdrop-blur-sm">
-            <div className="w-3 h-3 bg-white/20 rounded-full" />
-            <div className="h-3 bg-white/20 rounded w-8" />
+            <div className="w-3 h-3 bg-base-100/20 rounded-full" />
+            <div className="h-3 bg-base-100/20 rounded w-8" />
           </div>
         </div>
       </div>

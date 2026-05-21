@@ -67,7 +67,7 @@ const ShareableCard: React.FC<ShareableCardProps> = ({ recipe, onClose }) => {
             {/* The card */}
             <div
                 ref={cardRef}
-                className="w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl bg-white"
+                className="w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl bg-base-100"
                 style={{ fontFamily: 'system-ui, sans-serif' }}
             >
                 {/* Hero image */}
@@ -75,7 +75,7 @@ const ShareableCard: React.FC<ShareableCardProps> = ({ recipe, onClose }) => {
                     <img src={cardImage} alt={recipe.title} className="w-full h-full object-cover" crossOrigin="anonymous" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                     {/* App watermark */}
-                    <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 flex items-center gap-1.5">
+                    <div className="absolute top-3 right-3 bg-base-100/90 backdrop-blur-sm rounded-full px-3 py-1 flex items-center gap-1.5">
                         <span className="text-xs font-black text-orange-500">Let Em Cook</span>
                         <span className="text-base">👨‍🍳</span>
                     </div>
@@ -86,7 +86,7 @@ const ShareableCard: React.FC<ShareableCardProps> = ({ recipe, onClose }) => {
                 </div>
 
                 {/* Stats */}
-                <div className="bg-white px-5 py-4">
+                <div className="bg-base-100 px-5 py-4">
                     <div className="grid grid-cols-4 gap-2 mb-4">
                         {[
                             { icon: '⏱', label: 'Time', value: recipe.prepTime },
@@ -96,18 +96,18 @@ const ShareableCard: React.FC<ShareableCardProps> = ({ recipe, onClose }) => {
                         ].map(({ icon, label, value }) => (
                             <div key={label} className="flex flex-col items-center bg-orange-50 rounded-2xl py-2 px-1">
                                 <span className="text-lg">{icon}</span>
-                                <span className="text-xs font-bold text-gray-800 mt-0.5">{value}</span>
-                                <span className="text-[9px] text-gray-400 uppercase tracking-wider">{label}</span>
+                                <span className="text-xs font-bold text-base-content mt-0.5">{value}</span>
+                                <span className="text-[9px] text-base-content/40 uppercase tracking-wider">{label}</span>
                             </div>
                         ))}
                     </div>
 
                     {/* Ingredients preview */}
-                    <div className="border-t border-gray-100 pt-3">
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Ingredients ({recipe.ingredients.length})</p>
+                    <div className="border-t border-base-200 pt-3">
+                        <p className="text-[10px] font-bold text-base-content/40 uppercase tracking-widest mb-2">Ingredients ({recipe.ingredients.length})</p>
                         <div className="flex flex-wrap gap-1.5">
                             {recipe.ingredients.slice(0, 6).map((ing, i) => (
-                                <span key={i} className="text-[11px] bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">{ing}</span>
+                                <span key={i} className="text-[11px] bg-base-200 text-base-content/60 rounded-full px-2 py-0.5">{ing}</span>
                             ))}
                             {recipe.ingredients.length > 6 && (
                                 <span className="text-[11px] bg-orange-100 text-orange-600 rounded-full px-2 py-0.5 font-semibold">+{recipe.ingredients.length - 6} more</span>
@@ -116,9 +116,9 @@ const ShareableCard: React.FC<ShareableCardProps> = ({ recipe, onClose }) => {
                     </div>
 
                     {/* CTA */}
-                    <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
-                        <p className="text-[10px] text-gray-400">Cook it on <span className="font-bold text-orange-500">Let Em Cook</span></p>
-                        <p className="text-[10px] font-mono text-gray-300">{window.location.origin}</p>
+                    <div className="mt-3 pt-3 border-t border-base-200 flex items-center justify-between">
+                        <p className="text-[10px] text-base-content/40">Cook it on <span className="font-bold text-orange-500">Let Em Cook</span></p>
+                        <p className="text-[10px] font-mono text-base-content/30">{window.location.origin}</p>
                     </div>
                 </div>
             </div>

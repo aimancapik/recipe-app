@@ -93,7 +93,7 @@ const TrendingSection: React.FC<TrendingSectionProps> = ({ recipes, onRecipeClic
                             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                             {/* Rank badge */}
                             <div className={`absolute top-2 left-2 w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shadow-lg
-                                ${i === 0 ? 'bg-yellow-400 text-yellow-900' : i === 1 ? 'bg-gray-300 text-gray-700' : i === 2 ? 'bg-orange-400 text-orange-900' : 'bg-base-100/80 text-base-content'}`}>
+                                ${i === 0 ? 'bg-warning text-warning-content' : i === 1 ? 'bg-secondary text-secondary-content' : i === 2 ? 'bg-primary text-primary-content' : 'bg-base-100/80 text-base-content'}`}>
                                 {i + 1}
                             </div>
                             <div className="absolute bottom-2 left-2 right-2">

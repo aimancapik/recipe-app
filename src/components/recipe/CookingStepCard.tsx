@@ -64,7 +64,7 @@ const CookingStepCard: React.FC<CookingStepCardProps> = ({
               />
               {videoPaused && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                  <div className="size-16 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center">
+                  <div className="size-16 rounded-full bg-base-100/20 backdrop-blur-md flex items-center justify-center">
                     <span className="material-symbols-outlined text-white text-4xl fill-1">play_arrow</span>
                   </div>
                 </div>

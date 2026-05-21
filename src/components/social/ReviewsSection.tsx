@@ -174,7 +174,7 @@ const ReviewsSection: React.FC<ReviewsSectionProps> = ({ recipeId }) => {
               </span>
             </div>
             <button
-              className="btn btn-circle btn-sm glass text-white border-none hover:bg-white/20"
+              className="btn btn-circle btn-sm glass text-white border-none hover:bg-base-100/20"
               onClick={() => setGallery(null)}
             >
               <span className="material-symbols-outlined">close</span>
@@ -211,7 +211,7 @@ const ReviewsSection: React.FC<ReviewsSectionProps> = ({ recipeId }) => {
                     {gallery.photos.map((_, idx) => (
                         <div
                             key={idx}
-                            className={`size-1.5 rounded-full transition-all duration-300 ${idx === currentIndex ? 'bg-white w-4' : 'bg-white/20'}`}
+                            className={`size-1.5 rounded-full transition-all duration-300 ${idx === currentIndex ? 'bg-base-100 w-4' : 'bg-base-100/20'}`}
                         />
                     ))}
                 </div>

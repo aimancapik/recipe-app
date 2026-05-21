@@ -115,7 +115,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
                 }}
             >
                 {/* Pull handle */}
-                <div className="w-10 h-1 rounded-full bg-white/15 mx-auto mb-6" />
+                <div className="w-10 h-1 rounded-full bg-base-100/15 mx-auto mb-6" />
 
                 {/* Title */}
                 <div className="mb-6">
@@ -235,12 +235,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-4 rounded-2xl font-bold text-[15px] transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                            style={{
-                                background: '#f4e225',
-                                color: '#1a1a0a',
-                                boxShadow: '0 4px 24px rgba(244,226,37,0.3)',
-                            }}
+                            className="w-full py-4 rounded-2xl bg-primary text-primary-content font-bold text-[15px] shadow-lg shadow-primary/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                         >
                             {loading ? (
                                 <LoadingAnimation size={22} />
@@ -269,9 +264,9 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
                 {!forgotMode && (
                     <>
                         <div className="flex items-center gap-3 my-5">
-                            <div className="flex-1 h-px bg-white/8" />
+                            <div className="flex-1 h-px bg-base-100/8" />
                             <span className="text-white/25 text-xs font-medium tracking-widest uppercase">or</span>
-                            <div className="flex-1 h-px bg-white/8" />
+                            <div className="flex-1 h-px bg-base-100/8" />
                         </div>
 
                         <button

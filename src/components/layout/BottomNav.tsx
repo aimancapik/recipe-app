@@ -14,13 +14,13 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentScreen, onNavigate, onQuic
         { screen: Screen.HOME, icon: 'home', label: 'Home' },
         { screen: Screen.BITES, icon: 'play_circle', label: 'Bites' },
         null, // placeholder for center button
-        { screen: Screen.SAVED, icon: 'bookmark', label: 'Saved' },
-        { screen: Screen.PROFILE, icon: 'person', label: 'Profile' },
+        { screen: Screen.SAVED, icon: 'collections_bookmark', label: 'Recipe Box' },
+        { screen: Screen.PROFILE, icon: 'account_circle', label: 'Me' },
     ];
 
     return (
         <nav className="fixed bottom-0 left-0 right-0 z-50 max-w-[480px] mx-auto">
-            <div className="bg-base-100 backdrop-blur-xl border-t border-base-200 px-2 pb-[env(safe-area-inset-bottom)]">
+            <div className="bg-base-100/95 backdrop-blur-xl border-t border-base-200 px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-16px_32px_rgba(0,0,0,0.08)]">
                 <div className="flex items-end justify-around h-16">
                     {navItems.map((item, idx) => {
                         if (!item) {
@@ -31,10 +31,10 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentScreen, onNavigate, onQuic
                                     onClick={() => onQuickAction?.()}
                                     className="flex flex-col items-center -mt-7 group"
                                 >
-                                    <span className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/30 border-4 border-base-100 group-active:scale-90 transition-all duration-200 hover:shadow-xl hover:shadow-primary/40">
-                                        <span className="material-symbols-outlined text-primary-content text-3xl font-bold">add</span>
+                                    <span className="w-16 h-16 rounded-[22px] bg-neutral text-neutral-content flex items-center justify-center shadow-lg shadow-base-content/15 border-4 border-base-100 group-active:scale-90 transition-all duration-200 hover:shadow-xl hover:shadow-base-content/20">
+                                        <span className="material-symbols-outlined text-neutral-content text-3xl font-bold">add</span>
                                     </span>
-                                    <span className="text-[10px] font-semibold text-primary mt-0.5">Create</span>
+                                    <span className="text-[10px] font-black text-primary mt-0.5">Cook Up</span>
                                 </button>
                             );
                         }
@@ -48,9 +48,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentScreen, onNavigate, onQuic
                                     }`}
                             >
                                 {/* Active indicator dot */}
-                                {isActive && (
-                                    <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-primary" />
-                                )}
+                                {isActive && <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-primary" />}
                                 <div className="relative">
                                     <span className={`material-symbols-outlined text-xl transition-all ${isActive ? 'fill-icon scale-110' : ''}`}>
                                         {item.icon}

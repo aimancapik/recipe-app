@@ -73,7 +73,7 @@ const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({ isOpen, onClose, 
             onClick={onClose}
         >
             <div
-                className={`modal-box p-0 max-w-md bg-white overflow-hidden shadow-2xl flex flex-col max-h-[90vh] transition-all duration-300 transform ${showModal ? 'translate-y-0 scale-100' : 'translate-y-full sm:translate-y-10 sm:scale-95'}`}
+                className={`modal-box p-0 max-w-md bg-base-100 overflow-hidden shadow-2xl flex flex-col max-h-[90vh] transition-all duration-300 transform ${showModal ? 'translate-y-0 scale-100' : 'translate-y-full sm:translate-y-10 sm:scale-95'}`}
                 onClick={e => e.stopPropagation()}
             >
                 {/* Bottom Sheet Handle */}
@@ -83,11 +83,11 @@ const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({ isOpen, onClose, 
 
                 {/* Modal Header */}
                 <div className="px-6 pt-4 pb-2 text-center relative">
-                    <button onClick={onClose} className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 transition-colors">
+                    <button onClick={onClose} className="absolute right-4 top-4 text-base-content/40 hover:text-base-content/60 transition-colors">
                         <span className="material-symbols-outlined">close</span>
                     </button>
-                    <h2 className="text-[#181711] text-2xl font-bold leading-tight tracking-tight">Choose Your Avatar</h2>
-                    <p className="text-[#181711]/70 text-sm font-normal mt-2">Select a chef that matches your style or upload your own.</p>
+                    <h2 className="text-base-content text-2xl font-bold leading-tight tracking-tight">Choose Your Avatar</h2>
+                    <p className="text-base-content/70 text-sm font-normal mt-2">Select a chef that matches your style or upload your own.</p>
                 </div>
 
                 {/* Grid */}
@@ -105,18 +105,18 @@ const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({ isOpen, onClose, 
                         <button 
                             onClick={() => fileInputRef.current?.click()}
                             disabled={uploading}
-                            className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl border-2 border-dashed border-gray-300 hover:border-primary hover:bg-primary/5 transition-all group disabled:opacity-50"
+                            className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl border-2 border-dashed border-base-300 hover:border-primary hover:bg-primary/5 transition-all group disabled:opacity-50"
                         >
                             {uploading ? (
                                 <span className="loading loading-spinner text-primary"></span>
                             ) : (
-                                <div className="size-10 rounded-full bg-gray-100 group-hover:bg-primary/10 flex items-center justify-center transition-colors">
-                                    <span className="material-symbols-outlined text-gray-500 group-hover:text-primary transition-colors">upload</span>
+                                <div className="size-10 rounded-full bg-base-200 group-hover:bg-primary/10 flex items-center justify-center transition-colors">
+                                    <span className="material-symbols-outlined text-base-content/50 group-hover:text-primary transition-colors">upload</span>
                                 </div>
                             )}
                             <div className="text-left">
-                                <p className="text-sm font-bold text-[#181711]">{uploading ? 'Uploading...' : 'Upload own photo'}</p>
-                                <p className="text-xs text-gray-500 font-medium">JPEG, PNG, WEBP (Max 10MB)</p>
+                                <p className="text-sm font-bold text-base-content">{uploading ? 'Uploading...' : 'Upload own photo'}</p>
+                                <p className="text-xs text-base-content/50 font-medium">JPEG, PNG, WEBP (Max 10MB)</p>
                             </div>
                         </button>
                         
@@ -127,7 +127,7 @@ const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({ isOpen, onClose, 
                                     <div className="w-full h-full rounded-full overflow-hidden border-2 border-primary shadow-md">
                                         <img src={selectedId} alt="Custom Avatar" className="w-full h-full object-cover" />
                                     </div>
-                                    <div className="absolute -bottom-1 -right-1 bg-primary text-[#181711] rounded-full w-6 h-6 flex items-center justify-center border-2 border-white animate-in zoom-in duration-200 shadow-sm">
+                                    <div className="absolute -bottom-1 -right-1 bg-primary text-base-content rounded-full w-6 h-6 flex items-center justify-center border-2 border-white animate-in zoom-in duration-200 shadow-sm">
                                         <span className="material-symbols-outlined text-[14px] font-bold leading-none">check</span>
                                     </div>
                                 </div>
@@ -144,7 +144,7 @@ const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({ isOpen, onClose, 
                         )}
                     </div>
 
-                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Or pick a default</h3>
+                    <h3 className="text-xs font-black text-base-content/40 uppercase tracking-widest mb-4">Or pick a default</h3>
                     <div className="grid grid-cols-3 gap-6">
                         {AVATAR_OPTIONS.map((avatar) => {
                             const isSelected = selectedId === avatar.id;
@@ -154,19 +154,19 @@ const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({ isOpen, onClose, 
                                     className="group cursor-pointer flex flex-col items-center"
                                     onClick={() => setSelectedId(avatar.id)}
                                 >
-                                    <div className={`relative w-full aspect-square rounded-full border-4 transition-all duration-300 hover:scale-105 p-1 ${isSelected ? 'border-primary bg-primary/5' : 'border-transparent bg-gray-50'
+                                    <div className={`relative w-full aspect-square rounded-full border-4 transition-all duration-300 hover:scale-105 p-1 ${isSelected ? 'border-primary bg-primary/5' : 'border-transparent bg-base-200/60'
                                         }`}>
                                         <div
                                             className="w-full h-full rounded-full bg-center bg-no-repeat bg-cover overflow-hidden"
                                             style={{ backgroundImage: `url("${avatar.url}")` }}
                                         />
                                         {isSelected && (
-                                            <div className="absolute -bottom-1 -right-1 bg-primary text-[#181711] rounded-full w-6 h-6 flex items-center justify-center border-2 border-white animate-in zoom-in duration-200 shadow-sm">
+                                            <div className="absolute -bottom-1 -right-1 bg-primary text-base-content rounded-full w-6 h-6 flex items-center justify-center border-2 border-white animate-in zoom-in duration-200 shadow-sm">
                                                 <span className="material-symbols-outlined text-[14px] font-bold leading-none">check</span>
                                             </div>
                                         )}
                                     </div>
-                                    <span className={`mt-2 text-[10px] font-bold uppercase tracking-wider transition-colors ${isSelected ? 'text-primary' : 'text-gray-400'}`}>
+                                    <span className={`mt-2 text-[10px] font-bold uppercase tracking-wider transition-colors ${isSelected ? 'text-primary' : 'text-base-content/40'}`}>
                                         {avatar.label}
                                     </span>
                                 </div>
@@ -176,11 +176,11 @@ const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({ isOpen, onClose, 
                 </div>
 
                 {/* Footer */}
-                <div className="px-6 py-5 bg-white border-t border-gray-100">
+                <div className="px-6 py-5 bg-base-100 border-t border-base-200">
                     <button
                         disabled={!selectedId || uploading}
                         onClick={handleSave}
-                        className="w-full bg-primary text-[#181711] py-4 rounded-xl font-bold text-lg shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale"
+                        className="w-full bg-primary text-base-content py-4 rounded-xl font-bold text-lg shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale"
                     >
                         Save Avatar
                     </button>

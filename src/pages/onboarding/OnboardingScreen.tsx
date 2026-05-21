@@ -65,14 +65,14 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
                 {/* Illustration Circle */}
                 <div className={`relative size-64 rounded-[3rem] ${slide.bg} mb-12 flex items-center justify-center shadow-inner overflow-hidden`}>
                     <div className={`absolute inset-0 bg-gradient-to-br ${slide.color} opacity-20`}></div>
-                    <div className="absolute inset-4 bg-white/40 rounded-[2.5rem] backdrop-blur-md border border-white/50"></div>
+                    <div className="absolute inset-4 bg-base-100/40 rounded-[2.5rem] backdrop-blur-md border border-white/50"></div>
                     <span className={`material-symbols-outlined text-[100px] relative z-10 bg-gradient-to-br ${slide.color} bg-clip-text text-transparent drop-shadow-sm`}>
                         {slide.icon}
                     </span>
 
                     {/* Decorative elements */}
-                    <div className="absolute top-10 right-10 size-4 rounded-full bg-white animate-pulse-soft"></div>
-                    <div className="absolute bottom-12 left-12 size-6 rounded-full bg-white opacity-60 animate-bounce-in" style={{ animationDelay: '200ms' }}></div>
+                    <div className="absolute top-10 right-10 size-4 rounded-full bg-base-100 animate-pulse-soft"></div>
+                    <div className="absolute bottom-12 left-12 size-6 rounded-full bg-base-100 opacity-60 animate-bounce-in" style={{ animationDelay: '200ms' }}></div>
                 </div>
 
                 {/* Text Content */}

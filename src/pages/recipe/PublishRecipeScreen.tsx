@@ -509,7 +509,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({
                                                 />
                                             </div>
                                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                                <div className="size-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center">
+                                                <div className="size-10 rounded-full bg-base-100/20 backdrop-blur-md flex items-center justify-center">
                                                     <span className="material-symbols-outlined text-white text-xl">play_arrow</span>
                                                 </div>
                                             </div>
@@ -536,7 +536,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({
                                     {idx !== 0 && (
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setAsMain(idx); }}
-                                            className="absolute bottom-2 left-2 size-7 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-all shadow-sm opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                                            className="absolute bottom-2 left-2 size-7 rounded-full bg-base-100/90 backdrop-blur-sm flex items-center justify-center hover:bg-base-100 transition-all shadow-sm opacity-100 md:opacity-0 md:group-hover:opacity-100"
                                         >
                                             <span className="material-symbols-outlined text-base-content text-[16px]">star_border</span>
                                         </button>
@@ -544,7 +544,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({
 
                                     {/* Main cover indicator */}
                                     {idx === 0 && (
-                                        <div className="absolute bottom-2 left-2 size-7 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-sm">
+                                        <div className="absolute bottom-2 left-2 size-7 rounded-full bg-base-100/90 backdrop-blur-sm flex items-center justify-center shadow-sm">
                                             <span className="material-symbols-outlined text-amber-500 text-[16px] fill-1">star</span>
                                         </div>
                                     )}
@@ -1036,7 +1036,6 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({
                 {/* Hero Section */}
                 <div
                     className="flex flex-col justify-end overflow-hidden rounded-3xl min-h-[380px] relative shadow-2xl ring-1 ring-base-content/5"
-                    style={{ backgroundColor: '#f4e225' }}
                 >
                     {/* Background Gallery Scroll */}
                     <div className="absolute inset-0 flex overflow-x-auto snap-x snap-mandatory no-scrollbar">
@@ -1091,7 +1090,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({
                     {coverImages.length > 1 && (
                         <div className="absolute top-4 right-4 flex gap-1">
                             {coverImages.map((_, idx) => (
-                                <div key={idx} className="size-1.5 rounded-full bg-white/50" />
+                                <div key={idx} className="size-1.5 rounded-full bg-base-100/50" />
                             ))}
                         </div>
                     )}
@@ -1114,7 +1113,7 @@ const PublishRecipeScreen: React.FC<PublishRecipeScreenProps> = ({
                         )}
 
                         {/* Glassmorphic Stats Bar */}
-                        <div className="grid grid-cols-3 gap-2 p-1.5 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl">
+                        <div className="grid grid-cols-3 gap-2 p-1.5 rounded-2xl bg-base-100/10 backdrop-blur-xl border border-white/20 shadow-2xl">
                             <div className="flex flex-col items-center py-2 border-r border-white/10">
                                 <span className="material-symbols-outlined text-primary text-[20px] mb-0.5">timer</span>
                                 <span className="text-white text-xs font-bold">{prepTime || '0'}m</span>

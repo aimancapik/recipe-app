@@ -6,6 +6,7 @@ import { FilterOptions } from '@/pages/filter/FilterScreen';
 import RecipeMasonryGrid from '@/components/recipe/RecipeMasonryGrid';
 import { SkeletonGrid } from '@/components/common/SkeletonCard';
 import FridgeSearch from '@/components/explore/FridgeSearch';
+import EmptyState from '@/components/ui/EmptyState';
 
 interface ExploreScreenProps {
     recipes: Recipe[];
@@ -133,8 +134,13 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
         setSelectedCategory(catId);
     };
 
+    const applyQuickSearch = (value: string) => {
+        setSearch(value);
+        setSelectedCategory('all');
+    };
+
     return (
-        <div className="flex flex-col min-h-screen bg-base-100">
+        <div className="flex flex-col min-h-screen bg-base-100 lec-food-gradient">
             {/* Sticky Header */}
             <div className="sticky top-0 z-10 bg-base-100/95 backdrop-blur-md px-5 pt-8 pb-3 border-b border-base-200/60">
                 {/* Title row */}
@@ -246,6 +252,22 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
                         </button>
                     ))}
                 </div>
+                <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                    {[
+                        { label: 'Quick cooks', icon: 'timer', value: 'quick' },
+                        { label: 'Easy wins', icon: 'sentiment_satisfied', value: 'easy' },
+                        { label: 'Top rated', icon: 'star', value: '' },
+                    ].map(chip => (
+                        <button
+                            key={chip.label}
+                            onClick={() => applyQuickSearch(chip.value)}
+                            className="flex shrink-0 items-center gap-1.5 rounded-full bg-base-200/80 px-3 py-2 text-xs font-black text-base-content/60 transition-all hover:bg-primary/10 hover:text-primary"
+                        >
+                            <span className="material-symbols-outlined text-[16px]">{chip.icon}</span>
+                            {chip.label}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Main content */}
@@ -317,26 +339,17 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({
                         showCategory={selectedCategory === 'all'}
                     />
                 ) : (
-                    /* Empty state */
-                    <div className="flex flex-col items-center justify-center py-20 text-base-content/40 animate-fade-in">
-                        <div className="relative w-24 h-24 mb-6 flex items-center justify-center">
-                            <div className="absolute inset-0 bg-base-200/50 rounded-full animate-ping opacity-20" style={{ animationDuration: '3s' }} />
-                            <div className="absolute inset-2 bg-base-200 rounded-full animate-pulse-soft" />
-                            <div className="absolute inset-4 bg-base-300 rounded-full flex items-center justify-center shadow-inner">
-                                <span className="material-symbols-outlined text-4xl text-base-content/40 relative z-10">search_off</span>
-                            </div>
-                        </div>
-                        <p className="text-xl font-bold text-base-content/70 mb-2">No recipes found</p>
-                        <p className="text-sm text-center px-8 text-base-content/50 leading-relaxed mb-6 max-w-xs">
-                            Try a different keyword or adjust your filters.
-                        </p>
-                        <button
+                    <EmptyState
+                        icon="search_off"
+                        title="No recipes found"
+                        body="Try a different keyword or adjust your filters."
+                        action={<button
                             onClick={() => { setSearch(''); setSelectedCategory('all'); setFridgeIngredients([]); onClearFilters(); }}
                             className="btn btn-outline btn-primary rounded-xl h-10 px-6 font-semibold"
                         >
                             Reset Search &amp; Filters
-                        </button>
-                    </div>
+                        </button>}
+                    />
                 )}
             </main>
 

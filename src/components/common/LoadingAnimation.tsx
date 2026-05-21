@@ -25,7 +25,7 @@ const LoadingAnimation: React.FC<LoadingAnimationProps> = ({
                 />
             </div>
             {text && (
-                <span className="text-xs text-gray-400 font-medium tracking-wide uppercase mt-2">
+                <span className="text-xs text-base-content/40 font-medium tracking-wide uppercase mt-2">
                     {text}
                 </span>
             )}
@@ -34,7 +34,7 @@ const LoadingAnimation: React.FC<LoadingAnimationProps> = ({
 
     if (fullScreen) {
         return (
-            <div className="fixed inset-0 z-[100] bg-white flex items-center justify-center overflow-hidden">
+            <div className="fixed inset-0 z-[100] bg-base-100 flex items-center justify-center overflow-hidden">
                 {animation}
             </div>
         );

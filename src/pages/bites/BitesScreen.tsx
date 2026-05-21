@@ -492,7 +492,7 @@ const VideoSlide: React.FC<VideoSlideProps> = ({
 
       {/* ── Progress Bar ─────────────────────────────────────── */}
       {isActive && !isYouTube && (
-        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-white/20 z-[10]">
+        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-base-100/20 z-[10]">
           <div
             className="h-full bg-primary transition-all duration-100 ease-linear shadow-[0_0_8px_rgba(255,255,255,0.5)]"
             style={{ width: `${progress}%` }}

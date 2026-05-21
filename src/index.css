@@ -1,15 +1,82 @@
 @import "tailwindcss";
 
 @plugin "daisyui" {
-  themes: bumblebee --default, dark;
+  themes: letemcook-light --default, letemcook-dark;
+}
+
+@plugin "daisyui/theme" {
+  name: "letemcook-light";
+  default: true;
+  color-scheme: light;
+  --color-base-100: #fffdf8;
+  --color-base-200: #faf4ea;
+  --color-base-300: #efe5d6;
+  --color-base-content: #241c16;
+  --color-primary: #a94735;
+  --color-primary-content: #fff8ef;
+  --color-secondary: #66765a;
+  --color-secondary-content: #fffdf8;
+  --color-accent: #b88a4a;
+  --color-accent-content: #241c16;
+  --color-neutral: #2d241d;
+  --color-neutral-content: #fffdf8;
+  --color-info: #347c9f;
+  --color-info-content: #f7fbff;
+  --color-success: #557a58;
+  --color-success-content: #f7fff9;
+  --color-warning: #c99a4b;
+  --color-warning-content: #2b1b05;
+  --color-error: #b94a3a;
+  --color-error-content: #fff7f4;
+  --radius-selector: 1rem;
+  --radius-field: 1rem;
+  --radius-box: 1.25rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+@plugin "daisyui/theme" {
+  name: "letemcook-dark";
+  color-scheme: dark;
+  --color-base-100: #211a16;
+  --color-base-200: #15110f;
+  --color-base-300: #30261f;
+  --color-base-content: #f3e7d8;
+  --color-primary: #c76550;
+  --color-primary-content: #1f100c;
+  --color-secondary: #8b9b74;
+  --color-secondary-content: #12170f;
+  --color-accent: #d0a463;
+  --color-accent-content: #1f1607;
+  --color-neutral: #f3e7d8;
+  --color-neutral-content: #211a16;
+  --color-info: #75b9d4;
+  --color-info-content: #071820;
+  --color-success: #7ea578;
+  --color-success-content: #07160b;
+  --color-warning: #d6ae68;
+  --color-warning-content: #241703;
+  --color-error: #d46a5c;
+  --color-error-content: #240908;
+  --radius-selector: 1rem;
+  --radius-field: 1rem;
+  --radius-box: 1.25rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
 }
 
 @theme {
   --font-display: "Work Sans", sans-serif;
   --font-handwriting: "Caveat", cursive;
-  --color-primary-custom: #f4e225;
-  --color-background-light: #f8f8f5;
-  --color-background-dark: #222110;
+  --color-primary-custom: #a94735;
+  --color-background-light: #faf4ea;
+  --color-background-dark: #15110f;
 }
 
 @layer base {
@@ -17,6 +84,9 @@
     font-family: var(--font-display);
     min-height: 100vh;
     min-height: 100dvh;
+    background:
+      radial-gradient(circle at top left, color-mix(in srgb, var(--color-primary-custom) 7%, transparent), transparent 34rem),
+      var(--color-background-light);
   }
 
   /* Consistent focus styling for all form inputs */
@@ -55,7 +125,7 @@
 @media (min-width: 640px) {
   #root {
     max-width: 480px;
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 0 44px color-mix(in srgb, var(--color-base-content) 11%, transparent);
     min-height: 100dvh;
   }
 }
@@ -82,6 +152,41 @@
 
 .fill-1 {
   font-variation-settings: 'FILL' 1;
+}
+
+.lec-surface {
+  background: color-mix(in srgb, var(--color-base-100) 88%, var(--color-base-200));
+  border: 1px solid color-mix(in srgb, var(--color-base-content) 8%, transparent);
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--color-base-content) 8%, transparent);
+}
+
+.lec-card {
+  border-radius: 1.25rem;
+  background: var(--color-base-100);
+  border: 1px solid color-mix(in srgb, var(--color-base-content) 8%, transparent);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--color-base-content) 6%, transparent);
+}
+
+.lec-card-compact {
+  border-radius: 1rem;
+  background: var(--color-base-100);
+  border: 1px solid color-mix(in srgb, var(--color-base-content) 8%, transparent);
+}
+
+.lec-food-gradient {
+  background:
+    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 18rem),
+    radial-gradient(circle at 82% 12%, color-mix(in srgb, var(--color-secondary) 8%, transparent), transparent 18rem),
+    linear-gradient(180deg, var(--color-base-100), var(--color-base-200));
+}
+
+.lec-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary);
 }
 
 @keyframes success-pulse {

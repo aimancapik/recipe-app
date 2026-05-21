@@ -225,7 +225,7 @@ const CookingModeScreen: React.FC<CookingModeScreenProps> = ({ recipe, onExit })
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-base-100 flex flex-col select-none">
+    <div className="fixed inset-0 z-50 bg-base-100 lec-food-gradient flex flex-col select-none">
 
       {/* ── Top progress bar ── */}
       <div className="absolute top-0 left-0 right-0 z-50 h-0.5 bg-base-300">
@@ -236,7 +236,7 @@ const CookingModeScreen: React.FC<CookingModeScreenProps> = ({ recipe, onExit })
       </div>
 
       {/* ── Header ── */}
-      <header className="relative z-40 flex items-center gap-3 px-4 pt-5 pb-3">
+      <header className="relative z-40 flex items-center gap-3 px-4 pt-5 pb-3 bg-base-100/85 backdrop-blur-xl border-b border-base-200/60">
         <button
           onClick={handleExit}
           className="size-10 flex items-center justify-center rounded-full bg-base-200 hover:bg-base-300 transition-colors shrink-0"
@@ -245,7 +245,7 @@ const CookingModeScreen: React.FC<CookingModeScreenProps> = ({ recipe, onExit })
         </button>
 
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Now Cooking</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-primary">Now Cooking</p>
           <h1 className="font-bold text-base text-base-content truncate leading-tight">{recipe.title}</h1>
         </div>
 
@@ -317,7 +317,7 @@ const CookingModeScreen: React.FC<CookingModeScreenProps> = ({ recipe, onExit })
       )}
 
       {/* ── Bottom Navigation Bar ── */}
-      <div className="relative z-40 px-4 pb-6 pt-3 bg-base-100 border-t border-base-200">
+        <div className="relative z-40 px-4 pb-6 pt-3 bg-base-100/95 backdrop-blur-xl border-t border-base-200">
         {/* Step dots */}
         <div className="flex justify-center gap-1.5 mb-4">
           {Array.from({ length: totalSteps }).map((_, idx) => (
@@ -350,7 +350,7 @@ const CookingModeScreen: React.FC<CookingModeScreenProps> = ({ recipe, onExit })
             onClick={(e) => { e.stopPropagation(); toggleStepComplete(currentStep); if ('vibrate' in navigator) navigator.vibrate(50); }}
             className={`flex-1 h-12 flex items-center justify-center gap-2 rounded-2xl font-bold transition-all active:scale-95 ${
               isCurrentCompleted
-                ? 'bg-primary text-primary-content shadow-lg shadow-primary/30'
+                ? 'bg-secondary text-secondary-content shadow-lg shadow-secondary/30'
                 : 'bg-base-200 text-base-content hover:bg-base-300'
             }`}
           >
@@ -371,7 +371,7 @@ const CookingModeScreen: React.FC<CookingModeScreenProps> = ({ recipe, onExit })
         </div>
 
         <p className="text-center text-[11px] text-base-content/30 mt-3 font-medium">
-          {completedSteps.size} of {totalSteps} steps done · double-tap to complete
+          Swipe or use arrows for steps. Double-tap the card to mark done.
         </p>
       </div>
 
@@ -593,7 +593,9 @@ const CookingModeScreen: React.FC<CookingModeScreenProps> = ({ recipe, onExit })
       {showCompletion && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
           <div className="bg-base-100 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
-            <div className="text-6xl mb-4">🎉</div>
+            <div className="mx-auto mb-4 flex size-20 items-center justify-center rounded-[24px] bg-secondary/10 text-secondary">
+              <span className="material-symbols-outlined text-5xl fill-1">celebration</span>
+            </div>
             <h2 className="text-2xl font-bold mb-1">All Done!</h2>
             <p className="text-base-content/50 text-sm mb-1">You've completed every step of</p>
             <p className="font-bold text-base text-primary mb-8 line-clamp-2">{recipe.title}</p>

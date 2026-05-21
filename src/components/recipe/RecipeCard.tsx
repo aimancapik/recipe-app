@@ -102,7 +102,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onClick, onToggleFavori
 
     return (
         <div
-            className="group relative bg-base-100 rounded-2xl cursor-pointer active:scale-[0.97] transition-all duration-300 overflow-hidden break-inside-avoid mb-4 shadow-sm hover:shadow-xl hover:shadow-base-content/5 border border-base-200/80"
+            className="group relative lec-card cursor-pointer active:scale-[0.97] transition-all duration-300 overflow-hidden break-inside-avoid mb-4 hover:shadow-xl hover:shadow-primary/10"
             onClick={() => onClick(recipe)}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
@@ -148,7 +148,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onClick, onToggleFavori
                                 onError={() => setImgError(true)}
                             />
                         ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                            <div className="w-full h-full bg-gradient-to-br from-primary/15 via-base-200 to-secondary/15 flex items-center justify-center">
                                 <span className="material-symbols-outlined text-4xl text-base-content/20">restaurant</span>
                             </div>
                         )}
@@ -191,14 +191,14 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onClick, onToggleFavori
                 <div className="absolute bottom-2.5 right-2.5">
                     <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-black/50 backdrop-blur-md">
                         <span className="material-symbols-outlined text-white text-xs">schedule</span>
-                        <span className="text-[10px] text-white font-semibold">{recipe.prepTime}</span>
+                        <span className="text-[10px] text-white font-semibold">{recipe.prepTime || 'Quick'}</span>
                     </div>
                 </div>
             </figure>
 
             {/* Content */}
             <div className="p-3 space-y-1.5">
-                <h4 className="font-bold text-sm leading-snug line-clamp-2 text-base-content">{recipe.title}</h4>
+                <h4 className="font-black text-sm leading-snug line-clamp-2 text-base-content">{recipe.title}</h4>
                 <div className="flex items-center justify-between">
                     {/* Chef Attribution */}
                     {chef ? (
@@ -233,7 +233,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onClick, onToggleFavori
 
                     {/* Rating */}
                     <div className="flex items-center gap-1 text-xs shrink-0">
-                        <span className="material-symbols-outlined text-sm text-amber-400 fill-1">star</span>
+                        <span className="material-symbols-outlined text-sm text-warning fill-1">star</span>
                         <span className="font-bold text-base-content">{recipe.rating}</span>
                     </div>
                 </div>
