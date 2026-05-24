@@ -31,6 +31,10 @@ const resolveCardImage = (recipe: { image?: string; images?: string[] }): string
 const ShareableCard: React.FC<ShareableCardProps> = ({ recipe, onClose }) => {
     const cardRef = useRef<HTMLDivElement>(null);
     const cardImage = resolveCardImage(recipe);
+    // Add cache buster to bypass browser cache CORS issues with html2canvas
+    const corsImage = cardImage && cardImage.startsWith('http')
+        ? `${cardImage}${cardImage.includes('?') ? '&' : '?'}t=${Date.now()}`
+        : cardImage;
     const [isSharing, setIsSharing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState('');
@@ -88,7 +92,11 @@ const ShareableCard: React.FC<ShareableCardProps> = ({ recipe, onClose }) => {
                 await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
                 setSaveMessage('Link copied to clipboard');
             }
-        } catch {
+        } catch (err: any) {
+            if (err?.name === 'AbortError') {
+                setSaveMessage('');
+                return;
+            }
             await handleShare();
         } finally {
             setIsSharing(false);
@@ -116,7 +124,10 @@ const ShareableCard: React.FC<ShareableCardProps> = ({ recipe, onClose }) => {
             const filename = `${recipe.title.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-') || 'recipe-card'}.png`;
             const file = new File([blob], filename, { type: 'image/png' });
 
-            if (navigator.canShare?.({ files: [file] })) {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                          (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+
+            if (isIOS && navigator.canShare?.({ files: [file] })) {
                 await navigator.share({
                     title: recipe.title,
                     text: `Cook ${recipe.title} on WhatsCookin`,
@@ -139,7 +150,11 @@ const ShareableCard: React.FC<ShareableCardProps> = ({ recipe, onClose }) => {
                 URL.revokeObjectURL(url);
             }, 1000);
             setSaveMessage('Image saved');
-        } catch {
+        } catch (err: any) {
+            if (err?.name === 'AbortError') {
+                setSaveMessage('');
+                return;
+            }
             setSaveMessage('Could not save image. Try Share instead.');
         } finally {
             setIsSaving(false);
@@ -156,12 +171,11 @@ const ShareableCard: React.FC<ShareableCardProps> = ({ recipe, onClose }) => {
             >
                 {/* Hero image */}
                 <div className="relative h-64">
-                    <img src={cardImage} alt={recipe.title} className="w-full h-full object-cover" crossOrigin="anonymous" />
+                    <img src={corsImage} alt={recipe.title} className="w-full h-full object-cover" crossOrigin="anonymous" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                     {/* App watermark */}
-                    <div className="absolute top-3 right-3 bg-base-100/90 backdrop-blur-sm rounded-full px-3 py-1 flex items-center gap-1.5">
+                    <div className="absolute top-3 right-3 bg-base-100/90 backdrop-blur-sm rounded-full px-3 py-1 flex items-center">
                         <span className="text-xs font-black text-orange-500">WhatsCookin</span>
-                        <span className="text-base">👨‍🍳</span>
                     </div>
                     <div className="absolute bottom-4 left-4 right-4">
                         <h2 className="text-white font-black text-xl leading-tight">{recipe.title}</h2>

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useMadeIt } from '@/hooks/cooking/useMadeIt';
 import { getAvatarUrl } from '@/constants/avatars';
 
@@ -12,6 +12,16 @@ const MadeItSection: React.FC<MadeItSectionProps> = ({ recipeId, userId, onRequi
     const { madeItList, hasMadeIt, count, loading, markMadeIt, unmarkMadeIt } = useMadeIt(recipeId, userId);
     const [showPhotoPrompt, setShowPhotoPrompt] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (showPhotoPrompt) {
+            const prevOverflow = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+            return () => {
+                document.body.style.overflow = prevOverflow;
+            };
+        }
+    }, [showPhotoPrompt]);
 
     const handleMadeIt = () => {
         onRequireAuth(() => {
