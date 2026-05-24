@@ -2,9 +2,9 @@ import { Recipe } from '@/types';
 import { getFoodImage } from '@/services/foodImageService';
 
 // Environment variables
-const API_URL = import.meta.env.VITE_LLAMA_API_URL || 'http://localhost:3000/api/chat/completions';
-const API_KEY = import.meta.env.VITE_LLAMA_API_KEY || ''; // Optional Bearer token
-const MODEL = import.meta.env.VITE_LLAMA_MODEL || 'llama3.2:1b';
+const API_URL = 'https://api.openai.com/v1/chat/completions';
+const API_KEY = import.meta.env.VITE_OPENAI_API_KEY || '';
+const MODEL = import.meta.env.VITE_OPENAI_MODEL || 'gpt-4o-mini';
 
 const SYSTEM_PROMPT = `
 You are a world-class professional chef and recipe creator. When given ingredients, you MUST create a DETAILED, realistic, and delicious recipe that someone would actually want to cook.
@@ -72,12 +72,13 @@ export const generateRecipeFromIngredients = async (
                     { role: "system", content: SYSTEM_PROMPT },
                     { role: "user", content: userMessage }
                 ],
+                response_format: { type: "json_object" },
             }),
         });
 
         if (!response.ok) {
-            console.error('Llama API Error:', response.statusText);
-            throw new Error('Failed to fetch from Llama API');
+            console.error('OpenAI API Error:', response.statusText);
+            throw new Error('Failed to fetch from OpenAI API');
         }
 
         const data = await response.json();
@@ -151,6 +152,7 @@ export const generateRecipeFromIngredients = async (
             directions: safeDirections,
             category: parsed.category || 'popular',
             isFavorite: false,
+            source: 'ai_generated',
         };
 
         return recipe;

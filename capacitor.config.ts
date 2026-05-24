@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.letemcook.app',
-  appName: 'Let Em Cook',
+  appId: 'com.whatscookin.app',
+  appName: 'WhatsCookin',
   webDir: 'dist'
 };
 

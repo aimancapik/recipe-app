@@ -24,6 +24,8 @@ const NotificationScreen= lazy(() => import('@/pages/notifications/NotificationS
 const MealPlanScreen    = lazy(() => import('@/pages/meal-plan/MealPlanScreen'));
 const MessagesScreen    = lazy(() => import('@/pages/messages/MessagesScreen'));
 const ChatScreen        = lazy(() => import('@/pages/messages/ChatScreen'));
+const RecipeImportScreen= lazy(() => import('@/pages/recipe-extract/RecipeImportScreen'));
+const ImportPreviewScreen=lazy(() => import('@/pages/recipe-extract/ImportPreviewScreen'));
 
 export interface AppCtx {
     // ── Navigation ────────────────────────────────────────────────────────────
@@ -56,6 +58,7 @@ export interface AppCtx {
     handleUpdateRecipe: (id: string, data: RecipeFormData) => Promise<void>;
     handleSaveDraftRecipe: (data: RecipeFormData) => Promise<void>;
     handleAIPublish: () => Promise<void>;
+    handleSaveImportedRecipe: (recipe: Recipe) => Promise<void>;
     handleDeleteRecipe: (id: string) => Promise<void>;
     handleToggleFavorite: (id: string) => void;
     handleSeeAll: (category?: string) => void;
@@ -99,8 +102,6 @@ export interface AppCtx {
     addFromRecipe: (recipe: Recipe) => void;
 
     // ── UI ────────────────────────────────────────────────────────────────────
-    isDark: boolean;
-    toggleTheme: () => void;
     setIsNavHidden: (v: boolean) => void;
     searchQuery: string;
     initialCategory: string | null;
@@ -145,7 +146,7 @@ const ScreenRenderer: React.FC<Props> = ({ ctx }) => {
         isFavorite, savedInitialTab, setSavedInitialTab,
         bitesActiveIndex, setBitesActiveIndex,
         handlePublishRecipe, handleUpdateRecipe, handleSaveDraftRecipe,
-        handleAIPublish, handleDeleteRecipe, handleToggleFavorite,
+        handleAIPublish, handleSaveImportedRecipe, handleDeleteRecipe, handleToggleFavorite,
         handleSeeAll, handleRefresh, addIngredientsToGrocery,
         updateStatus, refreshUserRecipes, fetchRecipes, fetchRecipesByIds,
         loadMore, hasMore, loadingMore, loading,
@@ -155,7 +156,7 @@ const ScreenRenderer: React.FC<Props> = ({ ctx }) => {
         removeGroceryItem, updateGroceryItem,
         clearCheckedGroceryItems, clearAllGroceryItems,
         mealSlots, mealPlanLoading, addSlot, removeSlot, clearDay, addFromRecipe,
-        isDark, toggleTheme, setIsNavHidden,
+        setIsNavHidden,
         searchQuery, initialCategory, filters, setFilters,
         conversations, messages, loadingConvos, loadingMessages,
         activeConversation, setActiveConversation,
@@ -192,8 +193,7 @@ const ScreenRenderer: React.FC<Props> = ({ ctx }) => {
                     onSeeAll={handleSeeAll}
                     onOpenGrocery={() => requireAuth(() => { setSubScreenReturnTo(Screen.HOME); navigateTo(Screen.GROCERY); }, Screen.HOME)}
                     onOpenNotifications={() => requireAuth(() => { setSubScreenReturnTo(Screen.HOME); navigateTo(Screen.NOTIFICATION); }, Screen.HOME)}
-                    isDark={isDark}
-                    onToggleTheme={toggleTheme}
+                    onOpenImport={() => navigateTo(Screen.IMPORT)}
                     user={user}
                     onLoadMore={loadMore}
                     hasMore={hasMore}
@@ -204,6 +204,34 @@ const ScreenRenderer: React.FC<Props> = ({ ctx }) => {
                     onPullRefresh={() => fetchRecipes(false)}
                 />
             );
+
+        case Screen.IMPORT:
+            return (
+                <RecipeImportScreen
+                    onBack={() => setCurrentScreen(Screen.HOME)}
+                    onRecipeReady={(recipe) => {
+                        setSelectedRecipe(recipe);
+                        setCurrentScreen(Screen.IMPORT_PREVIEW);
+                    }}
+                />
+            );
+
+        case Screen.IMPORT_PREVIEW:
+            return selectedRecipe ? (
+                <ImportPreviewScreen
+                    recipe={selectedRecipe}
+                    onBack={() => setCurrentScreen(Screen.IMPORT)}
+                    onSave={(recipe) => requireAuth(() => handleSaveImportedRecipe(recipe), Screen.IMPORT_PREVIEW)}
+                    onEdit={(recipe) => {
+                        requireAuth(() => {
+                            setEditingRecipe(recipe);
+                            setSelectedRecipe(recipe);
+                            setSubScreenReturnTo(Screen.IMPORT_PREVIEW);
+                            setCurrentScreen(Screen.PUBLISH);
+                        }, Screen.IMPORT_PREVIEW);
+                    }}
+                />
+            ) : null;
 
         // ── Notifications ─────────────────────────────────────────────────────
         case Screen.NOTIFICATION:
@@ -308,8 +336,6 @@ const ScreenRenderer: React.FC<Props> = ({ ctx }) => {
             return (
                 <ProfileScreen
                     onBack={() => setCurrentScreen(Screen.HOME)}
-                    isDark={isDark}
-                    onToggleTheme={toggleTheme}
                     user={user}
                     onSignOut={signOut}
                     onUpdateProfile={updateProfile}

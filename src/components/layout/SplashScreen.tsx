@@ -14,9 +14,7 @@ const SplashScreen: React.FC = () => {
     return (
         <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden bg-base-100">
 
-            {/* Logo + wordmark */}
             <div className="relative flex flex-col items-center">
-                {/* Logo */}
                 <div
                     className="transition-all duration-700 ease-out"
                     style={{
@@ -24,13 +22,20 @@ const SplashScreen: React.FC = () => {
                         transform: phase >= 1 ? 'scale(1) translateY(0)' : 'scale(0.7) translateY(24px)',
                     }}
                 >
-                    <div className="mb-6">
-                        <img
-                            src="/logo.png"
-                            alt="Let Em Cook"
-                            className="w-screen max-w-sm object-contain drop-shadow-2xl"
-                        />
+                    <div className="mb-6 grid size-28 place-items-center rounded-[2rem] wc-gradient text-primary-content shadow-2xl wc-glow">
+                        <span className="material-symbols-outlined text-6xl">soup_kitchen</span>
                     </div>
+                </div>
+
+                <div
+                    className="text-center transition-all duration-700 ease-out"
+                    style={{
+                        opacity: phase >= 2 ? 1 : 0,
+                        transform: phase >= 2 ? 'translateY(0)' : 'translateY(16px)',
+                    }}
+                >
+                    <h1 className="text-4xl font-black tracking-tight text-base-content">WhatsCookin</h1>
+                    <p className="mt-2 text-sm font-bold text-primary">What ingredients do you have?</p>
                 </div>
 
             </div>
@@ -45,7 +50,7 @@ const SplashScreen: React.FC = () => {
                         key={i}
                         className="w-1.5 h-1.5 rounded-full"
                         style={{
-                            background: '#f97316',
+                            background: 'var(--color-primary)',
                             animation: `splashDot 1.2s ease-in-out ${i * 0.2}s infinite`,
                         }}
                     />

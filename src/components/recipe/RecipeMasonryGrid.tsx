@@ -26,8 +26,8 @@ const RecipeMasonryGrid: React.FC<RecipeMasonryGridProps> = ({
     const right = recipes.filter((_, i) => i % 2 !== 0);
 
     return (
-        <div className="flex gap-4">
-            <div className="flex-1 flex flex-col gap-4">
+        <div className="flex gap-2.5">
+            <div className="flex-1 flex flex-col gap-2.5">
                 {left.map((recipe, index) => (
                     <RecipeCard
                         key={recipe.id}
@@ -42,7 +42,7 @@ const RecipeMasonryGrid: React.FC<RecipeMasonryGridProps> = ({
                     />
                 ))}
             </div>
-            <div className="flex-1 flex flex-col gap-4">
+            <div className="flex-1 flex flex-col gap-2.5">
                 {right.map((recipe, index) => (
                     <RecipeCard
                         key={recipe.id}

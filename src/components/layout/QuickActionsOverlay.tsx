@@ -5,6 +5,7 @@ interface QuickActionsOverlayProps {
     isOpen: boolean;
     onClose: () => void;
     onCreateRecipe: () => void;
+    onImportRecipe?: () => void;
     onAddToShoppingList: () => void;
     onPlanMeal?: () => void;
     onModalToggle?: (hidden: boolean) => void;
@@ -14,6 +15,7 @@ const QuickActionsOverlay: React.FC<QuickActionsOverlayProps> = ({
     isOpen,
     onClose,
     onCreateRecipe,
+    onImportRecipe,
     onAddToShoppingList,
     onPlanMeal,
     onModalToggle,
@@ -62,6 +64,20 @@ const QuickActionsOverlay: React.FC<QuickActionsOverlayProps> = ({
                             <p className="text-base-content/60 text-xs font-medium">Share your best kitchen move</p>
                         </div>
                         <span className="material-symbols-outlined text-primary/50 group-hover:text-primary transition-colors">chevron_right</span>
+                    </button>
+
+                    <button
+                        onClick={() => { onClose(); onImportRecipe?.(); }}
+                        className="w-full bg-secondary/10 hover:bg-secondary/20 active:scale-[0.98] transition-all p-4 rounded-2xl flex items-center gap-4 group border border-secondary/20"
+                    >
+                        <div className="w-12 h-12 rounded-full bg-secondary text-secondary-content flex items-center justify-center shadow-lg shadow-secondary/20 group-hover:scale-110 transition-transform">
+                            <span className="material-symbols-outlined text-2xl">download</span>
+                        </div>
+                        <div className="flex-1 text-left">
+                            <h3 className="text-base-content font-black text-lg">Import Recipe</h3>
+                            <p className="text-base-content/60 text-xs font-medium">Save from URL, photo, or text</p>
+                        </div>
+                        <span className="material-symbols-outlined text-secondary/50 group-hover:text-secondary transition-colors">chevron_right</span>
                     </button>
 
                     {/* Secondary Actions Grid */}

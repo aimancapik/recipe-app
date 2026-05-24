@@ -199,13 +199,13 @@ const MealPlanScreen: React.FC<MealPlanScreenProps> = ({
         [slotsByDay, selectedDay],
     );
 
-    const allAssignedIds = useMemo(() => {
+    const selectedDayRecipeIds = useMemo(() => {
         const seen = new Set<string>();
-        return slots.reduce<string[]>((acc, s) => {
+        return slots.filter(s => s.day === selectedDay).reduce<string[]>((acc, s) => {
             if (!seen.has(s.recipeId)) { seen.add(s.recipeId); acc.push(s.recipeId); }
             return acc;
         }, []);
-    }, [slots]);
+    }, [slots, selectedDay]);
 
     const handlePickerOpen = useCallback((day: MealDay, mealType: MealType) => {
         setPickerTarget({ day, mealType });
@@ -399,14 +399,14 @@ const MealPlanScreen: React.FC<MealPlanScreenProps> = ({
             </main>
 
             {/* ── Bottom CTA ─────────────────────────────────────── */}
-            {allAssignedIds.length > 0 && (
+            {selectedDayRecipeIds.length > 0 && (
                 <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-gradient-to-t from-base-100 via-base-100/95 to-transparent">
                     <button
                         onClick={async () => {
                             if (isGenerating) return;
                             setIsGenerating(true);
                             try {
-                                await onGenerateGrocery(allAssignedIds);
+                                await onGenerateGrocery(selectedDayRecipeIds);
                             } finally {
                                 setIsGenerating(false);
                             }
@@ -421,7 +421,7 @@ const MealPlanScreen: React.FC<MealPlanScreenProps> = ({
                         )}
                         {isGenerating ? 'Generating...' : 'Generate Grocery List'}
                         {!isGenerating && (
-                            <span className="badge badge-primary-content bg-primary-content/20 badge-sm font-bold">{slots.length} meals</span>
+                            <span className="badge badge-primary-content bg-primary-content/20 badge-sm font-bold">{selectedDayRecipeIds.length} meals</span>
                         )}
                     </button>
                 </div>

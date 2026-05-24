@@ -9,3 +9,4 @@
 
 # SQL
 *.sql
+!add_ingredient_matching.sql

@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useState } from 'react';
 import { Recipe } from '@/types';
 
 interface ShareableCardProps {
@@ -31,11 +31,32 @@ const resolveCardImage = (recipe: { image?: string; images?: string[] }): string
 const ShareableCard: React.FC<ShareableCardProps> = ({ recipe, onClose }) => {
     const cardRef = useRef<HTMLDivElement>(null);
     const cardImage = resolveCardImage(recipe);
+    const [isSharing, setIsSharing] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveMessage, setSaveMessage] = useState('');
+
+    const renderCardFile = useCallback(async () => {
+        if (!cardRef.current) throw new Error('Card is not ready');
+        const { default: html2canvas } = await import('html2canvas');
+        const canvas = await html2canvas(cardRef.current, {
+            useCORS: true,
+            allowTaint: false,
+            backgroundColor: null,
+            logging: false,
+            imageTimeout: 8000,
+            scale: Math.min(window.devicePixelRatio || 2, 2),
+        });
+        const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'));
+        if (!blob) throw new Error('Could not render image');
+
+        const filename = `${recipe.title.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-') || 'recipe-card'}.png`;
+        return new File([blob], filename, { type: 'image/png' });
+    }, [recipe.title]);
 
     const handleShare = useCallback(async () => {
         const shareData = {
             title: recipe.title,
-            text: `🍳 ${recipe.title}\n⏱ ${recipe.prepTime} · ⭐ ${recipe.rating.toFixed(1)} · 🔥 ${recipe.kcal} kcal\n\nMade with Let Em Cook 👨‍🍳`,
+            text: `🍳 ${recipe.title}\n⏱ ${recipe.prepTime} · ⭐ ${recipe.rating.toFixed(1)} · 🔥 ${recipe.kcal} kcal\n\nMade with WhatsCookin 👨‍🍳`,
             url: `${window.location.origin}/recipe/${recipe.id}`,
         };
         try {
@@ -47,20 +68,83 @@ const ShareableCard: React.FC<ShareableCardProps> = ({ recipe, onClose }) => {
         } catch { /* user cancelled */ }
     }, [recipe]);
 
+    const handleShareWithImage = useCallback(async () => {
+        if (isSharing) return;
+        const shareData = {
+            title: recipe.title,
+            text: `Cook ${recipe.title} on WhatsCookin`,
+            url: `${window.location.origin}/recipe/${recipe.id}`,
+        };
+        setIsSharing(true);
+        setSaveMessage('');
+        try {
+            const file = await renderCardFile();
+            if (navigator.canShare?.({ files: [file] })) {
+                await navigator.share({ ...shareData, files: [file] });
+                setSaveMessage('Shared with image');
+            } else if (navigator.share) {
+                await navigator.share(shareData);
+            } else {
+                await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
+                setSaveMessage('Link copied to clipboard');
+            }
+        } catch {
+            await handleShare();
+        } finally {
+            setIsSharing(false);
+        }
+    }, [recipe, isSharing, renderCardFile, handleShare]);
+
     const handleDownload = useCallback(async () => {
-        // Use html2canvas if available, else fallback to share text
+        if (!cardRef.current || isSaving) return;
+        setIsSaving(true);
+        setSaveMessage('');
+
         try {
             const { default: html2canvas } = await import('html2canvas');
-            if (!cardRef.current) return;
-            const canvas = await html2canvas(cardRef.current, { useCORS: true, scale: 2 });
+            const canvas = await html2canvas(cardRef.current, {
+                useCORS: true,
+                allowTaint: false,
+                backgroundColor: null,
+                logging: false,
+                imageTimeout: 8000,
+                scale: Math.min(window.devicePixelRatio || 2, 2),
+            });
+            const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'));
+            if (!blob) throw new Error('Could not render image');
+
+            const filename = `${recipe.title.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-') || 'recipe-card'}.png`;
+            const file = new File([blob], filename, { type: 'image/png' });
+
+            if (navigator.canShare?.({ files: [file] })) {
+                await navigator.share({
+                    title: recipe.title,
+                    text: `Cook ${recipe.title} on WhatsCookin`,
+                    files: [file],
+                });
+                setSaveMessage('Image ready to save');
+                return;
+            }
+
+            const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
-            link.download = `${recipe.title.replace(/\s+/g, '-')}.png`;
-            link.href = canvas.toDataURL();
+            link.href = url;
+            link.download = filename;
+            link.rel = 'noopener';
+            link.style.display = 'none';
+            document.body.appendChild(link);
             link.click();
+            window.setTimeout(() => {
+                link.remove();
+                URL.revokeObjectURL(url);
+            }, 1000);
+            setSaveMessage('Image saved');
         } catch {
-            handleShare();
+            setSaveMessage('Could not save image. Try Share instead.');
+        } finally {
+            setIsSaving(false);
         }
-    }, [recipe, handleShare]);
+    }, [recipe, isSaving]);
 
     return (
         <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 gap-4">
@@ -76,7 +160,7 @@ const ShareableCard: React.FC<ShareableCardProps> = ({ recipe, onClose }) => {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                     {/* App watermark */}
                     <div className="absolute top-3 right-3 bg-base-100/90 backdrop-blur-sm rounded-full px-3 py-1 flex items-center gap-1.5">
-                        <span className="text-xs font-black text-orange-500">Let Em Cook</span>
+                        <span className="text-xs font-black text-orange-500">WhatsCookin</span>
                         <span className="text-base">👨‍🍳</span>
                     </div>
                     <div className="absolute bottom-4 left-4 right-4">
@@ -117,7 +201,7 @@ const ShareableCard: React.FC<ShareableCardProps> = ({ recipe, onClose }) => {
 
                     {/* CTA */}
                     <div className="mt-3 pt-3 border-t border-base-200 flex items-center justify-between">
-                        <p className="text-[10px] text-base-content/40">Cook it on <span className="font-bold text-orange-500">Let Em Cook</span></p>
+                        <p className="text-[10px] text-base-content/40">Cook it on <span className="font-bold text-orange-500">WhatsCookin</span></p>
                         <p className="text-[10px] font-mono text-base-content/30">{window.location.origin}</p>
                     </div>
                 </div>
@@ -126,20 +210,31 @@ const ShareableCard: React.FC<ShareableCardProps> = ({ recipe, onClose }) => {
             {/* Actions */}
             <div className="flex gap-3 w-full max-w-sm">
                 <button
-                    onClick={handleShare}
+                    onClick={handleShareWithImage}
+                    disabled={isSharing}
                     className="flex-1 btn btn-primary rounded-2xl gap-2"
                 >
-                    <span className="material-symbols-outlined text-[20px]">share</span>
-                    Share
+                    {isSharing ? (
+                        <span className="loading loading-spinner loading-sm" />
+                    ) : (
+                        <span className="material-symbols-outlined text-[20px]">share</span>
+                    )}
+                    {isSharing ? 'Sharing...' : 'Share'}
                 </button>
                 <button
                     onClick={handleDownload}
+                    disabled={isSaving}
                     className="flex-1 btn btn-outline btn-primary rounded-2xl gap-2"
                 >
-                    <span className="material-symbols-outlined text-[20px]">download</span>
-                    Save Image
+                    {isSaving ? (
+                        <span className="loading loading-spinner loading-sm" />
+                    ) : (
+                        <span className="material-symbols-outlined text-[20px]">download</span>
+                    )}
+                    {isSaving ? 'Saving...' : 'Save Image'}
                 </button>
             </div>
+            {saveMessage && <p className="text-center text-xs font-semibold text-white/70">{saveMessage}</p>}
             <button onClick={onClose} className="text-white/60 text-sm font-semibold">Cancel</button>
         </div>
     );

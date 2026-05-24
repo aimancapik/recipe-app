@@ -1,5 +1,5 @@
 {
-  "name": "Alex's Culinary Haven",
-  "description": "A visually stunning recipe application featuring personalized greetings, category-based exploration, detailed cooking instructions, and AI-powered recipe generation from any ingredients.",
+  "name": "WhatsCookin",
+  "description": "An ingredient-first recipe discovery app with universal recipe import from URLs, videos, images, and text.",
   "requestFramePermissions": []
 }

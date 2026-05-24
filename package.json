@@ -1,5 +1,5 @@
 {
-  "name": "let-em-cook",
+  "name": "whatscookin",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -13,8 +13,8 @@
     "@capacitor/app": "^8.1.0",
     "@capacitor/cli": "^7.5.0",
     "@capacitor/core": "^8.1.0",
-    "@google/genai": "^1.40.0",
     "@supabase/supabase-js": "^2.95.3",
+    "animejs": "^4.4.1",
     "gifenc": "^1.0.3",
     "html2canvas": "^1.4.1",
     "lottie-react": "^2.4.1",

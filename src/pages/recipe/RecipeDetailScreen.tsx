@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import ReactPlayer from 'react-player';
+import { createTimeline, stagger } from 'animejs';
 import LoadingAnimation from '@/components/common/LoadingAnimation';
 import { Recipe } from '@/types';
 import StepTimer from '@/components/recipe/StepTimer';
@@ -54,6 +55,98 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
     const [isSaving, setIsSaving] = useState(false);
     const [activeStepTimers, setActiveStepTimers] = useState<Set<number>>(new Set());
     const [stepImageViewer, setStepImageViewer] = useState<string | null>(null);
+    const detailRootRef = useRef<HTMLDivElement>(null);
+
+    useLayoutEffect(() => {
+        const root = detailRootRef.current;
+        if (!root) return;
+
+        const hero = root.querySelector<HTMLElement>('[data-recipe-hero]');
+        const navItems = root.querySelectorAll<HTMLElement>('[data-recipe-nav] > *');
+        const sheet = root.querySelector<HTMLElement>('[data-recipe-sheet]');
+        const contentItems = root.querySelectorAll<HTMLElement>('[data-recipe-motion]');
+        const statItems = root.querySelectorAll<HTMLElement>('[data-recipe-stat]');
+        const ingredientItems = root.querySelectorAll<HTMLElement>('[data-recipe-ingredient]');
+        const stepItems = root.querySelectorAll<HTMLElement>('[data-recipe-step]');
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        const reset = (items: Iterable<HTMLElement>) => {
+            Array.from(items).forEach(item => {
+                item.style.opacity = '';
+                item.style.transform = '';
+            });
+        };
+
+        if (prefersReducedMotion) {
+            reset([hero, sheet].filter(Boolean) as HTMLElement[]);
+            reset(navItems);
+            reset(contentItems);
+            reset(statItems);
+            reset(ingredientItems);
+            reset(stepItems);
+            return;
+        }
+
+        if (hero) {
+            hero.style.opacity = '0';
+            hero.style.transform = 'scale(1.04)';
+        }
+        if (sheet) {
+            sheet.style.opacity = '0';
+            sheet.style.transform = 'translateY(42px)';
+        }
+
+        [...navItems, ...contentItems, ...statItems, ...ingredientItems, ...stepItems].forEach(item => {
+            item.style.opacity = '0';
+            item.style.transform = 'translateY(18px)';
+        });
+
+        const timeline = createTimeline({
+            defaults: {
+                duration: 520,
+                ease: 'outCubic',
+            },
+        });
+
+        if (hero) {
+            timeline.add(hero, { opacity: [0, 1], scale: [1.04, 1], duration: 680 });
+        }
+        if (navItems.length) {
+            timeline.add(navItems, { opacity: [0, 1], y: [-14, 0], delay: stagger(45), duration: 420 }, '-=560');
+        }
+        if (sheet) {
+            timeline.add(sheet, { opacity: [0, 1], y: [42, 0], duration: 640 }, '-=390');
+        }
+        if (contentItems.length) {
+            timeline.add(contentItems, { opacity: [0, 1], y: [22, 0], delay: stagger(55), duration: 480 }, '-=390');
+        }
+        if (statItems.length) {
+            timeline.add(statItems, { opacity: [0, 1], y: [16, 0], scale: [0.96, 1], delay: stagger(38), duration: 420 }, '-=420');
+        }
+        if (ingredientItems.length) {
+            timeline.add(ingredientItems, { opacity: [0, 1], x: [-14, 0], delay: stagger(34), duration: 380 }, '-=260');
+        }
+        if (stepItems.length) {
+            timeline.add(stepItems, { opacity: [0, 1], y: [24, 0], delay: stagger(58), duration: 480 }, '-=160');
+        }
+
+        return () => {
+            timeline.cancel();
+            if (hero) {
+                hero.style.opacity = '';
+                hero.style.transform = '';
+            }
+            if (sheet) {
+                sheet.style.opacity = '';
+                sheet.style.transform = '';
+            }
+            reset(navItems);
+            reset(contentItems);
+            reset(statItems);
+            reset(ingredientItems);
+            reset(stepItems);
+        };
+    }, [recipe.id]);
 
     // Handle initial scroll when gallery opens
     useEffect(() => {
@@ -157,9 +250,9 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
 
     return (
         <>
-        <div className={`relative flex min-h-screen w-full flex-col bg-base-100 ${onPublish ? 'pb-24' : 'pb-28'}`}>
+        <div ref={detailRootRef} className={`relative flex min-h-screen w-full flex-col bg-base-100 ${onPublish ? 'pb-24' : 'pb-28'}`}>
             {/* Header Image & Overlay Nav */}
-            <div className="relative w-full h-80 bg-base-200">
+            <div data-recipe-hero className="relative w-full h-80 bg-base-200">
                 <div className="absolute inset-0 flex overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth">
                     {recipe.images && recipe.images.length > 0 ? (
                         recipe.images.map((src, idx) => (
@@ -215,7 +308,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                     </div>
                 )}
                 {/* Navigation */}
-                <div className="absolute top-0 left-0 right-0 flex justify-between items-center p-4">
+                <div data-recipe-nav className="absolute top-0 left-0 right-0 flex justify-between items-center p-4">
                     <button onClick={onBack} className="btn btn-circle btn-sm glass text-white">
                         <span className="material-symbols-outlined">arrow_back</span>
                     </button>
@@ -247,9 +340,9 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
             </div>
 
             {/* Recipe Content */}
-            <div className="relative -mt-8 rounded-t-3xl bg-base-100 px-6 pt-8 pb-8 shadow-2xl">
+            <div data-recipe-sheet className="relative -mt-8 rounded-t-3xl bg-base-100 px-6 pt-8 pb-8 shadow-2xl">
                 {/* Title and Rating */}
-                <div className="flex justify-between items-start mb-6">
+                <div data-recipe-motion className="flex justify-between items-start mb-6">
                     <div className="flex flex-col gap-1">
                         <h1 className="text-3xl font-bold tracking-tight text-base-content leading-tight">
                             {recipe.title}
@@ -263,7 +356,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                 </div>
 
                 {recipe.description && (
-                    <p className="text-sm text-base-content/60 leading-relaxed mb-6 italic">
+                    <p data-recipe-motion className="text-sm text-base-content/60 leading-relaxed mb-6 italic">
                         {recipe.description}
                     </p>
                 )}
@@ -271,6 +364,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                 {/* Chef Profile Link */}
                 {recipe.userId && (
                     <div
+                        data-recipe-motion
                         onClick={() => onChefClick?.(recipe.userId!)}
                         className="flex items-center gap-3 mb-8 p-3 rounded-2xl bg-base-200 border border-base-300 cursor-pointer hover:bg-base-300/50 transition-all active:scale-[0.98] group"
                     >
@@ -306,7 +400,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                         { label: 'Kcal', val: recipe.kcal, icon: 'bolt' },
                         { label: 'Level', val: recipe.level, icon: 'bar_chart' }
                     ].map(stat => (
-                        <div key={stat.label} className="flex flex-col items-center py-3 bg-base-100/50 rounded-xl shadow-sm first:bg-primary/5 last:bg-primary/5">
+                        <div key={stat.label} data-recipe-stat className="flex flex-col items-center py-3 bg-base-100/50 rounded-xl shadow-sm first:bg-primary/5 last:bg-primary/5">
                             <span className="material-symbols-outlined text-primary text-[20px] mb-1">{stat.icon}</span>
                             <span className="text-base-content font-bold text-xs">{stat.val}</span>
                             <span className="text-[9px] uppercase font-bold text-base-content/40 tracking-wider">{stat.label}</span>
@@ -316,7 +410,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
 
                 {/* Rate Action Section — hidden for recipe owner */}
                 {!onPublish && user?.id !== recipe.userId && (
-                    <div className="mb-10 p-5 rounded-3xl bg-primary/5 border border-primary/10 flex items-center justify-between group overflow-hidden relative">
+                    <div data-recipe-motion className="mb-10 p-5 rounded-3xl bg-primary/5 border border-primary/10 flex items-center justify-between group overflow-hidden relative">
                         <div className="absolute -right-4 -top-4 size-24 bg-primary/10 rounded-full blur-2xl group-hover:bg-primary/20 transition-all duration-500"></div>
                         <div className="flex flex-col gap-1 relative z-10">
                             <span className="text-base font-bold text-base-content">Enjoyed this recipe?</span>
@@ -332,7 +426,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                 )}
 
                 {/* Ingredients */}
-                <div className="mb-10">
+                <div data-recipe-motion className="mb-10">
                     <div className="flex items-center justify-between mb-5 px-1">
                         <h2 className="text-xl font-bold flex items-center gap-2">
                             <div className="size-8 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary">
@@ -365,7 +459,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                     )}
                     <div className="grid grid-cols-1 gap-2.5">
                         {ingredients.map((ing, idx) => (
-                            <div key={idx} className="flex items-center gap-3 p-4 rounded-xl bg-base-100 border border-base-200 hover:border-primary/20 transition-colors shadow-sm group">
+                            <div key={idx} data-recipe-ingredient className="flex items-center gap-3 p-4 rounded-xl bg-base-100 border border-base-200 hover:border-primary/20 transition-colors shadow-sm group">
                                 <div className="size-6 rounded-full border-2 border-secondary/20 flex items-center justify-center group-hover:border-secondary/50 transition-colors">
                                     <div className="size-2 rounded-full bg-secondary/40" />
                                 </div>
@@ -384,7 +478,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
 
                 {/* Start Cooking Button */}
                 {onStartCooking && directions.length > 0 && (
-                    <div className="mb-10">
+                    <div data-recipe-motion className="mb-10">
                         <button
                             onClick={onStartCooking}
                             className="btn btn-primary w-full h-14 rounded-2xl gap-3 text-lg shadow-lg hover:shadow-xl transition-all"
@@ -399,11 +493,11 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
                 )}
 
                 {/* Directions */}
-                <div className="mb-8">
+                <div data-recipe-motion className="mb-8">
                     <h2 className="text-xl font-bold mb-6 px-1">Directions</h2>
                     <div className="space-y-6 relative before:absolute before:left-[17px] before:top-4 before:bottom-4 before:w-0.5 before:bg-gradient-to-b before:from-primary before:to-base-300">
                         {directions.map((dir, idx) => (
-                            <div key={idx} className="relative pl-12 flex flex-col gap-3">
+                            <div key={idx} data-recipe-step className="relative pl-12 flex flex-col gap-3">
                                 {/* Number Circle */}
                                 <div className="absolute left-0 top-0 size-9 rounded-full bg-primary text-primary-content flex items-center justify-center font-black text-sm shadow-lg ring-4 ring-base-100 z-10">
                                     {idx + 1}
@@ -506,7 +600,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
 
                 {/* Share Recipe Card */}
                 {!onPublish && (
-                    <div className="px-5 pb-4">
+                    <div data-recipe-motion className="px-5 pb-4">
                         <button
                             onClick={() => setShowShareCard(true)}
                             className="w-full btn btn-outline rounded-2xl gap-2 border-2"
@@ -519,7 +613,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ recipe, onBack,
 
                 {/* Reviews Section */}
                 {!onPublish && (
-                    <div className="mb-8 space-y-8">
+                    <div data-recipe-motion className="mb-8 space-y-8">
                         <ReviewsSection recipeId={recipe.id} />
                         <hr className="border-base-200" />
                         <CommentsSection recipeId={recipe.id} recipeOwnerId={recipe.userId} />

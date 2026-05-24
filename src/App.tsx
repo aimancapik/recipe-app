@@ -36,7 +36,7 @@ const NO_NAV_SCREENS: Screen[] = [
     Screen.PUBLISH, Screen.LOGIN, Screen.SIGNUP, Screen.MY_RECIPES,
     Screen.PUBLIC_PROFILE, Screen.REVIEW, Screen.COOKING_MODE,
     Screen.MEAL_PLAN, Screen.BITES, Screen.NOTIFICATION,
-    Screen.MESSAGES, Screen.CHAT,
+    Screen.MESSAGES, Screen.CHAT, Screen.IMPORT, Screen.IMPORT_PREVIEW,
 ];
 
 const FULLSCREEN_SCREENS: Screen[] = [Screen.BITES, Screen.NOTIFICATION];
@@ -47,7 +47,7 @@ const App: React.FC = () => {
     // ── Global UI ─────────────────────────────────────────────────────────────
     const { toasts, showToast, dismiss } = useToast();
     const isOnline = useOnlineStatus();
-    const { isDark, toggleTheme } = useTheme();
+    useTheme();
 
     // ── Data hooks ────────────────────────────────────────────────────────────
     const {
@@ -218,9 +218,15 @@ const App: React.FC = () => {
         if (!editingRecipe) return;
         try {
             const draft = buildDraftRecipe(data, editingRecipe);
-            await updateRecipe(editingRecipe.id, draft);
+            if (editingRecipe.id.startsWith('temp-')) {
+                const { id: _id, isFavorite: _fav, ...draftData } = draft;
+                const newId = await addRecipe(draftData);
+                setSelectedRecipe({ ...draft, id: newId });
+            } else {
+                await updateRecipe(editingRecipe.id, draft);
+                setSelectedRecipe(draft);
+            }
             await refreshUserRecipes();
-            setSelectedRecipe(draft);
             setEditingRecipe(null);
         } catch (err) {
             showToast('Failed to save draft.', 'error');
@@ -236,6 +242,19 @@ const App: React.FC = () => {
             await Promise.all([refreshUserRecipes(), fetchRecipes()]);
             setCurrentScreen(Screen.HOME);
         } catch { showToast('Failed to publish AI recipe.', 'error'); }
+    };
+
+    const handleSaveImportedRecipe = async (recipe: Recipe) => {
+        const { id, isFavorite: _fav, ...recipeData } = recipe;
+        try {
+            await addRecipe(recipeData);
+            await Promise.all([refreshUserRecipes(), fetchRecipes()]);
+            showToast('Imported recipe saved!', 'success');
+            setSelectedRecipe(null);
+            setCurrentScreen(Screen.HOME);
+        } catch {
+            showToast('Failed to save imported recipe.', 'error');
+        }
     };
 
     const handleDeleteRecipe = async (id: string) => {
@@ -335,7 +354,7 @@ const App: React.FC = () => {
         isFavorite, savedInitialTab, setSavedInitialTab,
         bitesActiveIndex, setBitesActiveIndex,
         handlePublishRecipe, handleUpdateRecipe, handleSaveDraftRecipe,
-        handleAIPublish, handleDeleteRecipe, handleToggleFavorite,
+        handleAIPublish, handleSaveImportedRecipe, handleDeleteRecipe, handleToggleFavorite,
         handleSeeAll, handleRefresh, addIngredientsToGrocery,
         updateStatus, refreshUserRecipes, fetchRecipes, fetchRecipesByIds,
         loadMore, hasMore, loadingMore, loading,
@@ -345,7 +364,7 @@ const App: React.FC = () => {
         removeGroceryItem, updateGroceryItem,
         clearCheckedGroceryItems, clearAllGroceryItems,
         mealSlots, mealPlanLoading, addSlot, removeSlot, clearDay, addFromRecipe,
-        isDark, toggleTheme, setIsNavHidden,
+        setIsNavHidden,
         searchQuery, initialCategory, filters, setFilters,
         conversations, messages, loadingConvos, loadingMessages,
         activeConversation, setActiveConversation,
@@ -393,6 +412,7 @@ const App: React.FC = () => {
                     onCreateRecipe={() => requireAuth(() => navigateTo(Screen.PUBLISH), Screen.HOME)}
                     onAddToShoppingList={() => requireAuth(() => navigateTo(Screen.GROCERY), Screen.HOME)}
                     onPlanMeal={() => requireAuth(() => { setSubScreenReturnTo(currentScreen); navigateTo(Screen.MEAL_PLAN); }, currentScreen)}
+                    onImportRecipe={() => navigateTo(Screen.IMPORT)}
                     onModalToggle={setIsNavHidden}
                 />
 

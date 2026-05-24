@@ -12,7 +12,7 @@ const CookStreakCard: React.FC<CookStreakCardProps> = ({ streak }) => {
     return (
         <div className={`rounded-2xl p-4 border transition-all ${
             streak.current_streak > 0
-                ? 'bg-gradient-to-br from-orange-500/10 to-red-500/10 border-orange-200 dark:border-orange-800'
+                ? 'bg-gradient-to-br from-orange-500/10 to-red-500/10 border-orange-200'
                 : 'bg-base-200/50 border-base-200'
         }`}>
             <div className="flex items-center justify-between mb-3">

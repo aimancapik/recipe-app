@@ -6,32 +6,32 @@ interface OnboardingScreenProps {
 
 const slides = [
     {
-        title: "Discover & Cook",
-        description: "Find your next culinary adventure from thousands of recipes shared by our community.",
-        icon: "restaurant_menu",
-        color: "from-orange-400 to-primary",
-        bg: "bg-orange-50"
+        title: "What's in your fridge?",
+        description: "Add the ingredients you already have and WhatsCookin will find recipes that fit.",
+        icon: "kitchen",
+        color: "from-teal-500 to-cyan-500",
+        bg: "bg-teal-50"
     },
     {
-        title: "AI Magic Chef",
-        description: "Have ingredients but don't know what to make? Let our AI chef generate a custom recipe for you in seconds.",
-        icon: "auto_awesome",
-        color: "from-purple-500 to-indigo-500",
-        bg: "bg-purple-50"
+        title: "We find the recipes",
+        description: "See strong matches first, plus what you are missing before you start cooking.",
+        icon: "fact_check",
+        color: "from-cyan-500 to-sky-500",
+        bg: "bg-cyan-50"
     },
     {
-        title: "Smart Grocery List",
-        description: "Add ingredients from any recipe directly to your smart shopping list with just one tap.",
-        icon: "shopping_basket",
-        color: "from-emerald-400 to-teal-500",
+        title: "Import from anywhere",
+        description: "Paste a URL, upload a screenshot, or snap a cookbook photo and save the recipe.",
+        icon: "download",
+        color: "from-amber-400 to-teal-500",
+        bg: "bg-amber-50"
+    },
+    {
+        title: "Set up your pantry",
+        description: "Keep staples like salt, oil, and pepper ready so matches get smarter over time.",
+        icon: "inventory_2",
+        color: "from-emerald-500 to-teal-500",
         bg: "bg-emerald-50"
-    },
-    {
-        title: "Join the Community",
-        description: "Follow your favorite chefs, save recipes to custom collections, and share your own masterpieces.",
-        icon: "groups",
-        color: "from-rose-400 to-red-500",
-        bg: "bg-rose-50"
     }
 ];
 

@@ -18,8 +18,8 @@ export default defineConfig(({ mode }) => {
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
         manifest: {
-          name: 'Let Em Cook',
-          short_name: 'Let Em Cook',
+          name: 'WhatsCookin',
+          short_name: 'WhatsCookin',
           description: 'A beautiful recipe and meal planning app',
           theme_color: '#ffffff',
           background_color: '#ffffff',

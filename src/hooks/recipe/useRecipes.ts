@@ -65,6 +65,11 @@ function transformRow(row: any): Recipe {
         ingredients,
         directions,
         matchedIngredientsCount: row.matched_ingredients_count,
+        totalIngredientsCount: row.total_ingredients_count,
+        missingIngredients: row.missing_ingredients || [],
+        source: row.source,
+        sourceUrl: row.source_url,
+        sourceName: row.source_name,
     };
 }
 
@@ -216,6 +221,10 @@ export function useRecipes() {
         if (!isFetchingRef.current && hasMoreRef.current) {
             fetchRecipes(true);
         }
+    }, [fetchRecipes]);
+
+    const fetchByIngredients = useCallback(async (ingredients: string[]) => {
+        await fetchRecipes(false, '', '', 'forYou', '', ingredients);
     }, [fetchRecipes]);
 
     // Helper to check if any data contains oversized strings (likely leaked base64 images)
@@ -415,5 +424,5 @@ export function useRecipes() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    return { recipes, loading, loadingMore, hasMore, error, fetchRecipes, fetchRecipesByIds, fetchRecipesByUserId, loadMore, addRecipe, deleteRecipe, updateRecipe, updateStatus, setRecipes };
+    return { recipes, loading, loadingMore, hasMore, error, fetchRecipes, fetchByIngredients, fetchRecipesByIds, fetchRecipesByUserId, loadMore, addRecipe, deleteRecipe, updateRecipe, updateStatus, setRecipes };
 }

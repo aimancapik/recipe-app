@@ -63,7 +63,7 @@ export function formatGroceryListForSharing(items: GroceryItem[]): string {
     const unchecked = items.filter(i => !i.checked);
     const checked = items.filter(i => i.checked);
     
-    let text = "🛒 *My Shopping List (Let Em Cook)*\n\n";
+    let text = "🛒 *My Shopping List (WhatsCookin)*\n\n";
     
     if (unchecked.length > 0) {
         text += "*To Buy:*\n";
@@ -79,6 +79,6 @@ export function formatGroceryListForSharing(items: GroceryItem[]): string {
         });
     }
     
-    text += "\nSent via Let Em Cook App 🍳";
+    text += "\nSent via WhatsCookin App 🍳";
     return text;
 }

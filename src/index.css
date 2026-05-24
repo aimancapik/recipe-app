@@ -1,66 +1,33 @@
 @import "tailwindcss";
 
 @plugin "daisyui" {
-  themes: letemcook-light --default, letemcook-dark;
+  themes: whatscookin-light --default;
 }
 
 @plugin "daisyui/theme" {
-  name: "letemcook-light";
+  name: "whatscookin-light";
   default: true;
   color-scheme: light;
-  --color-base-100: #fffdf8;
-  --color-base-200: #faf4ea;
-  --color-base-300: #efe5d6;
-  --color-base-content: #241c16;
-  --color-primary: #a94735;
-  --color-primary-content: #fff8ef;
-  --color-secondary: #66765a;
-  --color-secondary-content: #fffdf8;
-  --color-accent: #b88a4a;
-  --color-accent-content: #241c16;
-  --color-neutral: #2d241d;
-  --color-neutral-content: #fffdf8;
-  --color-info: #347c9f;
-  --color-info-content: #f7fbff;
-  --color-success: #557a58;
-  --color-success-content: #f7fff9;
-  --color-warning: #c99a4b;
-  --color-warning-content: #2b1b05;
-  --color-error: #b94a3a;
-  --color-error-content: #fff7f4;
-  --radius-selector: 1rem;
-  --radius-field: 1rem;
-  --radius-box: 1.25rem;
-  --size-selector: 0.25rem;
-  --size-field: 0.25rem;
-  --border: 1px;
-  --depth: 1;
-  --noise: 0;
-}
-
-@plugin "daisyui/theme" {
-  name: "letemcook-dark";
-  color-scheme: dark;
-  --color-base-100: #211a16;
-  --color-base-200: #15110f;
-  --color-base-300: #30261f;
-  --color-base-content: #f3e7d8;
-  --color-primary: #c76550;
-  --color-primary-content: #1f100c;
-  --color-secondary: #8b9b74;
-  --color-secondary-content: #12170f;
-  --color-accent: #d0a463;
-  --color-accent-content: #1f1607;
-  --color-neutral: #f3e7d8;
-  --color-neutral-content: #211a16;
-  --color-info: #75b9d4;
-  --color-info-content: #071820;
-  --color-success: #7ea578;
-  --color-success-content: #07160b;
-  --color-warning: #d6ae68;
-  --color-warning-content: #241703;
-  --color-error: #d46a5c;
-  --color-error-content: #240908;
+  --color-base-100: #ffffff;
+  --color-base-200: #f6f6f6;
+  --color-base-300: #d4e0ee;
+  --color-base-content: #1b1b1b;
+  --color-primary: #97af8f;
+  --color-primary-content: #ffffff;
+  --color-secondary: #c0cfe6;
+  --color-secondary-content: #1b1b1b;
+  --color-accent: #eacbd1;
+  --color-accent-content: #1b1b1b;
+  --color-neutral: #1b1b1b;
+  --color-neutral-content: #f6f6f6;
+  --color-info: #8aa8cf;
+  --color-info-content: #ffffff;
+  --color-success: #7fa477;
+  --color-success-content: #ffffff;
+  --color-warning: #d8b66d;
+  --color-warning-content: #1b1b1b;
+  --color-error: #c86f75;
+  --color-error-content: #ffffff;
   --radius-selector: 1rem;
   --radius-field: 1rem;
   --radius-box: 1.25rem;
@@ -74,9 +41,8 @@
 @theme {
   --font-display: "Work Sans", sans-serif;
   --font-handwriting: "Caveat", cursive;
-  --color-primary-custom: #a94735;
-  --color-background-light: #faf4ea;
-  --color-background-dark: #15110f;
+  --color-primary-custom: #97af8f;
+  --color-background-light: #f6f6f6;
 }
 
 @layer base {
@@ -175,9 +141,29 @@
 
 .lec-food-gradient {
   background:
-    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 18rem),
-    radial-gradient(circle at 82% 12%, color-mix(in srgb, var(--color-secondary) 8%, transparent), transparent 18rem),
+    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--color-primary) 12%, transparent), transparent 18rem),
+    radial-gradient(circle at 82% 12%, color-mix(in srgb, var(--color-accent) 10%, transparent), transparent 18rem),
     linear-gradient(180deg, var(--color-base-100), var(--color-base-200));
+}
+
+.wc-fridge-gradient {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--color-primary) 10%, #ffffff) 0%, #ffffff 18rem),
+    linear-gradient(180deg, #ffffff 0%, var(--color-base-200) 58%, #ffffff 100%);
+}
+
+.wc-glass {
+  background: color-mix(in srgb, var(--color-base-100) 82%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 16%, transparent);
+  backdrop-filter: blur(18px);
+}
+
+.wc-glow {
+  box-shadow: 0 20px 54px color-mix(in srgb, var(--color-primary) 22%, transparent);
+}
+
+.wc-gradient {
+  background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-secondary) 72%, #ffffff));
 }
 
 .lec-icon {

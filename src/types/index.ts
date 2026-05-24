@@ -20,8 +20,18 @@ export enum Screen {
     NOTIFICATION = 'notification',
     MEAL_PLAN = 'meal_plan',
     MESSAGES = 'messages',
-    CHAT = 'chat'
+    CHAT = 'chat',
+    IMPORT = 'import',
+    IMPORT_PREVIEW = 'import_preview'
 }
+
+export type RecipeSource =
+    | 'manual'
+    | 'ai_generated'
+    | 'imported_web'
+    | 'imported_youtube'
+    | 'imported_tiktok'
+    | 'imported_image';
 
 export interface Direction {
     step: number;
@@ -51,7 +61,12 @@ export interface Recipe {
     status?: 'published' | 'draft';
     images?: string[];
     matchedIngredientsCount?: number;
+    totalIngredientsCount?: number;
+    missingIngredients?: string[];
     dietaryPreferences?: string[];
+    source?: RecipeSource;
+    sourceUrl?: string;
+    sourceName?: string;
 }
 
 export interface Category {

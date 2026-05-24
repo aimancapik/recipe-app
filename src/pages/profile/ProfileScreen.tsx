@@ -12,8 +12,6 @@ import { supabase } from '@/lib/supabase';
 
 interface ProfileScreenProps {
     onBack: () => void;
-    isDark: boolean;
-    onToggleTheme: () => void;
     user: User | null;
     onSignOut: () => Promise<void>;
     onUpdateProfile: (updates: {
@@ -45,8 +43,6 @@ interface ProfileScreenProps {
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({
     onBack,
-    isDark,
-    onToggleTheme,
     user,
     onSignOut,
     onUpdateProfile,
@@ -108,7 +104,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
     const handleShareProfile = async () => {
         const url = `${window.location.origin}${window.location.pathname}?user=${user?.id}`;
-        const text = `Hey, check out my profile on Let Em Cook! 👨‍🍳\n${url}`;
+        const text = `Hey, check out my profile on WhatsCookin! 👨‍🍳\n${url}`;
         try {
             if (navigator.share) {
                 await navigator.share({ title: `Chef ${displayName}`, text });
@@ -472,22 +468,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                     <div>
                         <h3 className="px-2 text-xs font-black text-base-content/30 uppercase tracking-[0.2em] mb-4">Settings & Support</h3>
                         <div className="bg-base-200 rounded-[32px] border border-base-300 p-3 shadow-sm space-y-1">
-                            <div className="flex items-center gap-4 p-4 rounded-2xl">
-                                <div className="size-12 rounded-2xl bg-base-200 text-base-content/40 flex items-center justify-center">
-                                    <span className="material-symbols-outlined text-[26px]">{isDark ? 'dark_mode' : 'light_mode'}</span>
-                                </div>
-                                <div className="flex-1">
-                                    <p className="font-black text-base-content">{isDark ? 'Midnight Theme' : 'Daylight Theme'}</p>
-                                    <p className="text-[11px] text-base-content/50 font-medium">Customize your visual experience</p>
-                                </div>
-                                <input
-                                    type="checkbox"
-                                    className="toggle toggle-primary h-7 w-12"
-                                    checked={isDark}
-                                    onChange={onToggleTheme}
-                                />
-                            </div>
-
                             <button onClick={() => setShowHelpSheet(true)} className="flex w-full items-center gap-4 p-4 rounded-2xl hover:bg-base-300 transition-all group">
                                 <div className="size-12 rounded-2xl bg-base-200 text-base-content/40 flex items-center justify-center">
                                     <span className="material-symbols-outlined text-[26px]">help</span>
@@ -528,7 +508,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
                             <div className="space-y-2">
                                 <a
-                                    href="https://t.me/letemcooksuppport"
+                                    href="https://t.me/whatscookinsupport"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="flex items-center gap-4 p-4 rounded-2xl bg-base-200/50 hover:bg-base-200 transition-colors"

@@ -138,7 +138,7 @@ const PublicProfileScreen: React.FC<PublicProfileScreenProps> = ({ userId, onBac
 
     const handleShareProfile = async () => {
         const url = `${window.location.origin}${window.location.pathname}?user=${userId}`;
-        const text = `Hey, check out Chef ${profile?.full_name} on Let Em Cook! 👨‍🍳\n${url}`;
+        const text = `Hey, check out Chef ${profile?.full_name} on WhatsCookin! 👨‍🍳\n${url}`;
         try {
             if (navigator.share) {
                 await navigator.share({ title: `Chef ${profile?.full_name}`, text });

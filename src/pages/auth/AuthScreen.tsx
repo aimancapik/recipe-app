@@ -97,7 +97,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
             <div className="relative z-10 flex-1 flex flex-col items-center justify-center pt-16 pb-8 px-6 text-center">
                 <img
                     src="/logo.png"
-                    alt="Let Em Cook"
+                    alt="WhatsCookin"
                     className="w-96 max-w-md object-contain"
                     style={{ filter: 'drop-shadow(0 12px 40px rgba(0,0,0,0.6)) drop-shadow(0 4px 16px rgba(0,0,0,0.4))' }}
                 />

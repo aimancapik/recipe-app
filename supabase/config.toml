@@ -415,3 +415,9 @@ entrypoint = "./functions/extract-recipe/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/extract-recipe/*.html" ]
+
+[functions.fetch-url]
+enabled = true
+verify_jwt = false
+import_map = "./functions/fetch-url/deno.json"
+entrypoint = "./functions/fetch-url/index.ts"

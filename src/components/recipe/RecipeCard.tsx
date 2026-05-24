@@ -102,7 +102,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onClick, onToggleFavori
 
     return (
         <div
-            className="group relative lec-card cursor-pointer active:scale-[0.97] transition-all duration-300 overflow-hidden break-inside-avoid mb-4 hover:shadow-xl hover:shadow-primary/10"
+            className="group relative lec-card cursor-pointer active:scale-[0.97] transition-all duration-300 overflow-hidden break-inside-avoid hover:shadow-xl hover:shadow-primary/10"
             onClick={() => onClick(recipe)}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
