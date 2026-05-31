@@ -38,8 +38,8 @@ const IngredientInput: React.FC<IngredientInputProps> = ({
     };
 
     return (
-        <div className="space-y-4">
-            <label className="flex min-h-[52px] items-center gap-3 rounded-2xl border border-base-content/10 bg-base-200/60 px-4 transition focus-within:border-primary/45 focus-within:bg-white">
+        <div className="space-y-3">
+            <label className="flex min-h-[52px] items-center gap-3 rounded-2xl border border-base-content/10 bg-base-200/55 px-3.5 transition focus-within:border-primary/45 focus-within:bg-white">
                 <span className="material-symbols-outlined text-primary">search</span>
                 <input
                     className="no-focus-ring min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:text-base-content/35"
@@ -53,7 +53,7 @@ const IngredientInput: React.FC<IngredientInputProps> = ({
                     }}
                     placeholder="What ingredients do you have?"
                 />
-                <button type="button" onClick={submit} className="btn btn-primary btn-sm btn-circle shadow-none">
+                <button type="button" onClick={submit} className="btn btn-primary btn-sm btn-circle shrink-0 shadow-none" aria-label="Add ingredient">
                     <span className="material-symbols-outlined text-base">add</span>
                 </button>
             </label>
@@ -80,13 +80,13 @@ const IngredientInput: React.FC<IngredientInputProps> = ({
             </div>
 
             <div>
-                <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-base-content/45">Quick adds</p>
-                <div className="grid grid-cols-4 gap-2">
+                <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-base-content/40">Quick adds</p>
+                <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
                     {QUICK_INGREDIENTS.map(item => (
                         <button
                             key={item}
                             onClick={() => onAdd(item)}
-                            className="flex h-14 flex-col items-center justify-center rounded-2xl border border-base-content/10 bg-white text-center text-[11px] font-black shadow-sm shadow-base-content/[0.03] transition hover:border-primary/25 hover:bg-primary/5 active:scale-95"
+                            className="flex h-12 min-w-[4.25rem] flex-col items-center justify-center rounded-2xl border border-base-content/10 bg-base-100 text-center text-[11px] font-black shadow-sm shadow-base-content/[0.03] transition hover:border-primary/25 hover:bg-primary/5 active:scale-95"
                         >
                             <span className="material-symbols-outlined mb-0.5 text-lg text-primary">{iconFor(item)}</span>
                             <span className="max-w-full truncate px-1">{item}</span>
@@ -96,12 +96,12 @@ const IngredientInput: React.FC<IngredientInputProps> = ({
             </div>
 
             <div className="grid grid-cols-[1fr_auto] gap-3">
-                <button onClick={onFindRecipes} disabled={ingredients.length === 0 || loading} className="btn btn-primary h-[52px] rounded-2xl px-5 text-sm shadow-md shadow-primary/15">
+                <button onClick={onFindRecipes} disabled={ingredients.length === 0 || loading} className="btn btn-primary h-[50px] rounded-2xl px-5 text-sm shadow-md shadow-primary/15">
                     <span className="material-symbols-outlined text-xl">search</span>
                     {loading ? 'Finding recipes...' : `Find ${ingredients.length ? 'Matching' : ''} Recipes`}
                 </button>
-                <button onClick={onImportRecipe} aria-label="Import a recipe" className="btn h-[52px] w-14 rounded-2xl border-base-content/10 bg-white px-0 text-primary shadow-sm">
-                    <span className="material-symbols-outlined">download</span>
+                <button onClick={onImportRecipe} aria-label="Import a recipe" title="Import recipe" className="btn h-[50px] w-14 rounded-2xl border-base-content/10 bg-white px-0 text-primary shadow-sm">
+                    <span className="material-symbols-outlined">post_add</span>
                 </button>
             </div>
         </div>

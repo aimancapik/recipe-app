@@ -71,7 +71,7 @@ const QuickActionsOverlay: React.FC<QuickActionsOverlayProps> = ({
                         className="w-full bg-secondary/10 hover:bg-secondary/20 active:scale-[0.98] transition-all p-4 rounded-2xl flex items-center gap-4 group border border-secondary/20"
                     >
                         <div className="w-12 h-12 rounded-full bg-secondary text-secondary-content flex items-center justify-center shadow-lg shadow-secondary/20 group-hover:scale-110 transition-transform">
-                            <span className="material-symbols-outlined text-2xl">download</span>
+                            <span className="material-symbols-outlined text-2xl">post_add</span>
                         </div>
                         <div className="flex-1 text-left">
                             <h3 className="text-base-content font-black text-lg">Import Recipe</h3>

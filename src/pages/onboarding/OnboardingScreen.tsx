@@ -22,7 +22,7 @@ const slides = [
     {
         title: "Import from anywhere",
         description: "Paste a URL, upload a screenshot, or snap a cookbook photo and save the recipe.",
-        icon: "download",
+        icon: "post_add",
         color: "from-amber-400 to-teal-500",
         bg: "bg-amber-50"
     },

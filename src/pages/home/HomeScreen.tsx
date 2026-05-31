@@ -103,44 +103,69 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 
     return (
         <PullToRefresh onRefresh={onPullRefresh} className="flex flex-col pb-20 bg-base-100 wc-fridge-gradient">
-            <section className="px-5 pt-6 pb-2">
-                <div className="flex items-center justify-between">
+            <section className="px-4 pt-5 pb-3">
+                <div className="flex items-center justify-between px-1">
                     <div className="flex items-center gap-3">
-                        <div className="grid size-12 place-items-center overflow-hidden rounded-2xl bg-primary text-primary-content shadow-sm ring-1 ring-base-content/5">
+                        <div className="grid size-11 place-items-center overflow-hidden rounded-2xl bg-primary text-primary-content shadow-sm ring-1 ring-base-content/5">
                             {avatarUrl ? <img src={avatarUrl} alt="Profile" className="h-full w-full object-cover" /> : <span className="text-lg font-black">{displayName.charAt(0).toUpperCase()}</span>}
                         </div>
                         <div>
-                            <p className="text-xs font-black uppercase tracking-widest text-primary">Hey {displayName}</p>
-                            <h1 className="text-xl font-black leading-tight text-base-content">Ready to cook?</h1>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Hey {displayName}</p>
+                            <h1 className="text-xl font-black leading-tight text-base-content">What's cooking?</h1>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-1">
-                        <button onClick={onOpenNotifications} className="relative inline-flex size-10 items-center justify-center rounded-full border border-base-content/10 bg-white text-base-content/70 shadow-sm transition hover:bg-base-200">
+                        <button onClick={onOpenNotifications} className="relative inline-flex size-10 items-center justify-center rounded-full border border-base-content/10 bg-white text-base-content/70 shadow-sm transition hover:bg-base-200" aria-label="Open notifications">
                             {unreadCount > 0 && <span className="indicator-item badge badge-primary badge-xs scale-75" />}
                             <span className="material-symbols-outlined text-xl">notifications</span>
                         </button>
                     </div>
                 </div>
 
-                <div className="mt-4 rounded-[1.5rem] border border-base-content/10 bg-white p-4 shadow-[0_18px_44px_rgba(27,27,27,0.06)]">
-                    <div className="mb-4 flex items-end justify-between gap-4">
-                        <div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Kitchen check</p>
-                            <h2 className="mt-1 text-2xl font-black leading-tight text-base-content">What do you have?</h2>
+                <div className="mt-4 overflow-hidden rounded-[1.5rem] border border-primary/15 bg-white shadow-[0_18px_44px_rgba(27,27,27,0.07)]">
+                    <div className="bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-primary)_18%,white),color-mix(in_srgb,var(--color-secondary)_28%,white))] px-4 pb-3.5 pt-4">
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-primary">Kitchen check</p>
+                                <h2 className="mt-1 text-[1.35rem] font-black leading-none text-base-content">Cook from what you have</h2>
+                                <p className="mt-1.5 max-w-[15rem] text-xs font-semibold leading-relaxed text-base-content/55">
+                                    Add pantry items and we'll pull recipes that match.
+                                </p>
+                            </div>
+                            <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-white/75 text-primary shadow-sm ring-1 ring-white/70">
+                                <span className="material-symbols-outlined">skillet</span>
+                            </div>
                         </div>
-                        <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-secondary/35 text-primary">
-                            <span className="material-symbols-outlined">restaurant</span>
+
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                            <div className="rounded-2xl bg-white/70 px-3 py-2 ring-1 ring-white/70">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Pantry</p>
+                                <p className="mt-0.5 text-lg font-black leading-none text-base-content">{ingredients.length} item{ingredients.length === 1 ? '' : 's'}</p>
+                            </div>
+                            <button onClick={onOpenImport} className="flex items-center justify-between rounded-2xl bg-white/70 px-3 py-2 text-left ring-1 ring-white/70 transition active:scale-[0.98]">
+                                <span>
+                                    <span className="block text-[10px] font-black uppercase tracking-widest text-base-content/40">Save</span>
+                                    <span className="mt-0.5 block text-sm font-black text-base-content">Import recipe</span>
+                                </span>
+                                <span className="material-symbols-outlined text-primary">post_add</span>
+                            </button>
                         </div>
                     </div>
-                    <IngredientInput
-                        ingredients={ingredients}
-                        onAdd={addIngredient}
-                        onRemove={removeIngredient}
-                        onFindRecipes={findRecipes}
-                        onImportRecipe={onOpenImport}
-                        loading={loading && matchingMode}
-                    />
+
+                    <div className="p-3.5">
+                        <div>
+                            <p className="mb-3 text-[10px] font-black uppercase tracking-widest text-base-content/40">Start with ingredients</p>
+                        </div>
+                        <IngredientInput
+                            ingredients={ingredients}
+                            onAdd={addIngredient}
+                            onRemove={removeIngredient}
+                            onFindRecipes={findRecipes}
+                            onImportRecipe={onOpenImport}
+                            loading={loading && matchingMode}
+                        />
+                    </div>
                 </div>
             </section>
 

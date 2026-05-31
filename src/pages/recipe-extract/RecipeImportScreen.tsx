@@ -68,7 +68,7 @@ const RecipeImportScreen: React.FC<RecipeImportScreenProps> = ({ onBack, onRecip
             <main className="space-y-5 px-5 py-5">
                 <section className="rounded-3xl border border-primary/10 bg-base-100 p-5 shadow-xl shadow-primary/5">
                     <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary text-primary-content shadow-lg shadow-primary/20">
-                        <span className="material-symbols-outlined text-3xl">download</span>
+                        <span className="material-symbols-outlined text-3xl">post_add</span>
                     </div>
                     <h2 className="text-2xl font-black leading-tight">Paste a link or snap a photo</h2>
                     <p className="mt-2 text-sm font-medium leading-relaxed text-base-content/55">See a recipe anywhere? Bring it here and we will turn it into something you can save.</p>
