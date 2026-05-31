@@ -27,8 +27,55 @@ import { AIGenerationProvider } from '@/contexts/AIGenerationContext';
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 import { buildNewRecipe, buildUpdatedRecipe, buildDraftRecipe } from '@/lib/recipeFormUtils';
+import { uploadOptimizedImage } from '@/lib/storage';
 
 const OnboardingScreen = lazy(() => import('@/pages/onboarding/OnboardingScreen'));
+
+const isDataUrl = (value?: string | null) => Boolean(value?.startsWith('data:'));
+
+const dataUrlToFile = async (dataUrl: string, filename: string): Promise<File> => {
+    const response = await fetch(dataUrl);
+    const blob = await response.blob();
+    const mime = blob.type || dataUrl.match(/^data:([^;]+);/)?.[1] || 'image/jpeg';
+    const extension = mime.split('/')[1]?.split('+')[0] || 'jpg';
+    const baseName = filename.replace(/\.[^/.]+$/, '').replace(/[^a-z0-9_-]+/gi, '-').replace(/^-+|-+$/g, '') || 'imported-recipe';
+    return new File([blob], `${baseName}.${extension}`, { type: mime });
+};
+
+const getErrorMessage = (err: unknown, fallback: string) => {
+    if (err instanceof Error && err.message) return err.message;
+    if (typeof err === 'object' && err !== null) {
+        const maybeError = err as { message?: string; error_description?: string; details?: string };
+        return maybeError.message || maybeError.error_description || maybeError.details || fallback;
+    }
+    return fallback;
+};
+
+const uploadImportedDataUrl = async (dataUrl: string, sourceName?: string) => {
+    const file = await dataUrlToFile(dataUrl, sourceName || 'imported-recipe-image');
+    const { url } = await uploadOptimizedImage(file, 'imports');
+    return url;
+};
+
+const persistImportedImages = async (recipe: Omit<Recipe, 'id'>): Promise<Omit<Recipe, 'id'>> => {
+    const uploaded = new Map<string, string>();
+    const uploadOnce = async (value?: string | null) => {
+        if (!value || !isDataUrl(value)) return value || null;
+        if (!uploaded.has(value)) {
+            uploaded.set(value, await uploadImportedDataUrl(value, recipe.sourceName));
+        }
+        return uploaded.get(value)!;
+    };
+
+    const image = await uploadOnce(recipe.image) || recipe.image;
+    const images = await Promise.all((recipe.images || []).map(async item => await uploadOnce(item) || item));
+    const directions = await Promise.all((recipe.directions || []).map(async direction => ({
+        ...direction,
+        image: await uploadOnce(direction.image),
+    })));
+
+    return { ...recipe, image, images, directions };
+};
 
 // ── Screens hidden from bottom nav ────────────────────────────────────────────
 const NO_NAV_SCREENS: Screen[] = [
@@ -247,13 +294,13 @@ const App: React.FC = () => {
     const handleSaveImportedRecipe = async (recipe: Recipe) => {
         const { id, isFavorite: _fav, ...recipeData } = recipe;
         try {
-            await addRecipe(recipeData);
+            await addRecipe(await persistImportedImages(recipeData));
             await Promise.all([refreshUserRecipes(), fetchRecipes()]);
             showToast('Imported recipe saved!', 'success');
             setSelectedRecipe(null);
             setCurrentScreen(Screen.HOME);
-        } catch {
-            showToast('Failed to save imported recipe.', 'error');
+        } catch (err) {
+            showToast(`Failed to save imported recipe: ${getErrorMessage(err, 'Try again.')}`, 'error');
         }
     };
 
